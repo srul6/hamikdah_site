@@ -1,0 +1,17 @@
+/* /* @font-face {
+    font-family: 'YourCustomFont';
+    src: url('../assets/fonts/your-font.woff2') format('woff2'),
+        url('../assets/fonts/your-font.woff') format('woff'),
+        url('../assets/fonts/your-font.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+} */
+
+@font-face {
+    font-family: 'YourCustomFont';
+    src: url('../assets/fonts/ploni-light-aaa.woff2') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
