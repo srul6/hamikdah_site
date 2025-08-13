@@ -1,8 +1,8 @@
-const API_URL = 'http://localhost:5001/api/cardcom';
+import { API_ENDPOINTS } from '../config';
 
 export const createCardcomPayment = async (items, totalAmount, customerInfo) => {
     try {
-        const response = await fetch(`${API_URL}/create-payment`, {
+        const response = await fetch(`${API_ENDPOINTS.cardcom}/create-payment`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -28,7 +28,7 @@ export const createCardcomPayment = async (items, totalAmount, customerInfo) => 
 
 export const getPaymentStatus = async (transactionId) => {
     try {
-        const response = await fetch(`${API_URL}/status/${transactionId}`, {
+        const response = await fetch(`${API_ENDPOINTS.cardcom}/status/${transactionId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

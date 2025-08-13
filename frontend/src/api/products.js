@@ -1,11 +1,11 @@
-const API_URL = 'http://localhost:5001/api/products';
+import { API_ENDPOINTS } from '../config';
 
 export async function fetchProducts() {
-    const res = await fetch(API_URL);
+    const res = await fetch(API_ENDPOINTS.products);
     return res.json();
 }
 
 export async function fetchProductById(id) {
-    const res = await fetch(`${API_URL}/${id}`);
+    const res = await fetch(`${API_ENDPOINTS.products}/${id}`);
     return res.json();
 }
