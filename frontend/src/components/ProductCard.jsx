@@ -49,7 +49,7 @@ export default function ProductCard({ product, onAddToCart }) {
       onClick={handleCardClick}
       sx={{
         height: { xs: '28vh', sm: '40vh', md: '70vh' }, // Further reduced mobile height
-        width: { xs: '32vh', sm: '40vh', md: '70vh' },
+        width: { xs: '36vh', sm: '40vh', md: '70vh' },
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '15px',

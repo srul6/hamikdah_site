@@ -41,7 +41,7 @@ export default function HeroSection() {
                 transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)', // Enhanced timing
                 opacity: 0,
                 transform: 'translateY(50px) scale(0.95)', // Enhanced initial state
-                margin: '20px 0px 20px 0px',
+                margin: '15px 0px 15px 0px',
                 backgroundColor: 'transparent', // Transparent background
                 '&:hover': {
                     transform: 'translateY(-8px) scale(1.02)', // Enhanced hover effect

@@ -151,6 +151,8 @@ export default function ProductDetail({ onAddToCart }) {
                     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                     cursor: 'pointer',
                     transition: 'transform 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
                     '&:hover': {
                       transform: 'scale(1.02)'
                     }
@@ -164,10 +166,15 @@ export default function ProductDetail({ onAddToCart }) {
                       objectFit: 'cover',
                       objectPosition: 'center',
                       maxWidth: '100%',
-                      maxHeight: '100%'
+                      maxHeight: '100%',
+                      minWidth: '100%',
+                      minHeight: '100%',
+                      display: 'block',
+                      flexShrink: 0
                     }}
                     image={img}
                     alt={`${product.name} gallery ${idx + 1}`}
+                    loading="lazy"
                   />
                 </Card>
               ))}
@@ -337,6 +344,9 @@ export default function ProductDetail({ onAddToCart }) {
                     cursor: 'pointer',
                     transition: 'transform 0.2s ease',
                     border: '2px solid rgba(229, 90, 61, 1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
                     '&:hover': {
                       transform: 'scale(1.02)'
                     }
@@ -350,10 +360,15 @@ export default function ProductDetail({ onAddToCart }) {
                       objectFit: 'cover',
                       objectPosition: 'center',
                       maxWidth: '100%',
-                      maxHeight: '100%'
+                      maxHeight: '100%',
+                      minWidth: '100%',
+                      minHeight: '200px',
+                      display: 'block',
+                      flexShrink: 0
                     }}
                     image={relatedProduct.homepageImage}
                     alt={relatedProduct.name}
+                    loading="lazy"
                   />
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
