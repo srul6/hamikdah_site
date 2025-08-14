@@ -33,7 +33,7 @@ export default function VideoCard() {
     <Card
       ref={cardRef}
       sx={{
-        height: 'calc(80vh - 130px)', // Same height as product cards
+        height: 'calc(87vh - 85px)', // Same height as product cards
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '15px', // More rounded corners

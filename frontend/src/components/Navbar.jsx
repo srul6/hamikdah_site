@@ -60,7 +60,7 @@ export default function Navbar({ cartCount }) {
                 sx={{
                     backgroundColor: 'rgba(245, 240, 227, 0.9)', // Changed to match site background #f5f0e3
                     backdropFilter: 'blur(25px)', // Enhanced blur
-                    boxShadow: isScrolled ? '0 2px 20px rgba(0, 0, 0, 0.1)' : 'none', // Subtle shadow when scrolled
+                    boxShadow: isScrolled ? '0 2px 20px rgba(0, 0, 0, 0.41)' : 'none', // Subtle shadow when scrolled
                     border: 'none',
                     margin: '16px auto', // Center with auto margins
                     marginTop: '8px',
@@ -104,6 +104,7 @@ export default function Navbar({ cartCount }) {
                             height: '100%'
                         }}
                         onMouseEnter={handleProductsHover}
+                        onMouseLeave={handleHeaderLeave}
                     >
                         <Typography
                             variant="body1"
@@ -145,6 +146,7 @@ export default function Navbar({ cartCount }) {
                 {/* Expanding Menu */}
                 {isExpanded && (
                     <Box
+                        onMouseLeave={handleHeaderLeave}
                         sx={{
                             backgroundColor: 'rgba(245, 240, 227, 0.95)', // Changed to match navbar background
                             backdropFilter: 'blur(25px)', // Enhanced blur

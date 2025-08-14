@@ -49,6 +49,7 @@ export default function ProductCard({ product, onAddToCart }) {
       onClick={handleCardClick}
       sx={{
         height: { xs: '28vh', sm: '40vh', md: '70vh' }, // Further reduced mobile height
+        width: { xs: '32vh', sm: '40vh', md: '70vh' },
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '15px',
@@ -57,7 +58,7 @@ export default function ProductCard({ product, onAddToCart }) {
         opacity: 0,
         transform: 'translateY(50px) scale(0.95)', // Enhanced initial state
         cursor: 'pointer',
-        margin: { xs: '0px 0px 0px 0px', md: '30px 0px 30px 0px' }, // Smaller margin on mobile
+        margin: { xs: '0px 0px 0px 0px', md: '20px 0px 20px 0px' }, // Smaller margin on mobile
         border: '2px solid #d8472a', // Transparent border by default
         '&:hover': {
           border: '2px solid transparent', // Show border on hover
@@ -75,8 +76,8 @@ export default function ProductCard({ product, onAddToCart }) {
           }}
           sx={{
             position: 'absolute',
-            top: 18,
-            left: 18,
+            top: { xs: 14, sm: 18, md: 18 },
+            left: { xs: 14, sm: 18, md: 18 },
             zIndex: 10,
             backgroundColor: 'rgba(199, 61, 34, 1)',
             color: 'rgb(245, 240, 227)',
@@ -114,7 +115,7 @@ export default function ProductCard({ product, onAddToCart }) {
       <CardContent
         sx={{
           position: 'absolute',
-          bottom: 0,
+          bottom: { xs: -4, sm: 0, md: 0 },
           left: 0,
           right: 0,
           color: 'white',
@@ -131,7 +132,7 @@ export default function ProductCard({ product, onAddToCart }) {
             borderRadius: '10px',
             margin: '0px',
             width: '100%', // Changed from calc(100% - 32px) to 100%
-            padding: { xs: '6px 16px', sm: '12px 24px', md: '16px 28px' }, // Reduced mobile padding
+            padding: { xs: '6px 14px', sm: '12px 24px', md: '16px 28px' }, // Reduced mobile padding
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

@@ -161,7 +161,10 @@ export default function ProductDetail({ onAddToCart }) {
                     sx={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover'
+                      objectFit: 'cover',
+                      objectPosition: 'center',
+                      maxWidth: '100%',
+                      maxHeight: '100%'
                     }}
                     image={img}
                     alt={`${product.name} gallery ${idx + 1}`}
@@ -343,7 +346,11 @@ export default function ProductDetail({ onAddToCart }) {
                     component="img"
                     sx={{
                       height: 200,
-                      objectFit: 'cover'
+                      width: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center',
+                      maxWidth: '100%',
+                      maxHeight: '100%'
                     }}
                     image={relatedProduct.homepageImage}
                     alt={relatedProduct.name}
