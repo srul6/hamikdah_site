@@ -33,7 +33,7 @@ export default function VideoCard() {
     <Card
       ref={cardRef}
       sx={{
-        height: '75vh', // Same height as product cards
+        height: 'calc(80vh - 130px)', // Same height as product cards
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '15px', // More rounded corners
@@ -41,7 +41,7 @@ export default function VideoCard() {
         transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)', // Enhanced timing
         opacity: 0,
         transform: 'translateY(50px) scale(0.95)', // Enhanced initial state
-        margin: '20px 0px 20px 0px',
+        margin: '20px 0px 50px 0px',
         backgroundColor: 'transparent', // Transparent background
         '&:hover': {
           transform: 'translateY(-8px) scale(1.02)', // Enhanced hover effect

@@ -67,7 +67,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
     return (
         <Box sx={{ backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
-            <Container maxWidth="lg" sx={{ py: 12, px: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Container maxWidth="lg" sx={{ py: 12, px: { xs: 2, sm: 4, md: 8 }, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <Typography
                     variant="h2"
                     sx={{
@@ -103,6 +103,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 border: '2px solid rgba(229, 90, 61, 1)',
                                 borderRadius: 2,
                                 transition: 'border-color 0.3s ease',
+                                width: { xs: '100%', sm: '100%', md: '100%' },
+                                minWidth: { xs: '100%', sm: '100%', md: '100%' },
                                 '&:hover': {
                                     border: '2px solid rgba(199, 61, 34, 1)'
                                 }
@@ -203,7 +205,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 sx={{
                                     backgroundColor: 'rgba(229, 90, 61, 1)',
                                     color: '#ffffff',
-                                    px: 6,
+                                    px: { xs: 2, sm: 4, md: 6 },
                                     py: 1.5,
                                     mb: 10,
                                     boxShadow: 'none',

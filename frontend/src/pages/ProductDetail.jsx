@@ -87,7 +87,7 @@ export default function ProductDetail({ onAddToCart }) {
         <Box
           sx={{
             width: '100%',
-            height: '75vh',
+            height: { xs: '45vh', sm: '60vh', md: '85vh' }, // Reduced height for all screen sizes
             position: 'relative',
             overflow: 'hidden',
             borderRadius: 2,
@@ -143,12 +143,12 @@ export default function ProductDetail({ onAddToCart }) {
                   key={idx}
                   onClick={() => openLightbox(idx + 1)} // +1 because main image is at index 0
                   sx={{
-                    minWidth: 300,
-                    height: 300,
+                    minWidth: { xs: 230, sm: 300, md: 400 },
+                    height: { xs: 230, sm: 300, md: 400 }, // Reduced gallery height
                     flexShrink: 0,
                     borderRadius: 2,
                     overflow: 'hidden',
-                    boxShadow: 'none',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                     cursor: 'pointer',
                     transition: 'transform 0.2s ease',
                     '&:hover': {
@@ -228,7 +228,7 @@ export default function ProductDetail({ onAddToCart }) {
               color: 'rgba(229, 90, 61, 1) ',
               px: { xs: 2, sm: 2.5, md: 3 },
               py: { xs: 1, sm: 1.25, md: 1.5 },
-              fontSize: { xs: '1.4rem', sm: '1.7rem', md: '2.2rem' },
+              fontSize: { xs: '1.2rem', sm: '1.7rem', md: '2.2rem' },
               fontWeight: 500,
               borderRadius: 1.5,
               flexShrink: 0,
@@ -241,47 +241,54 @@ export default function ProductDetail({ onAddToCart }) {
             הוסף לעגלה
           </Button>
 
-          {/* Center: Price - Positioned in the center of remaining space */}
-          <Typography
-            className="product-price"
-            variant="h4"
+          {/* Center: Name and Price Container */}
+          <Box
             sx={{
-              color: 'rgba(245, 240, 227, 0.95)',
-              fontWeight: 600,
-              textAlign: 'center',
-              position: 'absolute',
-              left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              fontSize: { xs: '1.6rem', sm: '2rem', md: '2.3rem', lg: '2.8rem' },
-              transition: 'font-size 0.3s ease'
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 1,
+              gap: { xs: 0, sm: 1 }
             }}
           >
-            ₪{(product.price || 0).toFixed(2)}
-          </Typography>
+            {/* Product Name */}
+            <Typography
+              className="product-name"
+              variant="h4"
+              sx={{
+                fontWeight: 500,
+                textAlign: 'center',
+                lineHeight: 1.1,
+                color: 'rgba(245, 240, 227, 0.95)',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: { xs: '130px', sm: '300px', md: '400px', lg: '500px' },
+                fontSize: { xs: '1.4rem', sm: '2rem', md: '2.4rem', lg: '2.8rem' },
+                transition: 'font-size 0.3s ease, max-width 0.3s ease'
+              }}
+            >
+              {product.name}
+            </Typography>
 
-          {/* Right: Product Name */}
-          <Typography
-            className="product-name"
-            variant="h4"
-            sx={{
-              fontWeight: 500,
-              textAlign: 'right',
-              marginLeft: 'auto',
-              lineHeight: 1,
-              maxWidth: { xs: '30%', sm: '45%', md: '50%', lg: '55%' },
-              color: 'rgba(245, 240, 227, 0.95)',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              fontSize: { xs: '1.6rem', sm: '2rem', md: '2.4rem', lg: '2.8rem' },
-              transition: 'font-size 0.3s ease, max-width 0.3s ease'
-            }}
-          >
-            {product.name}
-          </Typography>
+            {/* Price */}
+            <Typography
+              className="product-price"
+              variant="h4"
+              sx={{
+                color: 'rgba(245, 240, 227, 0.95)',
+                fontWeight: 600,
+                textAlign: 'center',
+                fontSize: { xs: '1.4rem', sm: '2rem', md: '2.3rem', lg: '2.8rem' },
+                transition: 'font-size 0.3s ease'
+              }}
+            >
+              ₪{(product.price || 0).toFixed(2)}
+            </Typography>
+          </Box>
         </Box>
       </Container>
 

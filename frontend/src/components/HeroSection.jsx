@@ -33,7 +33,7 @@ export default function HeroSection() {
         <Card
             ref={cardRef}
             sx={{
-                height: '80vh', // Changed from 75vh to 100vh to fill entire screen
+                height: { xs: 'calc(80vh - 130px)', sm: '80vh' }, // Reduced by 85px on mobile
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: '15px', // More rounded corners

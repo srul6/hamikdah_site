@@ -65,7 +65,7 @@ export default function Navbar({ cartCount }) {
                     margin: '16px auto', // Center with auto margins
                     marginTop: '8px',
                     borderRadius: '15px',
-                    width: 'calc(100% - 64px)', // Reduced from 32px to 128px (64px on each side)
+                    width: 'calc(100% - 45px)', // Reduced from 32px to 128px (64px on each side)
                     top: '12px',
                     zIndex: 1000,
                     left: '0',
@@ -75,18 +75,18 @@ export default function Navbar({ cartCount }) {
             >
                 <Toolbar sx={{
                     justifyContent: 'space-between',
-                    px: 3,
                     py: 0.5, // Reduced from 1.5 to 1
                     minHeight: '50px' // Reduced from 60px to 50px
                 }}>
                     {/* Logo */}
-                    <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Link to="/" style={{ textDecoration: 'none', marginTop: '8px', color: 'inherit' }}>
+
                         <img
                             src="/logo.png"
                             alt="Store"
                             style={{
-                                height: '40px',
-                                width: '80px',
+                                height: '30px',
+                                width: '70px',
                                 objectFit: 'cover'
                             }}
                         />

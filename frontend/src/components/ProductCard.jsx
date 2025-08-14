@@ -48,7 +48,7 @@ export default function ProductCard({ product, onAddToCart }) {
       ref={cardRef}
       onClick={handleCardClick}
       sx={{
-        height: { xs: '40vh', md: '70vh' }, // Reduced mobile height from 70vh to 50vh
+        height: { xs: '28vh', sm: '40vh', md: '70vh' }, // Further reduced mobile height
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '15px',
@@ -131,11 +131,11 @@ export default function ProductCard({ product, onAddToCart }) {
             borderRadius: '10px',
             margin: '0px',
             width: '100%', // Changed from calc(100% - 32px) to 100%
-            padding: { xs: '8px 20px', sm: '12px 24px', md: '16px 28px' }, // Responsive padding
+            padding: { xs: '6px 16px', sm: '12px 24px', md: '16px 28px' }, // Reduced mobile padding
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: { xs: 2, sm: 3, md: 4 }, // Responsive gap
+            gap: { xs: 1, sm: 3, md: 4 }, // Reduced mobile gap
             transition: 'all 0.3s ease',
             cursor: 'pointer', // Added cursor pointer for better UX
             '&:hover': {
@@ -186,7 +186,7 @@ export default function ProductCard({ product, onAddToCart }) {
               textAlign: 'center',
               flexShrink: 0,
               minWidth: 'fit-content',
-              fontSize: { xs: '1.1rem', sm: '1.4rem', md: '1.8rem' } // Increased font sizes
+              fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' } // Reduced mobile font size
             }}
           >
             ₪{(product.price || 0).toFixed(2)}
@@ -208,7 +208,7 @@ export default function ProductCard({ product, onAddToCart }) {
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              fontSize: { xs: '1.1rem', sm: '1.4rem', md: '1.8rem' } // Increased font sizes
+              fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' } // Reduced mobile font size
             }}
           >
             {product.name}
