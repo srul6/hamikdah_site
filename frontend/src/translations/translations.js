@@ -1,0 +1,250 @@
+export const translations = {
+    HE: {
+        // Navbar
+        products: 'מוצרים',
+        cart: 'עגלה',
+        admin: 'ניהול',
+
+        // Home Page
+        heroTitle: 'חנות המקדש',
+        heroSubtitle: 'מוצרים יהודיים אותנטיים וחפצי קודש',
+        addToCart: 'הוסף לעגלה',
+        loadingProducts: 'טוען מוצרים...',
+        mainTitle: 'מוצרים איכותיים לבית היהודי',
+        mainDescription: 'אנו מתמחים במכירת מוצרים ייחודיים ואיכותיים לבית הכנסת ולמשפחה היהודית',
+        whatOurCustomersSay: 'מה הלקוחות שלנו אומרים',
+
+        // Product Detail
+        addToCart: 'הוסף לעגלה',
+        productsYouMayLike: 'מוצרים נוספים שיעניינו אותך',
+        gallery: 'גלריה',
+        productsThatMayInterestYou: 'מוצרים שיכולים לעניין אותך',
+
+        // Cart Page
+        cart: 'עגלת קניות',
+        emptyCart: '😢 כרגע סל הקניות שלך ריק',
+        yourCart: 'סל הקניות שלך',
+        continueShopping: 'המשך בקניות',
+        checkout: 'המשך לתשלום',
+        total: 'סך הכל',
+        remove: 'להסיר',
+        quantity: 'כמות',
+        product: 'מוצר',
+        price: 'מחיר',
+
+        // Customer Info
+        customerInfo: 'פרטי לקוח',
+        name: 'שם מלא',
+        email: 'אימייל',
+        phone: 'טלפון',
+        address: 'כתובת',
+        city: 'עיר',
+        zipCode: 'מיקוד',
+        continuePayment: 'המשך לתשלום',
+        cancel: 'ביטול',
+        processing: 'מעבד...',
+        pay: 'שלם ₪',
+        cartEmpty: 'העגלה שלך ריקה',
+        fillRequiredFields: 'אנא מלא את כל השדות הנדרשים',
+        paymentInitFailed: 'אתחול התשלום נכשל. אנא נסה שוב.',
+        paymentFailed: 'התשלום נכשל. אנא נסה שוב.',
+        paymentSuccess: 'תשלום הושלם בהצלחה!',
+        paymentError: 'התשלום נכשל',
+        thankYouPurchase: 'תודה על הרכישה שלך. המוצרים שלך יישלחו בקרוב.',
+        paymentFailedMessage: 'מצטערים, התשלום לא הושלם. אנא נסה שוב או פנה אלינו לעזרה.',
+        transactionId: 'מספר עסקה:',
+        approvalNumber: 'מספר אישור:',
+        errorCode: 'קוד שגיאה:',
+        errorMessage: 'הודעת שגיאה:',
+        continueShopping: 'המשך בקניות',
+        tryAgain: 'נסה שוב',
+        goHome: 'חזור לדף הבית',
+
+        // Terms of Service
+        termsTitle: 'תנאי שימוש',
+        cancellationPolicy: 'מדיניות ביטולים',
+        cancellationText: 'ניתן לבטל את הרכישה עד 14 יום מרכישת המוצר. בתנאי שהמוצר לא נפתח. דמי ביטול סך 70 ₪. החזרת המוצר לעסק היא באחריות הצרכן.',
+        cancellationNote: 'במידה והמוצר נפתח אפילו בניילון הנצמד העוטף את המוצר, לא ניתן לבטל את הרכישה.',
+        warrantyTitle: 'אחריות מוצר פגום',
+        warrantyText: 'מוצר שחלקים ממנו פגומים – באחריותנו לספק חלקים חדשים ללקוח ללא תוספת תשלום ובמשלוח חינם עד הבית.',
+        warrantyNote: 'במידה ואבדו לכם חלקים – נוכל לעזור ולספק לכם חלקים מסויימים ללא תשלום וחלקים מיוחדים בתשלום.',
+        shippingTitle: 'אספקה',
+        shippingText: 'משלוח באמצעות חברת המשלוחים YDM עד 5 ימי עסקים לבית הלקוח. מקומות מרוחקים – אילת, גולן, בקעת הירדן, יהודה ושומרון – עד 7 ימי עסקים.',
+        privacyTitle: 'הגנת פרטיות',
+        privacyText: 'אנחנו מתחייבים לא להעביר את פרטי הלקוח לצד ג.',
+        contactTitle: 'צור קשר',
+        contactText: 'אם יש לך שאלות נספות צור/צרי איתנו קשר:',
+        termsEmail: 'gilmanor8@gmail.com',
+        termsPhone: '053-2405276',
+        termsAddress: 'עליה 7 נתיבות, ישראל',
+
+        // Returns
+        returnsTitle: 'Returns and Refunds Policy',
+        returnPeriod: 'עד מתי אפשר להחזיר?',
+        returnPeriodText: 'אנחנו מקבלים מוצרים עד 14 יום מהקנייה שלהם.',
+        eligibleItems: 'מוצרים שניתן להחזיר',
+        nonEligibleItems: 'מוצרים שלא ניתן להחזיר',
+        returnProcess: 'תהליך ההחזרה',
+        refundTiming: 'מתי מקבלים החזר?',
+        refundTimingText: 'ברגע שאישרנו את החזרת המוצר:',
+        damagedItems: 'מוצרים תקולים או חסרים',
+        damagedItemsText: 'מוצר שחלקים ממנו פגומים – באחריותנו לספק חלקים חדשים ללקוח ללא תוספת תשלום ובמשלוח חינם עד הבית.',
+        damagedItemsNote: 'במידה ואבדו לכם חלקים – נוכל לעזור ולספק לכם חלקים מסויימים ללא תשלום וחלקים מיוחדים בתשלום.',
+        shippingCosts: 'עלויות השילוח',
+        shippingCostsText: 'עלויות משלוח ההחזרה הן באחריות הלקוח, למעט במקרים של פריטים פגומים או תקולים.',
+        contactUs: 'צרו קשר',
+        contactUsText: 'לשאלות נוספות בנוגע למה שכתוב כאן, או לתחילת תהליך של החזרת מוצר - צרו קשר בדרכים הבאות:',
+        returnsEmail: 'gilmanor8@gmail.com',
+        returnsPhone: '053-2405276',
+        returnsAddress: 'עליה 7 נתיבות, ישראל',
+
+        // Product conditions
+        notOpened: 'המוצר לא נפתח.',
+        wrapperNotOpened: 'גם עטיפת הניילון שעל המוצר לא נפתחה.',
+        notDamaged: 'המוצר לא נקרע או קיבל מכה או התעקם או כל חבלה אחרת.',
+        openedOrDamaged: 'מוצרים שנפתחו או נקרעו או נחבלו בכל חבלה אחרת.',
+        over14Days: 'מוצרים שעברו 14 יום מהקנייה שלהם.',
+
+        // Return process steps
+        contactWithin14Days: '1. צור/צרי איתנו קשר תוך 14 יום מהרכישה',
+        contactDetails: 'התקשר.י ל: 053-2405276 / 0506515689',
+        packageSecurely: '3. תארזו את החבילה בצורה בטוחה',
+        packageNote: 'ממש כמו שקיבלתם בהתחלה',
+        shipToAddress: '4. שלחו אלינו חזרה לכתובת',
+        address: 'עליה 7 נתיבות, ישראל',
+
+        // Refund info
+        refund5to7Days: 'ההחזר יתקבל תוך 5-7 ימי עסקים',
+        shippingNotIncluded: 'תשלומי המשלוח לא כלולים בהחזר הכספי',
+        refundSameMethod: 'ההחזר יתקבל באותה שיטת התשלום ששילמת איתה'
+    },
+
+    EN: {
+        // Navbar
+        products: 'Products',
+        cart: 'Cart',
+        admin: 'Admin',
+
+        // Footer
+        storeName: 'Hamikdash Store',
+        storeDescription: 'Your trusted source for authentic Jewish religious items and spiritual artifacts.',
+        followUs: 'Follow Us',
+        allRightsReserved: '© 2024 Hamikdash Store. All rights reserved.',
+        privacyPolicy: 'Privacy Policy',
+        termsOfService: 'Terms of Service',
+        returns: 'Returns',
+
+        // Home Page
+        heroTitle: 'Hamikdash Store',
+        heroSubtitle: 'Authentic Jewish Religious Items and Spiritual Artifacts',
+        addToCart: 'Add to Cart',
+        loadingProducts: 'Loading products...',
+        mainTitle: 'High-quality products for the Jewish home',
+        mainDescription: 'We specialize in selling unique, high-quality products for the synagogue and the Jewish family.',
+        whatOurCustomersSay: 'What Our Customers Say',
+
+        // Product Detail
+        addToCart: 'Add to Cart',
+        productsYouMayLike: 'Products You May Like',
+        gallery: 'Gallery',
+        productsThatMayInterestYou: 'Products that may interest you',
+
+        // Cart Page
+        cart: 'Shopping Cart',
+        emptyCart: '😢 Your cart is currently empty',
+        yourCart: 'Your Cart',
+        continueShopping: 'Continue Shopping',
+        checkout: 'Proceed to Checkout',
+        total: 'Total',
+        remove: 'Remove',
+        quantity: 'Quantity',
+        product: 'Product',
+        price: 'Price',
+
+        // Customer Info
+        customerInfo: 'Customer Information',
+        name: 'Full Name',
+        email: 'Email',
+        phone: 'Phone',
+        address: 'Address',
+        city: 'City',
+        zipCode: 'ZIP Code',
+        continuePayment: 'Continue to Payment',
+        cancel: 'Cancel',
+        processing: 'Processing...',
+        pay: 'Pay ₪',
+        cartEmpty: 'Your cart is empty',
+        fillRequiredFields: 'Please fill in all required fields',
+        paymentInitFailed: 'Payment initialization failed. Please try again.',
+        paymentFailed: 'Payment failed. Please try again.',
+        paymentSuccess: 'Payment Completed Successfully!',
+        paymentError: 'Payment Failed',
+        thankYouPurchase: 'Thank you for your purchase. Your items will be shipped soon.',
+        paymentFailedMessage: 'Sorry, the payment was not completed. Please try again or contact us for assistance.',
+        transactionId: 'Transaction ID:',
+        approvalNumber: 'Approval Number:',
+        errorCode: 'Error Code:',
+        errorMessage: 'Error Message:',
+        continueShopping: 'Continue Shopping',
+        tryAgain: 'Try Again',
+        goHome: 'Go Home',
+
+        // Terms of Service
+        termsTitle: 'Terms of Service',
+        cancellationPolicy: 'Cancellation Policy',
+        cancellationText: 'You may cancel your purchase within 14 days of purchasing the product, provided the product has not been opened. A cancellation fee of ₪70 applies. Returning the product to the store is the responsibility of the customer.',
+        cancellationNote: 'If the product has been opened, even if only the shrink wrap was removed, the purchase cannot be canceled.',
+        warrantyTitle: 'Damaged Product Warranty',
+        warrantyText: 'If any part of the product is defective, we are responsible for providing replacement parts to the customer free of charge, with free home delivery.',
+        warrantyNote: 'If parts are lost, we can provide certain parts free of charge, while special parts may require payment.',
+        shippingTitle: 'Shipping',
+        shippingText: 'Delivery is via YDM shipping company within 5 business days to the customer\'s address. Remote locations – Eilat, Golan, Jordan Valley, Judea and Samaria – up to 7 business days.',
+        privacyTitle: 'Privacy Protection',
+        privacyText: 'We are committed not to share customer information with any third party.',
+        contactTitle: 'Contact Us',
+        contactText: 'If you have any questions, please contact us:',
+        termsEmail: 'gilmanor8@gmail.com',
+        termsPhone: '+972-53-2405276',
+        termsAddress: '7 Aliya Street, Netivot, Israel',
+
+        // Returns
+        returnsTitle: 'Returns and Refund Policy',
+        returnPeriod: 'Return Period',
+        returnPeriodText: 'We accept returned products within 14 days of purchase.',
+        eligibleItems: 'Items that can be returned',
+        nonEligibleItems: 'Items that cannot be returned',
+        returnProcess: 'Return Process',
+        refundTiming: 'Refund Timing',
+        refundTimingText: 'Once we have approved the return:',
+        damagedItems: 'Damaged or Missing Items',
+        damagedItemsText: 'If any part of a product is defective, we are responsible for providing replacement parts free of charge, with free home delivery.',
+        damagedItemsNote: 'If parts are lost, we can provide certain parts free of charge, while special parts may require payment.',
+        shippingCosts: 'Shipping Costs',
+        shippingCostsText: 'Return shipping costs are the responsibility of the customer, except in cases of damaged or defective items.',
+        contactUs: 'Contact Us',
+        contactUsText: 'For any questions regarding this policy, or to initiate a return process, please contact us:',
+        returnsEmail: 'gilmanor8@gmail.com',
+        returnsPhone: '+972-53-2405276',
+        returnsAddress: '7 Aliya Street, Netivot, Israel',
+
+
+        // Product conditions
+        notOpened: 'The product has not been opened.',
+        wrapperNotOpened: 'The shrink wrap on the product has not been removed.',
+        notDamaged: 'The product is not torn, dented, bent, or otherwise damaged.',
+        openedOrDamaged: 'Products that have been opened, torn, or damaged in any way.',
+        over14Days: 'Products purchased more than 14 days ago.',
+
+        // Return process steps
+        contactWithin14Days: '1. Contact us within 14 days of purchase:',
+        contactDetails: 'Call: +972-53-2405276 / +972-50-6515689',
+        packageSecurely: '2. Pack the product securely, just like it was received.',
+        shipToAddress: '3. Send it back to:',
+        address: '7 Aliya Street, Netivot, Israel',
+
+        // Refund info
+        refund5to7Days: 'Refunds are processed within 5–7 business days.',
+        shippingNotIncluded: 'Shipping costs are not included in the refund.',
+        refundSameMethod: 'The refund will be issued using the same payment method used for the purchase.'
+    }
+};

@@ -4,10 +4,19 @@ import {
   Card, CardMedia, CardContent, Typography, Box, Button
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function ProductCard({ product, onAddToCart }) {
   const cardRef = useRef(null);
   const navigate = useNavigate();
+  const { language, isHebrew } = useLanguage();
+  const t = translations[language];
+
+  // Get the appropriate name and description based on language
+  const productName = isHebrew ? product.name_he : product.name_en;
+  const productDescription = isHebrew ? product.description_he : product.description_en;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -49,7 +58,7 @@ export default function ProductCard({ product, onAddToCart }) {
       onClick={handleCardClick}
       sx={{
         height: { xs: '28vh', sm: '40vh', md: '70vh' }, // Further reduced mobile height
-        width: { xs: '36vh', sm: '40vh', md: '70vh' },
+        width: { xs: '38vh', sm: '40vh', md: '70vh' },
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '15px',
@@ -96,7 +105,7 @@ export default function ProductCard({ product, onAddToCart }) {
             }
           }}
         >
-          הוסף לסל
+          {t.addToCart}
         </Button>
       )
       }
@@ -108,8 +117,8 @@ export default function ProductCard({ product, onAddToCart }) {
           objectFit: 'cover',
           // Removed borderRadius to prevent gaps
         }}
-        image={product.homepageImage}
-        alt={product.name}
+        image={getImageUrl(product.homepageimage)}
+        alt={productName}
       />
 
       <CardContent
@@ -212,7 +221,7 @@ export default function ProductCard({ product, onAddToCart }) {
               fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' } // Reduced mobile font size
             }}
           >
-            {product.name}
+            {productName}
           </Typography>
         </Box>
       </CardContent>

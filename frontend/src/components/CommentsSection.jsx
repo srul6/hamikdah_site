@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, Typography, Card, IconButton } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
 
 // Comments data - easily editable
 // Add 'type' field: 'text' for written comments, 'video' for video comments
@@ -9,43 +11,53 @@ import PauseIcon from '@mui/icons-material/Pause';
 const comments = [
     {
         id: 1,
-        name: "דוד כהן",
-        text: "המוצרים איכותיים מאוד ומגיעים בזמן. ממליץ בחום!",
+        name_he: "דוד כהן",
+        name_en: "David Cohen",
+        text_he: "המוצרים איכותיים מאוד ומגיעים בזמן. ממליץ בחום!",
+        text_en: "The products are very high quality and arrive on time. Highly recommend!",
         type: "text",
         rating: 5
     },
     {
         id: 2,
-        name: "משה גולדברג",
+        name_he: "משה גולדברג",
+        name_en: "Moshe Goldberg",
         videoUrl: "/comment1.mp4", // Example video path
         type: "video",
         rating: 5
     },
     {
         id: 3,
-        name: "שרה לוי",
-        text: "שירות לקוחות מעולה ומוצרים יפים. אהבתי במיוחד את הנרות.",
+        name_he: "שרה לוי",
+        name_en: "Sarah Levy",
+        text_he: "שירות לקוחות מעולה ומוצרים יפים. אהבתי במיוחד את הנרות.",
+        text_en: "Excellent customer service and beautiful products. I especially loved the candles.",
         type: "text",
         rating: 5
     },
     {
         id: 4,
-        name: "רחל אברהם",
-        text: "הדגמים של בית הכנסת והמקדש מדהימים. מושלם לבית.",
+        name_he: "רחל אברהם",
+        name_en: "Rachel Abraham",
+        text_he: "הדגמים של בית הכנסת והמקדש מדהימים. מושלם לבית.",
+        text_en: "The synagogue and temple models are amazing. Perfect for the home.",
         type: "text",
         rating: 5
     },
     {
         id: 5,
-        name: "יוסף שפירא",
+        name_he: "יוסף שפירא",
+        name_en: "Yosef Shapiro",
         videoUrl: "/testimonial-video-2.mp4", // Example video path
         type: "video",
         rating: 5
     },
     {
         id: 6,
-        name: "מיכל רוזן",
-        text: "המוצרים מעוצבים יפה ומתאימים לכל בית יהודי.",
+        name_he: "מיכל רוזן",
+        name_en: "Michal Rosen",
+        text_he: "המוצרים מעוצבים יפה ומתאימים לכל בית יהודי.",
+        text_en: "The products are beautifully designed and suitable for every Jewish home.",
         type: "text",
         rating: 5
     }
@@ -55,6 +67,8 @@ export default function CommentsSection() {
     const sectionRef = useRef(null);
     const [playingVideos, setPlayingVideos] = useState({});
     const videoRefs = useRef({});
+    const { language, isHebrew } = useLanguage();
+    const t = translations[language];
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -126,7 +140,7 @@ export default function CommentsSection() {
 
                     }}
                 >
-                    מה הלקוחות שלנו אומרים
+                    {t.whatOurCustomersSay}
                 </Typography>
             </Box>
 
@@ -191,10 +205,11 @@ export default function CommentsSection() {
                                             fontSize: '1.1rem',
                                             lineHeight: 1.6,
                                             mb: 3,
-                                            fontWeight: 400
+                                            fontWeight: 400,
+                                            direction: isHebrew ? 'rtl' : 'ltr'
                                         }}
                                     >
-                                        "{comment.text}"
+                                        "{isHebrew ? comment.text_he : comment.text_en}"
                                     </Typography>
 
                                     <Typography
@@ -202,10 +217,11 @@ export default function CommentsSection() {
                                         sx={{
                                             color: '#0071e3',
                                             fontWeight: 600,
-                                            mb: 1
+                                            mb: 1,
+                                            direction: isHebrew ? 'rtl' : 'ltr'
                                         }}
                                     >
-                                        {comment.name}
+                                        {isHebrew ? comment.name_he : comment.name_en}
                                     </Typography>
                                 </>
                             ) : (

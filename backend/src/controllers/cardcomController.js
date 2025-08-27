@@ -36,7 +36,7 @@ class CardcomController {
                 SumToBill: totalAmount.toFixed(2),
                 CoinID: currency === 'ILS' ? '1' : '2', // 1=ILS, 2=USD
                 Language: 'he', // Hebrew
-                ProductName: items.map(item => item.name).join(', '),
+                ProductName: items.map(item => item.name_he || item.name_en || item.name).join(', '),
                 SuccessRedirectUrl: `${process.env.FRONTEND_URL}/payment/success`,
                 ErrorRedirectUrl: `${process.env.FRONTEND_URL}/payment/error`,
                 CancelRedirectUrl: `${process.env.FRONTEND_URL}/cart`,

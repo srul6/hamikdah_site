@@ -9,6 +9,9 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Link } from 'react-router-dom';
 import Lightbox from '../components/Lightbox';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function ProductDetail({ onAddToCart }) {
   const { id } = useParams();
@@ -18,6 +21,12 @@ export default function ProductDetail({ onAddToCart }) {
   const [galleryScroll, setGalleryScroll] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const { language, isHebrew } = useLanguage();
+  const t = translations[language];
+
+  // Get the appropriate name and description based on language
+  const productName = product ? (isHebrew ? product.name_he : product.name_en) : '';
+  const productDescription = product ? (isHebrew ? product.description_he : product.description_en) : '';
 
   useEffect(() => {
     fetchProductById(id).then(setProduct);
@@ -65,9 +74,9 @@ export default function ProductDetail({ onAddToCart }) {
 
   const getAllImages = () => {
     if (!product) return [];
-    const images = [product.homepageImage]; // Use homepage image as main image
-    if (product.extraImages && product.extraImages.length > 0) {
-      images.push(...product.extraImages);
+    const images = [getImageUrl(product.homepageimage)]; // Use homepage image as main image
+    if (product.extraimages && product.extraimages.length > 0) {
+      images.push(...product.extraimages.map(img => getImageUrl(img)));
     }
     return images;
   };
@@ -103,14 +112,14 @@ export default function ProductDetail({ onAddToCart }) {
               objectFit: 'cover',
               borderRadius: 2
             }}
-            image={product.homepageImage}
-            alt={product.name}
+            image={getImageUrl(product.homepageimage)}
+            alt={productName}
           />
         </Box>
       </Container>
 
       {/* Horizontal Scrolling Gallery */}
-      {product.extraImages && product.extraImages.length > 0 && (
+      {product.extraimages && product.extraimages.length > 0 && (
         <Container maxWidth="lg" sx={{ pb: 8 }}>
           <Typography
             variant="h4"
@@ -121,7 +130,7 @@ export default function ProductDetail({ onAddToCart }) {
               textAlign: 'center'
             }}
           >
-            גלריה
+            {t.gallery}
           </Typography>
           <Box sx={{ position: 'relative' }}>
             <Box
@@ -138,7 +147,7 @@ export default function ProductDetail({ onAddToCart }) {
                 }
               }}
             >
-              {product.extraImages.map((img, idx) => (
+              {product.extraimages.map((img, idx) => (
                 <Card
                   key={idx}
                   onClick={() => openLightbox(idx + 1)} // +1 because main image is at index 0
@@ -153,6 +162,14 @@ export default function ProductDetail({ onAddToCart }) {
                     transition: 'transform 0.2s ease',
                     display: 'flex',
                     flexDirection: 'column',
+                    position: 'relative',
+                    '& img': {
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0
+                    },
                     '&:hover': {
                       transform: 'scale(1.02)'
                     }
@@ -161,19 +178,26 @@ export default function ProductDetail({ onAddToCart }) {
                   <CardMedia
                     component="img"
                     sx={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      objectPosition: 'center',
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      minWidth: '100%',
-                      minHeight: '100%',
-                      display: 'block',
-                      flexShrink: 0
+                      width: '100% !important',
+                      height: '100% !important',
+                      objectFit: 'cover !important',
+                      objectPosition: 'center !important',
+                      maxWidth: '100% !important',
+                      maxHeight: '100% !important',
+                      minWidth: '100% !important',
+                      minHeight: '100% !important',
+                      display: 'block !important',
+                      flexShrink: '0 !important',
+                      aspectRatio: '1 / 1',
+                      borderRadius: '8px',
+                      position: 'absolute !important',
+                      top: '0 !important',
+                      left: '0 !important',
+                      right: '0 !important',
+                      bottom: '0 !important'
                     }}
-                    image={img}
-                    alt={`${product.name} gallery ${idx + 1}`}
+                    image={getImageUrl(img)}
+                    alt={`${productName} gallery ${idx + 1}`}
                     loading="lazy"
                   />
                 </Card>
@@ -199,7 +223,7 @@ export default function ProductDetail({ onAddToCart }) {
             transition: 'font-size 0.3s ease, max-width 0.3s ease'
           }}
         >
-          {product.description}
+          {productDescription}
         </Typography>
 
         {/* Product Name and Price Section - Matching Homepage Design */}
@@ -248,7 +272,7 @@ export default function ProductDetail({ onAddToCart }) {
               }
             }}
           >
-            הוסף לעגלה
+            {t.addToCart}
           </Button>
 
           {/* Center: Name and Price Container */}
@@ -281,7 +305,7 @@ export default function ProductDetail({ onAddToCart }) {
                 transition: 'font-size 0.3s ease, max-width 0.3s ease'
               }}
             >
-              {product.name}
+              {productName}
             </Typography>
 
             {/* Price */}
@@ -316,7 +340,7 @@ export default function ProductDetail({ onAddToCart }) {
                 fontSize: { xs: '2.5rem', md: '2.3rem' }
               }}
             >
-              מוצרים שיכולים לעניין אותך
+              {t.productsThatMayInterestYou}
             </Typography>
 
             <Box
@@ -355,24 +379,26 @@ export default function ProductDetail({ onAddToCart }) {
                   <CardMedia
                     component="img"
                     sx={{
-                      height: 200,
-                      width: '100%',
-                      objectFit: 'cover',
-                      objectPosition: 'center',
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      minWidth: '100%',
-                      minHeight: '200px',
-                      display: 'block',
-                      flexShrink: 0
+                      height: '200px !important',
+                      width: '100% !important',
+                      objectFit: 'cover !important',
+                      objectPosition: 'center !important',
+                      maxWidth: '100% !important',
+                      maxHeight: '200px !important',
+                      minWidth: '100% !important',
+                      minHeight: '200px !important',
+                      display: 'block !important',
+                      flexShrink: '0 !important',
+                      aspectRatio: 'auto',
+                      borderRadius: '8px 8px 0 0'
                     }}
-                    image={relatedProduct.homepageImage}
-                    alt={relatedProduct.name}
+                    image={getImageUrl(relatedProduct.homepageimage)}
+                    alt={isHebrew ? relatedProduct.name_he : relatedProduct.name_en}
                     loading="lazy"
                   />
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      {relatedProduct.name}
+                      {isHebrew ? relatedProduct.name_he : relatedProduct.name_en}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       ₪{(relatedProduct.price || 0).toFixed(2)}

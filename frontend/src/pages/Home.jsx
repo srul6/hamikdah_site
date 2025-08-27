@@ -5,9 +5,13 @@ import ProductCard from '../components/ProductCard';
 import VideoCard from '../components/VideoCard';
 import CommentsSection from '../components/CommentsSection';
 import HeroSection from '../components/HeroSection';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
 
 export default function Home({ onAddToCart }) {
   const [products, setProducts] = useState([]);
+  const { language, isHebrew } = useLanguage();
+  const t = translations[language];
 
   useEffect(() => {
     fetchProducts().then(setProducts);
@@ -29,7 +33,7 @@ export default function Home({ onAddToCart }) {
           pt: 14
         }}>
           <Typography variant="h5" sx={{ color: '#86868b' }}>
-            Loading products...
+            {t.loadingProducts}
           </Typography>
         </Box>
       ) : (
@@ -50,7 +54,8 @@ export default function Home({ onAddToCart }) {
             px: { xs: 2, sm: 3, md: 4 },
             pt: 6, // Responsive horizontal padding
             pb: 1, // Add vertical padding
-            textAlign: 'center'
+            textAlign: 'center',
+            direction: isHebrew ? 'rtl' : 'ltr'
           }}>
             <Typography
               variant="h3"
@@ -62,7 +67,7 @@ export default function Home({ onAddToCart }) {
                 lineHeight: 1.2
               }}
             >
-              מוצרים איכותיים לבית היהודי
+              {t.mainTitle}
             </Typography>
 
             <Typography
@@ -75,7 +80,7 @@ export default function Home({ onAddToCart }) {
                 lineHeight: 1.2
               }}
             >
-              אנו מתמחים במכירת מוצרים ייחודיים ואיכותיים לבית הכנסת ולמשפחה היהודית
+              {t.mainDescription}
             </Typography>
           </Box>
 
@@ -103,7 +108,8 @@ export default function Home({ onAddToCart }) {
             px: { xs: 2, sm: 3, md: 4 },
             pt: 10, // Responsive horizontal padding
             pb: 1, // Add vertical padding
-            textAlign: 'center'
+            textAlign: 'center',
+            direction: isHebrew ? 'rtl' : 'ltr'
           }}>
             <Typography
               variant="h2"
@@ -114,7 +120,7 @@ export default function Home({ onAddToCart }) {
                 fontSize: { xs: '2.1rem', sm: '3rem', md: '3.5rem' }, // Increased font sizes
               }}
             >
-              מוצרים איכותיים לבית היהודי
+              {t.mainTitle}
             </Typography>
 
             <Typography
@@ -127,7 +133,7 @@ export default function Home({ onAddToCart }) {
                 lineHeight: 1.2
               }}
             >
-              אנו מתמחים במכירת מוצרים ייחודיים ואיכותיים לבית הכנסת ולמשפחה היהודית
+              {t.mainDescription}
             </Typography>
           </Box>
 

@@ -6,21 +6,31 @@ import {
     Grid,
     Link,
     IconButton,
-    Divider
+    Divider,
+    Button
 } from '@mui/material';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import InstagramIcon from '@mui/icons-material/Instagram';
+import PhoneIcon from '@mui/icons-material/Phone';
+import EmailIcon from '@mui/icons-material/Email';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
+    const { language, isHebrew } = useLanguage();
+    const t = translations['EN']; // Always use English translations for footer
 
     return (
         <Box
             sx={{
-                backgroundColor: 'rgba(229, 90, 61, 1)', // Changed to match global background
+                backgroundColor: 'rgba(229, 90, 61, 1)',
                 borderTop: '1px solid #e0e0e0',
                 py: 4,
-                mt: 'auto'
+                mt: 'auto',
+                direction: 'ltr', // Always LTR for English
+                textAlign: 'left' // Always left-aligned for English
             }}
         >
             <Container maxWidth="lg">
@@ -35,7 +45,7 @@ export default function Footer() {
                                 mb: 2
                             }}
                         >
-                            Hamikdash Store
+                            {t.storeName}
                         </Typography>
                         <Typography
                             variant="body1"
@@ -45,34 +55,76 @@ export default function Footer() {
                                 mb: 2
                             }}
                         >
-                            Your trusted source for authentic Jewish religious items and spiritual artifacts.
+                            {t.storeDescription}
                         </Typography>
-                        <Typography
-                            variant="body2"
-                            sx={{
-                                color: 'rgb(245, 240, 227)',
-                                mb: 1
-                            }}
-                        >
-                            📧 info@hamikdash.com
-                        </Typography>
-                        <Typography
-                            variant="body2"
-                            sx={{
-                                color: 'rgb(245, 240, 227)',
-                                mb: 1
-                            }}
-                        >
-                            📞 +1 (555) 123-4567
-                        </Typography>
-                        <Typography
-                            variant="body2"
-                            sx={{
-                                color: 'rgb(245, 240, 227)'
-                            }}
-                        >
-                            📍 123 Jewish Quarter, Jerusalem, Israel
-                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                            <Button
+                                component="a"
+                                href="https://mail.google.com/mail/?view=cm&fs=1&to=gilmanor8@gmail.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<EmailIcon />}
+                                sx={{
+                                    color: 'rgb(245, 240, 227)',
+                                    textTransform: 'none',
+                                    fontSize: '0.875rem',
+                                    minWidth: 'auto',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid transparent',
+                                    alignSelf: 'flex-start',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(245, 240, 227, 0.1)',
+                                        border: '1px solid rgb(245, 240, 227)',
+                                        color: 'rgb(245, 240, 227)'
+                                    }
+                                }}
+                            >
+                                gilmanor8@gmail.com
+                            </Button>
+                            <Button
+                                component="a"
+                                href="tel:+972532405276"
+                                startIcon={<PhoneIcon />}
+                                sx={{
+                                    color: 'rgb(245, 240, 227)',
+                                    textTransform: 'none',
+                                    fontSize: '0.875rem',
+                                    minWidth: 'auto',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid transparent',
+                                    alignSelf: 'flex-start',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(245, 240, 227, 0.1)',
+                                        border: '1px solid rgb(245, 240, 227)',
+                                        color: 'rgb(245, 240, 227)'
+                                    }
+                                }}
+                            >
+                                053-2405276
+                            </Button>
+                            <Button
+                                component="a"
+                                href="https://maps.google.com/?q=Aliya+7+Netivot+Israel"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<LocationOnIcon />}
+                                sx={{
+                                    color: 'rgb(245, 240, 227)',
+                                    textTransform: 'none',
+                                    fontSize: '0.875rem',
+                                    minWidth: 'auto',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid transparent',
+                                    alignSelf: 'flex-start',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(245, 240, 227, 0.1)',
+                                        border: '1px solid rgb(245, 240, 227)',
+                                        color: 'rgb(245, 240, 227)'
+                                    }
+                                }}
+                            >
+                                עליה 7 נתיבות                            </Button>
+                        </Box>
                     </Grid>
 
                     {/* Social Media */}
@@ -85,14 +137,14 @@ export default function Footer() {
                                 mb: 0
                             }}
                         >
-                            Follow Us
+                            {t.followUs}
                         </Typography>
 
                         {/* Social Media Icons */}
                         <Box sx={{ display: 'flex', gap: 0 }}>
                             <IconButton
                                 component="a"
-                                href="https://facebook.com/hamikdashstore"
+                                href="https://www.facebook.com/share/1CGo7JT8ka/"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 sx={{
@@ -145,7 +197,7 @@ export default function Footer() {
                             textAlign: { xs: 'center', md: 'left' }
                         }}
                     >
-                        © {currentYear} Hamikdash Store. All rights reserved.
+                        © {currentYear} {t.allRightsReserved}
                     </Typography>
 
                     {/* Legal Links */}
@@ -158,19 +210,6 @@ export default function Footer() {
                         }}
                     >
                         <Link
-                            href="/privacy"
-                            sx={{
-                                color: 'rgb(245, 240, 227)',
-                                textDecoration: 'none',
-                                fontSize: '0.875rem',
-                                '&:hover': {
-                                    color: '#0071e3'
-                                }
-                            }}
-                        >
-                            Privacy Policy
-                        </Link>
-                        <Link
                             href="/terms"
                             sx={{
                                 color: 'rgb(245, 240, 227)',
@@ -181,20 +220,7 @@ export default function Footer() {
                                 }
                             }}
                         >
-                            Terms of Service
-                        </Link>
-                        <Link
-                            href="/shipping"
-                            sx={{
-                                color: 'rgb(245, 240, 227)',
-                                textDecoration: 'none',
-                                fontSize: '0.875rem',
-                                '&:hover': {
-                                    color: '#0071e3'
-                                }
-                            }}
-                        >
-                            Shipping Info
+                            {t.termsOfService}
                         </Link>
                         <Link
                             href="/returns"
@@ -207,7 +233,7 @@ export default function Footer() {
                                 }
                             }}
                         >
-                            Returns
+                            {t.returns}
                         </Link>
                     </Box>
                 </Box>

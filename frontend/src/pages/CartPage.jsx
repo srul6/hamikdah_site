@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Container, Typography, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, Paper, IconButton, TextField, Box, Button,
@@ -6,6 +6,8 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { createCardcomPayment } from '../api/cardcom';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -16,12 +18,26 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
         address: ''
     });
     const [isProcessing, setIsProcessing] = useState(false);
+    const { language, isHebrew } = useLanguage();
+    const t = translations[language];
+
+    // Scroll to top when cart page loads
+    useEffect(() => {
+        // Use setTimeout to ensure the component is fully rendered
+        setTimeout(() => {
+            window.scrollTo({
+                top: 0,
+                left: 0,
+                behavior: 'smooth'
+            });
+        }, 100);
+    }, []);
 
     const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const handleCheckout = () => {
         if (cart.length === 0) {
-            alert('Your cart is empty');
+            alert(t.cartEmpty);
             return;
         }
         setIsCheckoutOpen(true);
@@ -29,7 +45,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
     const handlePayment = async () => {
         if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
-            alert('Please fill in all required fields');
+            alert(t.fillRequiredFields);
             return;
         }
 
@@ -48,11 +64,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 // Redirect to Cardcom payment page
                 window.location.href = response.paymentUrl;
             } else {
-                alert('Payment initialization failed. Please try again.');
+                alert(t.paymentInitFailed);
             }
         } catch (error) {
             console.error('Payment error:', error);
-            alert('Payment failed. Please try again.');
+            alert(t.paymentFailed);
         } finally {
             setIsProcessing(false);
         }
@@ -67,16 +83,23 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
     return (
         <Box sx={{ backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
-            <Container maxWidth="lg" sx={{ py: 12, px: { xs: 2, sm: 4, md: 8 }, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Container maxWidth="lg" sx={{
+                py: cart.length === 0 ? 12 : 4,
+                px: { xs: 2, sm: 4, md: 8 },
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
+            }}>
                 <Typography
                     variant="h2"
                     sx={{
                         textAlign: 'center',
                         fontWeight: 600,
                         color: '#1d1d1f',
-                        mt: 10,
+                        mt: cart.length === 0 ? 10 : 2,
                         mb: 4,
                         fontSize: { xs: '1.5rem', md: '2rem' },
+                        direction: isHebrew ? 'rtl' : 'ltr',
                         ...(cart.length === 0 && {
                             border: '2px solid rgba(229, 90, 61, 1)',
                             borderRadius: 1.5,
@@ -88,7 +111,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                         })
                     }}
                 >
-                    {cart.length === 0 ? '😢 כרגע סל הקניות שלך ריק ' : 'סל הקניות שלך'}
+                    {cart.length === 0 ? t.emptyCart : t.yourCart}
                 </Typography>
 
                 {cart.length === 0 ? (
@@ -113,11 +136,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                             <Table>
                                 <TableHead>
                                     <TableRow sx={{ backgroundColor: 'rgba(245, 240, 227, 0.5)' }}>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>מוצר</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>מחיר</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>כמות</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>סך הכל</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>להסיר</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.product}</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.price}</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.quantity}</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.total}</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.remove}</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -127,8 +150,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                             border: '2px solid white'
                                         }}>
                                             <TableCell>
-                                                <Typography variant="body1" align="center" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>
-                                                    {item.name}
+                                                <Typography variant="body1" align="center" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                                                    {isHebrew ? item.name_he : item.name_en}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell>
@@ -187,8 +210,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                     }}>
 
                                         <TableCell colSpan={5}>
-                                            <Typography align="center" variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>
-                                                ₪{total.toFixed(2)} :סך הכל
+                                            <Typography align="center" variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                                                {isHebrew ? `₪${total.toFixed(2)} :${t.total}` : `${t.total}: ₪${total.toFixed(2)}`}
                                             </Typography>
                                         </TableCell>
 
@@ -214,6 +237,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                     borderRadius: 1.5,
                                     transition: 'all 0.3s ease',
                                     border: '2px solid transparent',
+                                    direction: isHebrew ? 'rtl' : 'ltr',
                                     '&:hover': {
                                         backgroundColor: 'rgb(245, 240, 227)',
                                         color: 'rgba(229, 90, 61, 1)',
@@ -223,7 +247,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                     }
                                 }}
                             >
-                                המשך לתשלום
+                                {t.checkout}
                             </Button>
                         </Box>
                     </>
@@ -232,49 +256,54 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
             {/* Customer Information Dialog */}
             <Dialog open={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Customer Information</DialogTitle>
+                <DialogTitle sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.customerInfo}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
                         <MuiTextField
-                            label="Full Name *"
+                            label={`${t.name} *`}
                             value={customerInfo.name}
                             onChange={(e) => handleInputChange('name', e.target.value)}
                             fullWidth
                             required
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                         <MuiTextField
-                            label="Email *"
+                            label={`${t.email} *`}
                             type="email"
                             value={customerInfo.email}
                             onChange={(e) => handleInputChange('email', e.target.value)}
                             fullWidth
                             required
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                         <MuiTextField
-                            label="Phone *"
+                            label={`${t.phone} *`}
                             value={customerInfo.phone}
                             onChange={(e) => handleInputChange('phone', e.target.value)}
                             fullWidth
                             required
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                         <MuiTextField
-                            label="Address"
+                            label={t.address}
                             value={customerInfo.address}
                             onChange={(e) => handleInputChange('address', e.target.value)}
                             fullWidth
                             multiline
                             rows={2}
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setIsCheckoutOpen(false)}>Cancel</Button>
+                    <Button onClick={() => setIsCheckoutOpen(false)} sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.cancel}</Button>
                     <Button
                         onClick={handlePayment}
                         variant="contained"
                         disabled={isProcessing}
+                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                     >
-                        {isProcessing ? 'Processing...' : 'Pay ₪' + total.toFixed(2)}
+                        {isProcessing ? t.processing : `${t.pay}${total.toFixed(2)}`}
                     </Button>
                 </DialogActions>
             </Dialog>

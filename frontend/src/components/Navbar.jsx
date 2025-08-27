@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-    AppBar, Toolbar, Typography, IconButton, Badge, Box, MenuItem
+    AppBar, Toolbar, Typography, IconButton, Badge, Box, MenuItem, Button
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { Link } from 'react-router-dom';
 import { fetchProducts } from '../api/products';
+import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
 
 // Add CSS animation for smooth slide-down
 const slideDownAnimation = `
@@ -24,6 +26,8 @@ export default function Navbar({ cartCount }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [products, setProducts] = useState([]);
     const [isScrolled, setIsScrolled] = useState(false);
+    const { language, toggleLanguage, isHebrew } = useLanguage();
+    const t = translations[language];
 
     useEffect(() => {
         fetchProducts().then(setProducts);
@@ -92,7 +96,7 @@ export default function Navbar({ cartCount }) {
                         />
                     </Link>
 
-                    {/* Products Menu */}
+                    {/* Products Menu and Language Switcher */}
                     <Box
                         sx={{
                             position: 'absolute',
@@ -101,26 +105,62 @@ export default function Navbar({ cartCount }) {
                             transform: 'translate(-50%, -50%)',
                             display: 'flex',
                             alignItems: 'center',
-                            height: '100%'
+                            height: '100%',
+                            gap: 1
                         }}
-                        onMouseEnter={handleProductsHover}
-                        onMouseLeave={handleHeaderLeave}
                     >
+                        <Box
+                            onMouseEnter={handleProductsHover}
+                            onMouseLeave={handleHeaderLeave}
+                        >
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    color: '#1d1d1f',
+                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' },
+                                    fontWeight: 400,
+                                    cursor: 'pointer',
+                                    textShadow: 'none',
+                                    transition: 'color 0.2s ease',
+                                    '&:hover': {
+                                        color: 'rgba(199, 61, 34, 1)'
+                                    }
+                                }}
+                            >
+                                {t.products}
+                            </Typography>
+                        </Box>
+
+                        {/* Separator */}
                         <Typography
                             variant="body1"
                             sx={{
-                                color: '#1d1d1f', // Changed to dark color for white background
+                                color: '#86868b',
+                                fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+                                fontWeight: 400,
+                                mx: 0
+                            }}
+                        >
+                            |
+                        </Typography>
+
+                        {/* Language Switcher */}
+                        <Typography
+                            onClick={toggleLanguage}
+                            variant="body1"
+                            sx={{
+                                color: '#1d1d1f',
                                 fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' },
                                 fontWeight: 400,
                                 cursor: 'pointer',
-                                textShadow: 'none', // Removed text shadow
+                                textShadow: 'none',
                                 transition: 'color 0.2s ease',
                                 '&:hover': {
                                     color: 'rgba(199, 61, 34, 1)'
                                 }
                             }}
                         >
-                            מוצרים
+                            {language}
                         </Typography>
                     </Box>
 
@@ -206,7 +246,7 @@ export default function Navbar({ cartCount }) {
                                                 textAlign: 'center'
                                             }}
                                         >
-                                            {product.name}
+                                            {isHebrew ? product.name_he : product.name_en}
                                         </Link>
                                     </MenuItem>
                                     {index < products.length - 1 && (
