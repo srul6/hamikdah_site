@@ -346,9 +346,9 @@ export default function ProductDetail({ onAddToCart }) {
             <Box
               sx={{
                 display: 'flex',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 overflowX: 'auto',
-                padding: 1,
+                padding: { xs: 0.5, sm: 1 },
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
                 '&::-webkit-scrollbar': {
@@ -361,7 +361,8 @@ export default function ProductDetail({ onAddToCart }) {
                   key={relatedProduct.id}
                   onClick={() => handleRelatedProductClick(relatedProduct.id)}
                   sx={{
-                    minWidth: 280,
+                    minWidth: { xs: 240, sm: 280 },
+                    maxWidth: { xs: 240, sm: 280 },
                     flexShrink: 0,
                     borderRadius: 2,
                     backgroundColor: 'rgba(245, 240, 227, 1)',
@@ -379,17 +380,11 @@ export default function ProductDetail({ onAddToCart }) {
                   <CardMedia
                     component="img"
                     sx={{
-                      height: '200px !important',
-                      width: '100% !important',
-                      objectFit: 'cover !important',
-                      objectPosition: 'center !important',
-                      maxWidth: '100% !important',
-                      maxHeight: '200px !important',
-                      minWidth: '100% !important',
-                      minHeight: '200px !important',
-                      display: 'block !important',
-                      flexShrink: '0 !important',
-                      aspectRatio: 'auto',
+                      height: 200,
+                      width: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center',
+                      flexShrink: 0,
                       borderRadius: '8px 8px 0 0'
                     }}
                     image={getImageUrl(relatedProduct.homepageimage)}

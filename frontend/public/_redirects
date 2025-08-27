@@ -1,1 +1,8 @@
 /*    /index.html   200
+/terms    /index.html   200
+/returns    /index.html   200
+/payment/success    /index.html   200
+/payment/error    /index.html   200
+/product/*    /index.html   200
+/cart    /index.html   200
+/admin    /index.html   200
