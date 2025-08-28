@@ -122,7 +122,7 @@ export default function Navbar({ cartCount }) {
                     border: 'none',
                     margin: '16px auto',
                     marginTop: '8px',
-                    borderRadius: isExpanded ? '15px 15px 0 0' : '15px',
+                    borderRadius: isMobile && isExpanded ? '15px 15px 0 0' : '15px',
                     width: 'calc(100% - 45px)',
                     top: '12px',
                     zIndex: 1000,

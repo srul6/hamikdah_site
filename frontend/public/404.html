@@ -4,13 +4,33 @@
 <head>
     <title>Page Not Found</title>
     <script>
-        // Redirect to index.html for client-side routing
-        window.location.href = '/';
+        console.log('404 page loaded');
+        console.log('URL:', window.location.href);
+        console.log('Path:', window.location.pathname);
+
+        // Check if this is a React Router route
+        const path = window.location.pathname;
+        const reactRoutes = ['/terms', '/returns', '/cart', '/admin', '/payment/success', '/payment/error'];
+        const isReactRoute = reactRoutes.some(route => path.startsWith(route));
+
+        if (isReactRoute) {
+            console.log('This is a React Router route, redirecting to index.html');
+            window.location.href = '/';
+        } else {
+            console.log('This is not a React Router route');
+        }
     </script>
 </head>
 
 <body>
+    <h1>Page Not Found</h1>
+    <p>Current URL: <span id="current-url"></span></p>
+    <p>Current Path: <span id="current-path"></span></p>
     <p>Redirecting...</p>
+    <script>
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('current-path').textContent = window.location.pathname;
+    </script>
 </body>
 
 </html>

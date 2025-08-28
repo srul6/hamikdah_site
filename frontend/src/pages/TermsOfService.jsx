@@ -13,6 +13,9 @@ export default function TermsOfService() {
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
 
+    console.log('TermsOfService component loaded', { language, isHebrew });
+    alert('TermsOfService component loaded!');
+
     return (
         <Box sx={{ py: 4, minHeight: '100vh', backgroundColor: 'rgb(245, 240, 227)', mt: 8 }}>
             <Container maxWidth="md">

@@ -1,14 +1,22 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Routing Test</title>
 </head>
+
 <body>
     <h1>Routing Test Page</h1>
     <p>If you can see this, the hosting platform is serving files correctly.</p>
     <p>Current URL: <span id="current-url"></span></p>
+    <p>Current Path: <span id="current-path"></span></p>
     <script>
         document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('current-path').textContent = window.location.pathname;
+        console.log('Test routing page loaded');
+        console.log('URL:', window.location.href);
+        console.log('Path:', window.location.pathname);
     </script>
 </body>
+
 </html>
