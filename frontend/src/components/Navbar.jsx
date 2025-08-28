@@ -110,6 +110,10 @@ export default function Navbar({ cartCount }) {
         }
     };
 
+    const handleLogoClick = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     return (
         <>
             <style>{slideDownAnimation}</style>
@@ -138,7 +142,7 @@ export default function Navbar({ cartCount }) {
                     minHeight: '50px'
                 }}>
                     {/* Logo */}
-                    <Link to="/" style={{ textDecoration: 'none', marginTop: '8px', color: 'inherit' }}>
+                    <Link to="/" style={{ textDecoration: 'none', marginTop: '8px', color: 'inherit' }} onClick={handleLogoClick}>
                         <img
                             src="/logo.png"
                             alt="Store"
