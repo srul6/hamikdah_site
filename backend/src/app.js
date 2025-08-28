@@ -17,6 +17,10 @@ app.use('/api/products', productsRouter);
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/cardcom', require('./routes/cardcom'));
 
+// Static page routes
+app.use('/terms', require('./routes/terms'));
+app.use('/returns', require('./routes/returns'));
+
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {

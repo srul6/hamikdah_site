@@ -8,23 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0070f3" />
     <title>Hamikdash Store</title>
-    <script>
-        // Client-side routing fallback for Render
-        console.log('Index.html loaded for path:', window.location.pathname);
-        
-        // Check if this is a React Router route
-        const path = window.location.pathname;
-        const reactRoutes = ['/terms', '/returns', '/cart', '/admin', '/product/', '/payment/'];
-        const isReactRoute = reactRoutes.some(route => path.startsWith(route));
-        
-        if (isReactRoute) {
-            console.log('React route detected:', path);
-            // Let React Router handle it
-        } else if (path !== '/' && !path.includes('.')) {
-            console.log('Non-React route, but letting React Router handle it');
-            // Don't redirect, let React Router handle it
-        }
-    </script>
+
 </head>
 
 <body>

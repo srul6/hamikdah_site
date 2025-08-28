@@ -6,8 +6,7 @@ import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
 import CartPage from './pages/CartPage';
 import AdminPanel from './pages/AdminPanel';
-import TermsOfService from './pages/TermsOfService';
-import Returns from './pages/Returns';
+
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentError from './pages/PaymentError';
 import Navbar from './components/Navbar';
@@ -53,8 +52,7 @@ export default function App() {
                         <Route path="/product/:id" element={<ProductDetail onAddToCart={addToCart} />} />
                         <Route path="/cart" element={<CartPage cart={cart} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />} />
                         <Route path="/admin" element={<AdminPanel />} />
-                        <Route path="/terms" element={<TermsOfService />} />
-                        <Route path="/returns" element={<Returns />} />
+
                         <Route path="/payment/success" element={<PaymentSuccess />} />
                         <Route path="/payment/error" element={<PaymentError />} />
                     </Routes>
