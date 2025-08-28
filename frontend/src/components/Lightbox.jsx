@@ -127,7 +127,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
                 }}
             >
                 <img
-                    src={`http://localhost:5001/images/${images[currentIndex]}`}
+                    src={images[currentIndex]}
                     alt={`Image ${currentIndex + 1}`}
                     style={{
                         maxWidth: '100%',
