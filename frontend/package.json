@@ -15,7 +15,6 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "postbuild": "cp _redirects build/_redirects"
   },
   "browserslist": {
     "production": [
