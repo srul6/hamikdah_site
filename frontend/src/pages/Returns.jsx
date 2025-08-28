@@ -36,7 +36,7 @@ export default function Returns() {
                         textAlign: 'center',
                         mb: 4
                     }}>
-                        {t.returnsTitle}
+                        {t.returnsTitle || 'Returns and Refunds Policy'}
                     </Typography>
 
                     <Typography variant="h5" gutterBottom sx={{ color: 'rgba(229, 90, 61, 1)', mt: 4 }}>

@@ -245,20 +245,19 @@ export default function Navbar({ cartCount }) {
                             borderTop: '1px solid rgba(0, 0, 0, 0.1)',
                             height: 'auto',
                             maxHeight: '300px',
-                            overflow: 'hidden',
+                            overflow: 'visible',
                             transition: 'all 0.3s ease',
                             py: 2,
                             opacity: 1,
                             visibility: 'visible',
                             display: 'flex',
                             justifyContent: 'center',
-                            borderTopLeftRadius: '0',
-                            borderTopRightRadius: '0',
-                            borderBottomLeftRadius: '15px',
-                            borderBottomRightRadius: '15px',
+
                             animation: 'slideDown 0.3s ease',
                             position: 'relative',
                             zIndex: 1001,
+                            borderRadius: '0 0 15px 15px',
+
                             marginTop: '-1px', // Remove gap between navbar and menu
                             '@media (max-width: 768px)': {
                                 position: 'absolute',

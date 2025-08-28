@@ -29,7 +29,7 @@ export default function TermsOfService() {
                         textAlign: 'center',
                         mb: 4
                     }}>
-                        {t.termsTitle}
+                        {t.termsTitle || 'Terms of Service'}
                     </Typography>
 
                     <Typography variant="h5" gutterBottom sx={{ color: 'rgba(229, 90, 61, 1)', mt: 4 }}>
