@@ -1,0 +1,13 @@
+{
+    "name": "hamikdash-website",
+    "version": "1.0.0",
+    "description": "Hamikdash e-commerce website",
+    "scripts": {
+        "build": "cd frontend && npm install && npm run build",
+        "start": "cd backend && npm install && npm start",
+        "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm start\""
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
