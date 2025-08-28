@@ -22,6 +22,10 @@ export default function Footer() {
     const { language, isHebrew } = useLanguage();
     const t = translations['EN']; // Always use English translations for footer
 
+    // Hebrew text for Terms and Returns
+    const termsText = isHebrew ? 'תנאי שימוש' : t.termsOfService;
+    const returnsText = isHebrew ? 'החזרות' : t.returns;
+
     return (
         <Box
             sx={{
@@ -220,7 +224,7 @@ export default function Footer() {
                                 }
                             }}
                         >
-                            {t.termsOfService}
+                            {termsText}
                         </Link>
                         <Link
                             href="/returns"
@@ -233,7 +237,7 @@ export default function Footer() {
                                 }
                             }}
                         >
-                            {t.returns}
+                            {returnsText}
                         </Link>
                     </Box>
                 </Box>
