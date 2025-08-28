@@ -17,9 +17,13 @@ app.use('/api/products', productsRouter);
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/cardcom', require('./routes/cardcom'));
 
-// Static page routes
-app.use('/terms', require('./routes/terms'));
-app.use('/returns', require('./routes/returns'));
+// Serve static files from the React build
+app.use(express.static(path.join(__dirname, '../../frontend/build')));
+
+// Catch-all route: serve React app for all non-API routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
 
 const PORT = process.env.PORT || 5001;
 

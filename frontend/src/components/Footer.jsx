@@ -16,6 +16,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
+import { Link as RouterLink } from 'react-router-dom';
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
@@ -214,7 +215,8 @@ export default function Footer() {
                         }}
                     >
                         <Link
-                            href="/terms"
+                            component={RouterLink}
+                            to="/terms"
                             sx={{
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
@@ -227,7 +229,8 @@ export default function Footer() {
                             {termsText}
                         </Link>
                         <Link
-                            href="/returns"
+                            component={RouterLink}
+                            to="/returns"
                             sx={{
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
