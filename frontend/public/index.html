@@ -12,6 +12,19 @@
         console.log('Index.html loaded');
         console.log('URL:', window.location.href);
         console.log('Path:', window.location.pathname);
+        
+        // Handle client-side routing for Render
+        const path = window.location.pathname;
+        const reactRoutes = ['/terms', '/returns', '/cart', '/admin', '/payment/success', '/payment/error', '/product/'];
+        const isReactRoute = reactRoutes.some(route => path.startsWith(route));
+        
+        if (isReactRoute && path !== '/') {
+            console.log('React route detected:', path);
+            // Let React Router handle it
+        } else if (path !== '/' && !path.includes('.')) {
+            console.log('Non-React route detected, redirecting to home');
+            window.location.href = '/';
+        }
     </script>
 </head>
 
