@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-    AppBar, Toolbar, Typography, IconButton, Badge, Box, MenuItem, Button
+    AppBar, Toolbar, Typography, IconButton, Badge, Box, MenuItem
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { Link } from 'react-router-dom';
@@ -29,8 +29,22 @@ export default function Navbar({ cartCount }) {
     const { language, toggleLanguage, isHebrew } = useLanguage();
     const t = translations[language];
 
+    const menuRef = useRef(null);
+    const buttonRef = useRef(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
     useEffect(() => {
         fetchProducts().then(setProducts);
+    }, []);
+
+    // Handle window resize for mobile detection
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     useEffect(() => {
@@ -43,23 +57,56 @@ export default function Navbar({ cartCount }) {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (isExpanded) {
+                const isClickInsideMenu = menuRef.current && menuRef.current.contains(event.target);
+                const isClickInsideButton = buttonRef.current && buttonRef.current.contains(event.target);
+
+                if (!isClickInsideMenu && !isClickInsideButton) {
+                    setIsExpanded(false);
+                }
+            }
+        };
+
+        if (isExpanded) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [isExpanded]);
+
     const handleProductsHover = () => {
-        setIsExpanded(true);
+        if (!isMobile && !isExpanded) {
+            setIsExpanded(true);
+        }
     };
 
     const handleHeaderLeave = () => {
+        if (!isMobile) setIsExpanded(false);
+    };
+
+    const handleProductClick = () => {
         setIsExpanded(false);
     };
 
-    const handleProductClick = (productId) => {
-        setIsExpanded(false);
-        // Navigation will be handled by the Link component
-    };
+    const handleProductsClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-    const handleProductsClick = () => {
-        // For mobile devices, toggle the menu on click
-        if (window.innerWidth <= 768) {
+        if (isMobile) {
+            // Simple toggle for mobile
             setIsExpanded(!isExpanded);
+        } else {
+            // On desktop, just open the menu if it's not already open
+            if (!isExpanded) {
+                setIsExpanded(true);
+            }
         }
     };
 
@@ -68,31 +115,30 @@ export default function Navbar({ cartCount }) {
             <style>{slideDownAnimation}</style>
             <AppBar
                 position="fixed"
-                onMouseLeave={handleHeaderLeave}
                 sx={{
-                    backgroundColor: 'rgba(245, 240, 227, 0.9)', // Changed to match site background #f5f0e3
-                    backdropFilter: 'blur(25px)', // Enhanced blur
-                    boxShadow: isScrolled ? '0 2px 20px rgba(0, 0, 0, 0.41)' : 'none', // Subtle shadow when scrolled
+                    backgroundColor: 'rgba(245, 240, 227, 0.9)',
+                    backdropFilter: 'blur(25px)',
+                    boxShadow: isScrolled ? '0 2px 20px rgba(0, 0, 0, 0.41)' : 'none',
                     border: 'none',
-                    margin: '16px auto', // Center with auto margins
+                    margin: '16px auto',
                     marginTop: '8px',
-                    borderRadius: '15px',
-                    width: 'calc(100% - 45px)', // Reduced from 32px to 128px (64px on each side)
+                    borderRadius: isExpanded ? '15px 15px 0 0' : '15px',
+                    width: 'calc(100% - 45px)',
                     top: '12px',
                     zIndex: 1000,
                     left: '0',
                     right: '0',
                     transition: 'all 0.3s ease'
                 }}
+                {...(!isMobile && { onMouseLeave: handleHeaderLeave })}
             >
                 <Toolbar sx={{
                     justifyContent: 'space-between',
-                    py: 0.5, // Reduced from 1.5 to 1
-                    minHeight: '50px' // Reduced from 60px to 50px
+                    py: 0.5,
+                    minHeight: '50px'
                 }}>
                     {/* Logo */}
                     <Link to="/" style={{ textDecoration: 'none', marginTop: '8px', color: 'inherit' }}>
-
                         <img
                             src="/logo.png"
                             alt="Store"
@@ -118,10 +164,9 @@ export default function Navbar({ cartCount }) {
                         }}
                     >
                         <Box
+                            ref={buttonRef}
                             onMouseEnter={handleProductsHover}
-                            onMouseLeave={handleHeaderLeave}
                             onClick={handleProductsClick}
-                            onTouchStart={handleProductsClick}
                         >
                             <Typography
                                 variant="body1"
@@ -130,7 +175,6 @@ export default function Navbar({ cartCount }) {
                                     fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' },
                                     fontWeight: 400,
                                     cursor: 'pointer',
-                                    textShadow: 'none',
                                     transition: 'color 0.2s ease',
                                     '&:hover': {
                                         color: 'rgba(199, 61, 34, 1)'
@@ -163,7 +207,6 @@ export default function Navbar({ cartCount }) {
                                 fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' },
                                 fontWeight: 400,
                                 cursor: 'pointer',
-                                textShadow: 'none',
                                 transition: 'color 0.2s ease',
                                 '&:hover': {
                                     color: 'rgba(199, 61, 34, 1)'
@@ -178,8 +221,7 @@ export default function Navbar({ cartCount }) {
                     <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit' }}>
                         <IconButton
                             sx={{
-                                color: 'rgba(173, 153, 103, 0.9)', // Changed to dark color for white background
-                                textShadow: 'none', // Removed text shadow
+                                color: 'rgba(173, 153, 103, 0.9)',
                                 transition: 'color 0.2s ease',
                                 '&:hover': {
                                     color: 'rgba(199, 61, 34, 1)'
@@ -193,30 +235,14 @@ export default function Navbar({ cartCount }) {
                     </Link>
                 </Toolbar>
 
-                {/* Mobile Backdrop */}
-                {isExpanded && window.innerWidth <= 768 && (
-                    <Box
-                        onClick={() => setIsExpanded(false)}
-                        sx={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                            zIndex: 1000
-                        }}
-                    />
-                )}
-                
                 {/* Expanding Menu */}
                 {isExpanded && (
                     <Box
-                        onMouseLeave={handleHeaderLeave}
+                        ref={menuRef}
                         sx={{
-                            backgroundColor: 'rgba(245, 240, 227, 0.95)', // Changed to match navbar background
-                            backdropFilter: 'blur(25px)', // Enhanced blur
-                            borderTop: '1px solid rgba(0, 0, 0, 0.1)', // Changed border color
+                            backgroundColor: 'rgba(245, 240, 227, 0.95)',
+                            backdropFilter: 'blur(25px)',
+                            borderTop: '1px solid rgba(0, 0, 0, 0.1)',
                             height: 'auto',
                             maxHeight: '300px',
                             overflow: 'hidden',
@@ -226,21 +252,23 @@ export default function Navbar({ cartCount }) {
                             visibility: 'visible',
                             display: 'flex',
                             justifyContent: 'center',
-                            backdropFilter: 'blur(25px)', // Enhanced blur
-                            borderBottomLeftRadius: '20px',
-                            borderBottomRightRadius: '20px',
+                            borderTopLeftRadius: '0',
+                            borderTopRightRadius: '0',
+                            borderBottomLeftRadius: '15px',
+                            borderBottomRightRadius: '15px',
                             animation: 'slideDown 0.3s ease',
-                            boxShadow: 'none', // Removed shadow effect
                             position: 'relative',
                             zIndex: 1001,
+                            marginTop: '-1px', // Remove gap between navbar and menu
                             '@media (max-width: 768px)': {
-                                position: 'fixed',
+                                position: 'absolute',
                                 top: '100%',
                                 left: 0,
                                 right: 0,
                                 width: '100%',
                                 maxHeight: '70vh',
-                                overflowY: 'auto'
+                                overflowY: 'auto',
+                                marginTop: '-1px' // Remove gap on mobile too
                             }
                         }}
                     >
@@ -261,11 +289,14 @@ export default function Navbar({ cartCount }) {
                                             width: '100%',
                                             textAlign: 'center'
                                         }}
-                                        onClick={() => handleProductClick(product.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleProductClick();
+                                        }}
                                     >
                                         <MenuItem
                                             sx={{
-                                                color: '#1d1d1f', // Changed to dark color for white background
+                                                color: '#1d1d1f',
                                                 fontWeight: 400,
                                                 fontSize: '0.95rem',
                                                 py: 1.5,
@@ -273,7 +304,6 @@ export default function Navbar({ cartCount }) {
                                                 borderRadius: '8px',
                                                 mx: 2,
                                                 transition: 'color 0.2s ease',
-                                                textShadow: 'none', // Removed text shadow
                                                 backgroundColor: 'transparent',
                                                 textAlign: 'center',
                                                 justifyContent: 'center',
@@ -290,7 +320,7 @@ export default function Navbar({ cartCount }) {
                                         <Box
                                             sx={{
                                                 height: '1px',
-                                                backgroundColor: 'rgba(0, 0, 0, 0.1)', // Changed to dark color
+                                                backgroundColor: 'rgba(0, 0, 0, 0.1)',
                                                 mx: 3,
                                                 my: 0.5
                                             }}

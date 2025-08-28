@@ -1,0 +1,39 @@
+[[redirects]]
+  from = "/terms"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/returns"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/payment/success"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/payment/error"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/product/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/cart"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
