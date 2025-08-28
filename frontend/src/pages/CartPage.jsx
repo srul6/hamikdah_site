@@ -211,7 +211,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
                                         <TableCell colSpan={5}>
                                             <Typography align="center" variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                                {isHebrew ? `₪${total.toFixed(2)} :${t.total}` : `${t.total}: ₪${total.toFixed(2)}`}
+                                                {isHebrew ? `${t.total}: ₪${total.toFixed(2)}` : `${t.total}: ₪${total.toFixed(2)}`}
                                             </Typography>
                                         </TableCell>
 

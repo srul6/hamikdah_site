@@ -53,6 +53,14 @@ export default function Navbar({ cartCount }) {
 
     const handleProductClick = (productId) => {
         setIsExpanded(false);
+        // Navigation will be handled by the Link component
+    };
+
+    const handleProductsClick = () => {
+        // For mobile devices, toggle the menu on click
+        if (window.innerWidth <= 768) {
+            setIsExpanded(!isExpanded);
+        }
     };
 
     return (
@@ -112,6 +120,8 @@ export default function Navbar({ cartCount }) {
                         <Box
                             onMouseEnter={handleProductsHover}
                             onMouseLeave={handleHeaderLeave}
+                            onClick={handleProductsClick}
+                            onTouchStart={handleProductsClick}
                         >
                             <Typography
                                 variant="body1"
@@ -183,6 +193,22 @@ export default function Navbar({ cartCount }) {
                     </Link>
                 </Toolbar>
 
+                {/* Mobile Backdrop */}
+                {isExpanded && window.innerWidth <= 768 && (
+                    <Box
+                        onClick={() => setIsExpanded(false)}
+                        sx={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                            zIndex: 1000
+                        }}
+                    />
+                )}
+                
                 {/* Expanding Menu */}
                 {isExpanded && (
                     <Box
@@ -204,7 +230,18 @@ export default function Navbar({ cartCount }) {
                             borderBottomLeftRadius: '20px',
                             borderBottomRightRadius: '20px',
                             animation: 'slideDown 0.3s ease',
-                            boxShadow: 'none' // Removed shadow effect
+                            boxShadow: 'none', // Removed shadow effect
+                            position: 'relative',
+                            zIndex: 1001,
+                            '@media (max-width: 768px)': {
+                                position: 'fixed',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                width: '100%',
+                                maxHeight: '70vh',
+                                overflowY: 'auto'
+                            }
                         }}
                     >
                         <Box sx={{
@@ -216,39 +253,39 @@ export default function Navbar({ cartCount }) {
                         }}>
                             {products.map((product, index) => (
                                 <div key={product.id}>
-                                    <MenuItem
-                                        onClick={() => handleProductClick(product.id)}
-                                        sx={{
-                                            color: '#1d1d1f', // Changed to dark color for white background
-                                            fontWeight: 400,
-                                            fontSize: '0.95rem',
-                                            py: 1.5,
-                                            px: 3,
-                                            borderRadius: '8px',
-                                            mx: 2,
-                                            transition: 'color 0.2s ease',
-                                            textShadow: 'none', // Removed text shadow
-                                            backgroundColor: 'transparent',
-                                            textAlign: 'center',
-                                            justifyContent: 'center',
-                                            '&:hover': {
-                                                color: 'rgba(199, 61, 34, 1)',
-                                                backgroundColor: 'transparent'
-                                            }
+                                    <Link
+                                        to={`/product/${product.id}`}
+                                        style={{
+                                            textDecoration: 'none',
+                                            color: 'inherit',
+                                            width: '100%',
+                                            textAlign: 'center'
                                         }}
+                                        onClick={() => handleProductClick(product.id)}
                                     >
-                                        <Link
-                                            to={`/product/${product.id}`}
-                                            style={{
-                                                textDecoration: 'none',
-                                                color: 'inherit',
-                                                width: '100%',
-                                                textAlign: 'center'
+                                        <MenuItem
+                                            sx={{
+                                                color: '#1d1d1f', // Changed to dark color for white background
+                                                fontWeight: 400,
+                                                fontSize: '0.95rem',
+                                                py: 1.5,
+                                                px: 3,
+                                                borderRadius: '8px',
+                                                mx: 2,
+                                                transition: 'color 0.2s ease',
+                                                textShadow: 'none', // Removed text shadow
+                                                backgroundColor: 'transparent',
+                                                textAlign: 'center',
+                                                justifyContent: 'center',
+                                                '&:hover': {
+                                                    color: 'rgba(199, 61, 34, 1)',
+                                                    backgroundColor: 'transparent'
+                                                }
                                             }}
                                         >
                                             {isHebrew ? product.name_he : product.name_en}
-                                        </Link>
-                                    </MenuItem>
+                                        </MenuItem>
+                                    </Link>
                                     {index < products.length - 1 && (
                                         <Box
                                             sx={{
