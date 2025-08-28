@@ -6,6 +6,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import { API_ENDPOINTS } from '../config';
 
 export default function AdminPanel() {
   const [products, setProducts] = useState([]);
@@ -25,7 +26,7 @@ export default function AdminPanel() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/products');
+      const response = await fetch(API_ENDPOINTS.products);
       const data = await response.json();
       setProducts(data);
     } catch (error) {
@@ -44,8 +45,8 @@ export default function AdminPanel() {
 
     try {
       const url = editingProduct
-        ? `http://localhost:5001/api/products/${editingProduct.id}`
-        : 'http://localhost:5001/api/products';
+        ? `${API_ENDPOINTS.products}/${editingProduct.id}`
+        : API_ENDPOINTS.products;
 
       const method = editingProduct ? 'PUT' : 'POST';
 
@@ -87,7 +88,7 @@ export default function AdminPanel() {
   const handleDelete = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const response = await fetch(`http://localhost:5001/api/products/${productId}`, {
+        const response = await fetch(`${API_ENDPOINTS.products}/${productId}`, {
           method: 'DELETE',
         });
 
