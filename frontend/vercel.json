@@ -1,0 +1,32 @@
+{
+  "rewrites": [
+    {
+      "source": "/terms",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/returns", 
+      "destination": "/index.html"
+    },
+    {
+      "source": "/cart",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/product/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/payment/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
