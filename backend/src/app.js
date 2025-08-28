@@ -26,12 +26,15 @@ app.use('/api/cardcom', require('./routes/cardcom'));
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
+// Handle API routes that weren't matched above
+app.all('/api/*', (req, res) => {
+    console.log(`API route not found: ${req.method} ${req.path}`);
+    res.status(404).json({ error: 'API endpoint not found' });
+});
+
 // Catch-all route: serve React app for all non-API routes
 app.get('*', (req, res) => {
-    // Check if this is an API route that wasn't handled
-    if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ error: 'API endpoint not found' });
-    }
+    console.log(`Serving React app for: ${req.path}`);
     res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
 });
 
