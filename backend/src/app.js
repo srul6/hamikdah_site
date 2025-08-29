@@ -32,6 +32,22 @@ app.all('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
+// Specific routes for React app pages
+app.get('/admin', (req, res) => {
+    console.log('Serving admin page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
+app.get('/terms', (req, res) => {
+    console.log('Serving terms page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
+app.get('/returns', (req, res) => {
+    console.log('Serving returns page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
 // Catch-all route: serve React app for all non-API routes
 app.get('*', (req, res) => {
     console.log(`Serving React app for: ${req.path}`);
