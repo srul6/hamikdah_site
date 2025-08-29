@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    AppBar, Toolbar, Typography, IconButton, Badge, Box, MenuItem
+    AppBar, Toolbar, Typography, IconButton, Badge, Box, MenuItem, List, ListItem, ListItemText, Divider
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Link } from 'react-router-dom';
 import { fetchProducts } from '../api/products';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -20,12 +23,25 @@ const slideDownAnimation = `
       transform: translateY(0);
     }
   }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 `;
 
 export default function Navbar({ cartCount }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [products, setProducts] = useState([]);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobileProductsPage, setIsMobileProductsPage] = useState(false);
     const { language, toggleLanguage, isHebrew } = useLanguage();
     const t = translations[language];
 
@@ -93,6 +109,8 @@ export default function Navbar({ cartCount }) {
 
     const handleProductClick = () => {
         setIsExpanded(false);
+        setIsMobileMenuOpen(false);
+        setIsMobileProductsPage(false);
     };
 
     const handleProductsClick = (e) => {
@@ -100,8 +118,8 @@ export default function Navbar({ cartCount }) {
         e.stopPropagation();
 
         if (isMobile) {
-            // Simple toggle for mobile
-            setIsExpanded(!isExpanded);
+            // Open products page in mobile menu
+            setIsMobileProductsPage(true);
         } else {
             // On desktop, just open the menu if it's not already open
             if (!isExpanded) {
@@ -112,6 +130,30 @@ export default function Navbar({ cartCount }) {
 
     const handleLogoClick = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Close mobile menu if it's open
+        if (isMobileMenuOpen) {
+            setIsMobileMenuOpen(false);
+            setIsMobileProductsPage(false);
+        }
+    };
+
+    const handleMobileMenuToggle = () => {
+        setIsMobileMenuOpen(!isMobileMenuOpen);
+        setIsMobileProductsPage(false);
+    };
+
+    const handleMobileMenuClose = () => {
+        setIsMobileMenuOpen(false);
+        setIsMobileProductsPage(false);
+    };
+
+    const handleBackToMainMenu = () => {
+        setIsMobileProductsPage(false);
+    };
+
+    const handleLanguageToggle = () => {
+        toggleLanguage();
+        // Don't close menu on mobile
     };
 
     return (
@@ -154,29 +196,96 @@ export default function Navbar({ cartCount }) {
                         />
                     </Link>
 
-                    {/* Products Menu and Language Switcher */}
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            left: '50%',
-                            top: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            height: '100%',
-                            gap: 1
-                        }}
-                    >
+                    {/* Desktop: Products Menu and Language Switcher */}
+                    {!isMobile && (
                         <Box
-                            ref={buttonRef}
-                            onMouseEnter={handleProductsHover}
-                            onClick={handleProductsClick}
+                            sx={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '100%',
+                                gap: { xs: 1, sm: 2, md: 3, lg: 5 }
+                            }}
                         >
+                            <Box
+                                ref={buttonRef}
+                                onMouseEnter={handleProductsHover}
+                                onClick={handleProductsClick}
+                            >
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        color: '#1d1d1f',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        cursor: 'pointer',
+                                        transition: 'color 0.2s ease',
+                                        '&:hover': {
+                                            color: 'rgba(199, 61, 34, 1)'
+                                        }
+                                    }}
+                                >
+                                    {t.products}
+                                </Typography>
+                            </Box>
+
+                            {/* Separator */}
                             <Typography
                                 variant="body1"
                                 sx={{
+                                    color: '#86868b',
+                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                    fontWeight: 400,
+                                    mx: 0,
+                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                }}
+                            >
+                                |
+                            </Typography>
+
+                            {/* About Us */}
+                            <Link to="/about" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        color: '#1d1d1f',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        cursor: 'pointer',
+                                        transition: 'color 0.2s ease',
+                                        '&:hover': {
+                                            color: 'rgba(199, 61, 34, 1)'
+                                        }
+                                    }}
+                                >
+                                    {t.aboutUs}
+                                </Typography>
+                            </Link>
+
+                            {/* Separator */}
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    color: '#86868b',
+                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                    fontWeight: 400,
+                                    mx: 0,
+                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                }}
+                            >
+                                |
+                            </Typography>
+
+                            {/* Language Switcher */}
+                            <Typography
+                                onClick={toggleLanguage}
+                                variant="body1"
+                                sx={{
                                     color: '#1d1d1f',
-                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' },
+                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
                                     fontWeight: 400,
                                     cursor: 'pointer',
                                     transition: 'color 0.2s ease',
@@ -185,62 +294,60 @@ export default function Navbar({ cartCount }) {
                                     }
                                 }}
                             >
-                                {t.products}
+                                {language}
                             </Typography>
                         </Box>
+                    )}
 
-                        {/* Separator */}
-                        <Typography
-                            variant="body1"
-                            sx={{
-                                color: '#86868b',
-                                fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
-                                fontWeight: 400,
-                                mx: 0
-                            }}
-                        >
-                            |
-                        </Typography>
+                    {/* Right side: Cart and Mobile Menu */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                        {/* Cart Icon - Hidden when mobile menu is open */}
+                        {(!isMobile || !isMobileMenuOpen) && (
+                            <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                <IconButton
+                                    sx={{
+                                        color: 'rgba(173, 153, 103, 0.9)',
+                                        transition: 'color 0.2s ease',
+                                        '&:hover': {
+                                            color: 'rgba(199, 61, 34, 1)'
+                                        }
+                                    }}
+                                >
+                                    <Badge badgeContent={cartCount} color="error">
+                                        <ShoppingCartIcon />
+                                    </Badge>
+                                </IconButton>
+                            </Link>
+                        )}
 
-                        {/* Language Switcher */}
-                        <Typography
-                            onClick={toggleLanguage}
-                            variant="body1"
-                            sx={{
-                                color: '#1d1d1f',
-                                fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' },
-                                fontWeight: 400,
-                                cursor: 'pointer',
-                                transition: 'color 0.2s ease',
-                                '&:hover': {
-                                    color: 'rgba(199, 61, 34, 1)'
-                                }
-                            }}
-                        >
-                            {language}
-                        </Typography>
+                        {/* Mobile Menu Button - Hamburger, X, or Back Arrow */}
+                        {isMobile && (
+                            <IconButton
+                                onClick={isMobileProductsPage ? handleBackToMainMenu : handleMobileMenuToggle}
+                                sx={{
+                                    color: 'rgba(173, 153, 103, 0.9)',
+                                    transition: 'color 0.2s ease',
+                                    '&:hover': {
+                                        color: 'rgba(199, 61, 34, 1)'
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                        fontSize: '1.5rem',
+                                        strokeWidth: 0.5
+                                    }
+                                }}
+                            >
+                                {isMobileMenuOpen ? (
+                                    isMobileProductsPage ? <ArrowBackIcon /> : <CloseIcon />
+                                ) : (
+                                    <MenuIcon />
+                                )}
+                            </IconButton>
+                        )}
                     </Box>
-
-                    {/* Cart Icon */}
-                    <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        <IconButton
-                            sx={{
-                                color: 'rgba(173, 153, 103, 0.9)',
-                                transition: 'color 0.2s ease',
-                                '&:hover': {
-                                    color: 'rgba(199, 61, 34, 1)'
-                                }
-                            }}
-                        >
-                            <Badge badgeContent={cartCount} color="error">
-                                <ShoppingCartIcon />
-                            </Badge>
-                        </IconButton>
-                    </Link>
                 </Toolbar>
 
-                {/* Expanding Menu */}
-                {isExpanded && (
+                {/* Desktop: Expanding Menu */}
+                {!isMobile && isExpanded && (
                     <Box
                         ref={menuRef}
                         sx={{
@@ -256,23 +363,11 @@ export default function Navbar({ cartCount }) {
                             visibility: 'visible',
                             display: 'flex',
                             justifyContent: 'center',
-
                             animation: 'slideDown 0.3s ease',
                             position: 'relative',
                             zIndex: 1001,
                             borderRadius: '0 0 15px 15px',
-
-                            marginTop: '-1px', // Remove gap between navbar and menu
-                            '@media (max-width: 768px)': {
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                right: 0,
-                                width: '100%',
-                                maxHeight: '70vh',
-                                overflowY: 'auto',
-                                marginTop: '-1px' // Remove gap on mobile too
-                            }
+                            marginTop: '-1px',
                         }}
                     >
                         <Box sx={{
@@ -335,6 +430,185 @@ export default function Navbar({ cartCount }) {
                     </Box>
                 )}
             </AppBar>
+
+            {/* Mobile Full-Page Menu - Opens in place */}
+            {isMobile && isMobileMenuOpen && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(245, 240, 227, 0.98)',
+                        backdropFilter: 'blur(25px)',
+                        zIndex: 999,
+                        padding: 3,
+                        paddingTop: '80px', // Account for navbar height
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}
+                >
+                    {/* Main Menu or Products Page */}
+                    {!isMobileProductsPage ? (
+                        // Main Menu
+                        <Box sx={{ height: '100%', mt: 5, ml: 1, display: 'flex', flexDirection: 'column' }}>
+                            {/* Menu Items */}
+                            <List sx={{ flex: 1 }}>
+                                {/* Products */}
+                                <ListItem
+                                    button
+                                    onClick={handleProductsClick}
+                                    sx={{
+                                        borderRadius: 0,
+                                        backgroundColor: 'transparent',
+                                        cursor: 'pointer',
+                                        opacity: 0,
+                                        animation: 'fadeInUp 0.6s ease forwards',
+                                        '&:hover': {
+                                            backgroundColor: 'transparent',
+                                            '& .MuiListItemText-primary': {
+                                                color: 'rgba(199, 61, 34, 1)'
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <ListItemText
+                                        primary={t.products}
+                                        primaryTypographyProps={{
+                                            fontSize: '2.5rem',
+                                            mb: -1.5,
+                                            fontWeight: 400,
+                                            color: '#1d1d1f',
+                                            cursor: 'pointer',
+                                            transition: 'color 0.2s ease'
+                                        }}
+                                    />
+                                </ListItem>
+
+                                {/* About Us */}
+                                <Link to="/about" style={{ textDecoration: 'none', color: 'inherit' }} onClick={handleMobileMenuClose}>
+                                    <ListItem
+                                        sx={{
+                                            borderRadius: 0,
+                                            backgroundColor: 'transparent',
+                                            cursor: 'pointer',
+                                            opacity: 0,
+                                            animation: 'fadeInUp 0.6s ease 0.1s forwards',
+                                            '&:hover': {
+                                                backgroundColor: 'transparent',
+                                                '& .MuiListItemText-primary': {
+                                                    color: 'rgba(199, 61, 34, 1)'
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <ListItemText
+                                            primary={t.aboutUs}
+                                            primaryTypographyProps={{
+                                                fontSize: '2.5rem',
+                                                mb: -1.5,
+                                                fontWeight: 400,
+                                                color: '#1d1d1f',
+                                                cursor: 'pointer',
+                                                transition: 'color 0.2s ease'
+                                            }}
+                                        />
+                                    </ListItem>
+                                </Link>
+
+                                {/* Language Toggle */}
+                                <ListItem
+                                    button
+                                    onClick={handleLanguageToggle}
+                                    sx={{
+                                        borderRadius: 0,
+                                        backgroundColor: 'transparent',
+                                        cursor: 'pointer',
+                                        opacity: 0,
+                                        animation: 'fadeInUp 0.6s ease 0.2s forwards',
+                                        '&:hover': {
+                                            backgroundColor: 'transparent',
+                                            '& .MuiListItemText-primary': {
+                                                color: 'rgba(199, 61, 34, 1)'
+                                            }
+                                        },
+                                        '&:active': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'none'
+                                        },
+                                        '&:focus': {
+                                            backgroundColor: 'transparent',
+                                            outline: 'none'
+                                        }
+                                    }}
+                                >
+                                    <ListItemText
+                                        primary={
+                                            <span>
+                                                <span style={{ color: isHebrew ? 'rgba(199, 61, 34, 1)' : '#1d1d1f' }}>HE</span>
+                                                <span style={{ color: '#86868b' }}> | </span>
+                                                <span style={{ color: !isHebrew ? 'rgba(199, 61, 34, 1)' : '#1d1d1f' }}>EN</span>
+                                            </span>
+                                        }
+                                        primaryTypographyProps={{
+                                            fontSize: '2.4rem',
+                                            fontWeight: 400,
+                                            color: '#1d1d1f',
+                                            cursor: 'pointer',
+                                            transition: 'color 0.2s ease'
+                                        }}
+                                    />
+                                </ListItem>
+                            </List>
+                        </Box>
+                    ) : (
+                        // Products Page
+                        <Box sx={{ height: '100%', mt: 6, display: 'flex', flexDirection: 'column' }}>
+                            {/* Products List */}
+                            <List sx={{ flex: 1 }}>
+                                {products.map((product, index) => (
+                                    <Link
+                                        key={product.id}
+                                        to={`/product/${product.id}`}
+                                        style={{ textDecoration: 'none', color: 'inherit' }}
+                                        onClick={handleProductClick}
+                                    >
+                                        <ListItem
+                                            sx={{
+                                                borderRadius: 0,
+                                                backgroundColor: 'transparent',
+                                                ml: 1,
+                                                mt: -2,
+                                                cursor: 'pointer',
+                                                opacity: 0,
+                                                animation: `fadeInUp 0.6s ease ${0.1 * index}s forwards`,
+                                                '&:hover': {
+                                                    backgroundColor: 'transparent',
+                                                    '& .MuiListItemText-primary': {
+                                                        color: 'rgba(199, 61, 34, 1)'
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <ListItemText
+                                                primary={isHebrew ? product.name_he : product.name_en}
+                                                primaryTypographyProps={{
+                                                    fontSize: '2.5rem',
+                                                    fontWeight: 400,
+                                                    color: '#1d1d1f',
+                                                    cursor: 'pointer',
+                                                    transition: 'color 0.2s ease'
+                                                }}
+                                            />
+                                        </ListItem>
+                                    </Link>
+                                ))}
+                            </List>
+                        </Box>
+                    )}
+                </Box>
+            )}
         </>
     );
 }

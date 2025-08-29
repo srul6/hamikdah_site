@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
 import CartPage from './pages/CartPage';
 import AdminPanel from './pages/AdminPanel';
+import AboutUs from './pages/AboutUs';
 import TermsOfService from './pages/TermsOfService';
 import Returns from './pages/Returns';
 import PaymentSuccess from './pages/PaymentSuccess';
@@ -52,6 +53,7 @@ export default function App() {
                         <Route path="/" element={<Home onAddToCart={addToCart} />} />
                         <Route path="/product/:id" element={<ProductDetail onAddToCart={addToCart} />} />
                         <Route path="/cart" element={<CartPage cart={cart} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />} />
+                        <Route path="/about" element={<AboutUs />} />
                         <Route path="/admin" element={<AdminPanel />} />
                         <Route path="/terms" element={<TermsOfService />} />
                         <Route path="/returns" element={<Returns />} />

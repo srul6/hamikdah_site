@@ -48,6 +48,11 @@ app.get('/returns', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
 });
 
+app.get('/about', (req, res) => {
+    console.log('Serving about page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
 // Catch-all route: serve React app for all non-API routes
 app.get('*', (req, res) => {
     console.log(`Serving React app for: ${req.path}`);

@@ -43,17 +43,20 @@ exports.getProductById = async (req, res) => {
 // Create new product
 exports.createProduct = async (req, res) => {
     try {
+        console.log('Creating product with data:', req.body);
         const newProduct = await supabaseController.createProduct(req.body);
         res.status(201).json(newProduct);
     } catch (error) {
         console.error('Error creating product:', error);
-        res.status(500).json({ error: 'Failed to create product' });
+        console.error('Error details:', error.message, error.details, error.hint);
+        res.status(500).json({ error: `Failed to create product: ${error.message}` });
     }
 };
 
 // Update product
 exports.updateProduct = async (req, res) => {
     try {
+        console.log('Updating product with data:', req.body);
         const updatedProduct = await supabaseController.updateProduct(req.params.id, req.body);
         if (updatedProduct) {
             res.json(updatedProduct);
@@ -62,7 +65,8 @@ exports.updateProduct = async (req, res) => {
         }
     } catch (error) {
         console.error('Error updating product:', error);
-        res.status(500).json({ error: 'Failed to update product' });
+        console.error('Error details:', error.message, error.details, error.hint);
+        res.status(500).json({ error: `Failed to update product: ${error.message}` });
     }
 };
 

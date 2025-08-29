@@ -2,6 +2,7 @@ export const translations = {
     HE: {
         // Navbar
         products: 'מוצרים',
+        aboutUs: 'מי אנחנו',
         cart: 'עגלה',
         admin: 'ניהול',
 
@@ -9,7 +10,7 @@ export const translations = {
         heroTitle: 'חנות המקדש',
         heroSubtitle: 'מוצרים יהודיים אותנטיים וחפצי קודש',
         addToCart: 'הוסף לעגלה',
-        loadingProducts: 'טוען מוצרים...',
+        loadingProducts: '...טוען מוצרים',
         mainTitle: 'מוצרים איכותיים לבית היהודי',
         mainDescription: 'אנו מתמחים במכירת מוצרים ייחודיים ואיכותיים לבית הכנסת ולמשפחה היהודית',
         whatOurCustomersSay: 'מה הלקוחות שלנו אומרים',
@@ -22,7 +23,7 @@ export const translations = {
 
         // Cart Page
         cart: 'עגלת קניות',
-        emptyCart: '😢 כרגע סל הקניות שלך ריק',
+        emptyCart: 'כרגע סל הקניות שלך ריק 😢',
         yourCart: 'סל הקניות שלך',
         continueShopping: 'המשך בקניות',
         checkout: 'המשך לתשלום',
@@ -122,6 +123,7 @@ export const translations = {
     EN: {
         // Navbar
         products: 'Products',
+        aboutUs: 'About Us',
         cart: 'Cart',
         admin: 'Admin',
 

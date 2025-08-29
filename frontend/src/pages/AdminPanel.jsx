@@ -1,32 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container, Typography, Box, TextField, Button, Grid, Card, CardContent,
-  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Alert
+  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Alert, Paper
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import LockIcon from '@mui/icons-material/Lock';
 import { API_ENDPOINTS } from '../config';
 
 export default function AdminPanel() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
   const [products, setProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name_he: '',
+    name_en: '',
+    description_he: '',
+    description_en: '',
     price: '',
+    quantity: '',
     homepageimage: '',
     extraimages: ''
   });
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    // Check if user is already authenticated
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      setIsAuthenticated(true);
+    }
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (isAuthenticated) {
+      fetchProducts();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+
+    // Get credentials from environment variables
+    const validCredentials = {
+      username: process.env.REACT_APP_ADMIN_USERNAME || 'admin',
+      password: process.env.REACT_APP_ADMIN_PASSWORD || 'hamikdash2024'
+    };
+
+    if (loginData.username === validCredentials.username &&
+      loginData.password === validCredentials.password) {
+      const token = 'admin-token-' + Date.now(); // Simple token generation
+      localStorage.setItem('adminToken', token);
+      setIsAuthenticated(true);
+    } else {
+      setLoginError('Invalid username or password');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+    setLoginData({ username: '', password: '' });
+  };
 
   const fetchProducts = async () => {
     try {
@@ -42,8 +82,13 @@ export default function AdminPanel() {
     e.preventDefault();
 
     const productData = {
-      ...formData,
+      name_he: formData.name_he,
+      name_en: formData.name_en,
+      description_he: formData.description_he,
+      description_en: formData.description_en,
       price: parseFloat(formData.price),
+      quantity: parseInt(formData.quantity) || 0,
+      homepageimage: formData.homepageimage,
       extraimages: formData.extraimages.split(',').map(img => img.trim()).filter(img => img)
     };
 
@@ -80,9 +125,12 @@ export default function AdminPanel() {
   const handleEdit = (product) => {
     setEditingProduct(product);
     setFormData({
-      name: product.name,
-      description: product.description,
+      name_he: product.name_he || '',
+      name_en: product.name_en || '',
+      description_he: product.description_he || '',
+      description_en: product.description_en || '',
       price: product.price.toString(),
+      quantity: (product.quantity || 0).toString(),
       homepageimage: product.homepageimage || '',
       extraimages: product.extraimages ? product.extraimages.join(', ') : ''
     });
@@ -117,9 +165,12 @@ export default function AdminPanel() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
+      name_he: '',
+      name_en: '',
+      description_he: '',
+      description_en: '',
       price: '',
+      quantity: '',
       homepageimage: '',
       extraimages: ''
     });
@@ -132,23 +183,98 @@ export default function AdminPanel() {
     }));
   };
 
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, mt: 8 }}>
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <LockIcon sx={{ fontSize: 48, color: '#0071e3', mb: 2 }} />
+            <Typography variant="h4" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              Admin Login
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Enter your credentials to access the admin panel
+            </Typography>
+          </Box>
+
+          <form onSubmit={handleLogin}>
+            <TextField
+              fullWidth
+              label="Username"
+              value={loginData.username}
+              onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+              required
+              sx={{ mb: 3 }}
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={loginData.password}
+              onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+              required
+              sx={{ mb: 3 }}
+            />
+
+            {loginError && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {loginError}
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{
+                backgroundColor: '#0071e3',
+                '&:hover': { backgroundColor: '#0077ed' },
+                py: 1.5
+              }}
+            >
+              Login
+            </Button>
+          </form>
+        </Paper>
+      </Container>
+    );
+  }
+
+  // Show admin panel if authenticated
   return (
-    <Container maxWidth="lg" sx={{ py: 8 }}>
+    <Container maxWidth="lg" sx={{ py: 8, mt: 8 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h3" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
           Admin Panel
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAdd}
-          sx={{
-            backgroundColor: '#0071e3',
-            '&:hover': { backgroundColor: '#0077ed' }
-          }}
-        >
-          Add Product
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAdd}
+            sx={{
+              backgroundColor: '#0071e3',
+              '&:hover': { backgroundColor: '#0077ed' }
+            }}
+          >
+            Add Product
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleLogout}
+            sx={{
+              borderColor: '#ff3b30',
+              color: '#ff3b30',
+              '&:hover': {
+                borderColor: '#ff3b30',
+                backgroundColor: 'rgba(255, 59, 48, 0.1)'
+              }
+            }}
+          >
+            Logout
+          </Button>
+        </Box>
       </Box>
 
       <Alert severity="info" sx={{ mb: 3 }}>
@@ -163,9 +289,25 @@ export default function AdminPanel() {
           <Grid item xs={12} md={6} lg={4} key={product.id}>
             <Card sx={{ height: '100%' }}>
               <CardContent>
+                {/* Product Image */}
+                {product.homepageimage && (
+                  <Box sx={{ mb: 2, textAlign: 'center' }}>
+                    <img
+                      src={product.homepageimage}
+                      alt={product.name_he || product.name_en}
+                      style={{
+                        width: '100%',
+                        height: '200px',
+                        objectFit: 'cover',
+                        borderRadius: '8px'
+                      }}
+                    />
+                  </Box>
+                )}
+
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {product.name}
+                    {product.name_he || product.name_en}
                   </Typography>
                   <Box>
                     <IconButton
@@ -184,20 +326,29 @@ export default function AdminPanel() {
                     </IconButton>
                   </Box>
                 </Box>
+
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {product.description}
+                  {product.description_he || product.description_en}
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#0071e3' }}>
-                  ₪{product.price}
-                </Typography>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#0071e3' }}>
+                    ₪{product.price}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: (product.quantity || 0) > 0 ? '#28a745' : '#dc3545',
+                      fontWeight: 600
+                    }}
+                  >
+                    Quantity: {product.quantity || 0}
+                  </Typography>
+                </Box>
+
                 <Typography variant="caption" color="text.secondary">
                   ID: {product.id}
                 </Typography>
-                {product.homepageimage && (
-                  <Typography variant="caption" display="block" sx={{ mt: 1, wordBreak: 'break-all' }}>
-                    Homepage: {product.homepageimage}
-                  </Typography>
-                )}
               </CardContent>
             </Card>
           </Grid>
@@ -219,9 +370,42 @@ export default function AdminPanel() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Product Name"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  label="Product Name (Hebrew)"
+                  value={formData.name_he}
+                  onChange={(e) => handleInputChange('name_he', e.target.value)}
+                  required
+                  dir="rtl"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name (English)"
+                  value={formData.name_en}
+                  onChange={(e) => handleInputChange('name_en', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Description (Hebrew)"
+                  multiline
+                  rows={3}
+                  value={formData.description_he}
+                  onChange={(e) => handleInputChange('description_he', e.target.value)}
+                  required
+                  dir="rtl"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Description (English)"
+                  multiline
+                  rows={3}
+                  value={formData.description_en}
+                  onChange={(e) => handleInputChange('description_en', e.target.value)}
                   required
                 />
               </Grid>
@@ -235,15 +419,15 @@ export default function AdminPanel() {
                   required
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Description"
-                  multiline
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  label="Quantity Available"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => handleInputChange('quantity', e.target.value)}
                   required
+                  helperText="Number of items in stock"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
