@@ -8,23 +8,20 @@ class CardcomController {
         this.apiPassword = process.env.CARDCOM_API_PASSWORD;
         this.cardcomUrl = 'https://secure.cardcom.solutions';
 
-        // Debug logging (only in development)
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Cardcom Controller initialized with:', {
-                terminalNumber: this.terminalNumber,
-                apiName: this.apiName,
-                apiPassword: this.apiPassword ? '***' : 'missing',
-                cardcomUrl: this.cardcomUrl
-            });
-        }
+        // Always log credentials status for debugging
+        console.log('Cardcom Controller initialized with:', {
+            terminalNumber: this.terminalNumber,
+            apiName: this.apiName,
+            apiPassword: this.apiPassword ? '***' : 'missing',
+            cardcomUrl: this.cardcomUrl,
+            nodeEnv: process.env.NODE_ENV
+        });
     }
 
     // Create LowProfile deal according to official Cardcom API
     async createLowProfile(req, res) {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('=== Cardcom createLowProfile called ===');
-            console.log('Request body:', req.body);
-        }
+        console.log('=== Cardcom createLowProfile called ===');
+        console.log('Request body:', req.body);
 
         try {
             const { items, totalAmount, currency = 'ILS', customerInfo } = req.body;
@@ -32,6 +29,7 @@ class CardcomController {
             // Validate input parameters
             const validationErrors = this.validatePaymentParams(items, totalAmount, customerInfo);
             if (validationErrors.length > 0) {
+                console.log('Validation errors:', validationErrors);
                 return res.status(400).json({
                     success: false,
                     error: 'Validation failed',
@@ -41,7 +39,11 @@ class CardcomController {
 
             // Check if Cardcom credentials are available
             if (!this.terminalNumber || !this.apiName || !this.apiPassword) {
-                console.error('Cardcom credentials not found');
+                console.error('Cardcom credentials not found:', {
+                    terminalNumber: !!this.terminalNumber,
+                    apiName: !!this.apiName,
+                    apiPassword: !!this.apiPassword
+                });
                 return res.status(500).json({
                     success: false,
                     error: 'Cardcom configuration missing',
@@ -90,15 +92,14 @@ class CardcomController {
                 }
             };
 
-            // Debug logging (only in development)
-            if (process.env.NODE_ENV === 'development') {
-                console.log('LowProfile request:', {
-                    ...lowProfileRequest,
-                    ApiPassword: '***' // Hide password in logs
-                });
-            }
+            // Debug logging
+            console.log('LowProfile request:', {
+                ...lowProfileRequest,
+                ApiPassword: '***' // Hide password in logs
+            });
 
             // Create LowProfile deal with Cardcom using official API
+            console.log('Making request to Cardcom API...');
             const response = await axios.post(
                 `${this.cardcomUrl}/api/v11/LowProfile/Create`,
                 lowProfileRequest,
@@ -110,9 +111,11 @@ class CardcomController {
                 }
             );
 
+            console.log('Cardcom API response:', response.data);
             const result = response.data;
 
             if (result.ResponseCode === 0 && result.LowProfileId) {
+                console.log('LowProfile created successfully:', result.LowProfileId);
                 res.json({
                     success: true,
                     lowProfileId: result.LowProfileId,
@@ -132,6 +135,20 @@ class CardcomController {
 
         } catch (error) {
             console.error('Cardcom LowProfile creation failed:', error);
+            
+            // Log more details about the error
+            if (error.response) {
+                console.error('Cardcom API error response:', {
+                    status: error.response.status,
+                    data: error.response.data,
+                    headers: error.response.headers
+                });
+            } else if (error.request) {
+                console.error('Cardcom API request error:', error.request);
+            } else {
+                console.error('Cardcom API error:', error.message);
+            }
+
             res.status(500).json({
                 success: false,
                 error: 'LowProfile creation failed',
