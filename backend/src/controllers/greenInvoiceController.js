@@ -1,63 +1,12 @@
-const axios = require('axios');
 const crypto = require('crypto');
+const GreenInvoiceService = require('../services/greenInvoiceService');
 
 class GreenInvoiceController {
     constructor() {
-        this.apiKeyId = process.env.GREENINVOICE_API_KEY_ID;
-        this.apiKeySecret = process.env.GREENINVOICE_API_KEY_SECRET;
-        this.baseUrl = 'https://api.greeninvoice.co.il/api/v1';
-        this.jwtToken = null;
-        this.tokenExpiry = null;
+        this.greenInvoiceService = new GreenInvoiceService();
 
         // Debug logging
-        console.log('GreenInvoice Controller initialized with:', {
-            apiKeyId: this.apiKeyId ? '***' : 'missing',
-            apiKeySecret: this.apiKeySecret ? '***' : 'missing',
-            baseUrl: this.baseUrl,
-            nodeEnv: process.env.NODE_ENV
-        });
-    }
-
-    // Get JWT token from GreenInvoice
-    async getJWTToken() {
-        try {
-            // Check if we have a valid token
-            if (this.jwtToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
-                return this.jwtToken;
-            }
-
-            console.log('Getting new JWT token from GreenInvoice...');
-
-            const response = await axios.post(
-                `${this.baseUrl}/account/token`,
-                {
-                    id: this.apiKeyId,
-                    secret: this.apiKeySecret
-                },
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 10000
-                }
-            );
-
-            console.log('JWT token response:', response.data);
-
-            if (response.data && response.data.token) {
-                this.jwtToken = response.data.token;
-                // Set token expiry based on the expires field from GreenInvoice
-                this.tokenExpiry = response.data.expires * 1000; // Convert to milliseconds
-                console.log('JWT token obtained successfully, expires:', new Date(this.tokenExpiry));
-                return this.jwtToken;
-            } else {
-                throw new Error('No token received from GreenInvoice');
-            }
-
-        } catch (error) {
-            console.error('Failed to get JWT token:', error);
-            throw error;
-        }
+        console.log('GreenInvoice Controller initialized');
     }
 
     // Create invoice with payment link
@@ -80,11 +29,8 @@ class GreenInvoiceController {
             }
 
             // Check if GreenInvoice credentials are available
-            if (!this.apiKeyId || !this.apiKeySecret) {
-                console.error('GreenInvoice credentials not found:', {
-                    apiKeyId: !!this.apiKeyId,
-                    apiKeySecret: !!this.apiKeySecret
-                });
+            if (!this.greenInvoiceService.apiKeyId || !this.greenInvoiceService.apiKeySecret) {
+                console.error('GreenInvoice credentials not found');
                 return res.status(500).json({
                     success: false,
                     error: 'GreenInvoice configuration missing',
@@ -92,79 +38,37 @@ class GreenInvoiceController {
                 });
             }
 
-            // Get JWT token for authentication
-            let jwtToken;
-            try {
-                jwtToken = await this.getJWTToken();
-            } catch (error) {
-                console.error('Failed to get JWT token:', error);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Authentication failed',
-                    message: 'Failed to authenticate with GreenInvoice'
-                });
-            }
-
-            // Generate unique invoice ID
-            const invoiceId = `INV_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-
-            // Prepare GreenInvoice request
+            // Prepare invoice data in the correct format for Document Type 305 (Tax Invoice)
             const invoiceRequest = {
-                documentType: 200, // Invoice type
+                type: 305,
+                description: "Tax Invoice for Online Order",
+                date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
                 currency: currency,
-                language: 'he',
-                description: items.map(item => item.name_he || item.name_en || item.name).join(', '),
-                notes: 'תשלום מאובטח דרך חשבונית ירוקה',
-                paymentTerms: 0, // Immediate payment
-                paymentMethod: 1, // Credit card
-                paymentLink: true, // Enable payment link
-                sendByEmail: true, // Send invoice by email
-                emailTemplate: 'default',
+                income: items.map(item => ({
+                    description: item.name_he || item.name_en || item.name,
+                    quantity: item.quantity || 1,
+                    price: parseFloat(item.price),
+                    vatType: 1 // Standard VAT
+                })),
                 client: {
                     name: customerInfo.name,
                     email: customerInfo.email,
                     phone: customerInfo.phone,
-                    address: customerInfo.address || '',
-                    city: customerInfo.city || '',
-                    zip: customerInfo.zip || '',
-                    country: 'IL'
+                    address: customerInfo.address || ''
                 },
-                items: items.map(item => ({
-                    catalogId: item.id || 'product-' + Math.random().toString(36).substr(2, 9),
-                    description: item.name_he || item.name_en || item.name,
-                    quantity: item.quantity || 1,
-                    price: parseFloat(item.price),
-                    vatType: 0, // Include VAT
-                    discount: 0
-                })),
                 payment: {
                     method: 1, // Credit card
-                    cardComPlugin: true, // Enable Cardcom plugin
-                    paymentLink: true,
-                    paymentLinkExpiry: 7, // Link expires in 7 days
-                    autoPayment: true // Auto-process payment when link is accessed
+                    cardComPlugin: true
                 }
             };
 
             // Debug logging
-            console.log('GreenInvoice request:', invoiceRequest);
+            console.log('GreenInvoice request:', JSON.stringify(invoiceRequest, null, 2));
 
-            // Create invoice with GreenInvoice API
-            console.log('Making request to GreenInvoice API...');
-            const response = await axios.post(
-                `${this.baseUrl}/documents`,
-                invoiceRequest,
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${jwtToken}`
-                    },
-                    timeout: 30000
-                }
-            );
+            // Create invoice using the service
+            const result = await this.greenInvoiceService.createInvoice(invoiceRequest);
 
-            console.log('GreenInvoice API response:', response.data);
-            const result = response.data;
+            console.log('GreenInvoice API response:', result);
 
             if (result.success && result.data) {
                 const invoiceData = result.data;
@@ -173,7 +77,7 @@ class GreenInvoiceController {
                 res.json({
                     success: true,
                     invoiceId: invoiceData.id,
-                    paymentUrl: invoiceData.paymentLink,
+                    paymentUrl: invoiceData.paymentLink || invoiceData.url,
                     invoiceUrl: invoiceData.url,
                     message: 'Invoice created successfully with payment link'
                 });
@@ -182,7 +86,8 @@ class GreenInvoiceController {
                 res.status(500).json({
                     success: false,
                     error: 'Invoice creation failed',
-                    message: result.message || 'Unknown error'
+                    message: result.message || 'Unknown error',
+                    details: result.data || result
                 });
             }
 
@@ -203,7 +108,7 @@ class GreenInvoiceController {
             }
 
             // Fallback for testing when GreenInvoice API is not available
-            if (process.env.NODE_ENV === 'development' || !this.apiKeyId || !this.apiKeySecret) {
+            if (process.env.NODE_ENV === 'development' || !this.greenInvoiceService.apiKeyId || !this.greenInvoiceService.apiKeySecret) {
                 console.log('Using fallback mode for testing');
                 const testInvoiceId = `TEST_INV_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
 
@@ -238,30 +143,7 @@ class GreenInvoiceController {
                 });
             }
 
-            // Get JWT token for authentication
-            let jwtToken;
-            try {
-                jwtToken = await this.getJWTToken();
-            } catch (error) {
-                console.error('Failed to get JWT token for status check:', error);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Authentication failed',
-                    message: 'Failed to authenticate with GreenInvoice'
-                });
-            }
-
-            const response = await axios.get(
-                `${this.baseUrl}/documents/${invoiceId}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${jwtToken}`
-                    },
-                    timeout: 10000
-                }
-            );
-
-            const result = response.data;
+            const result = await this.greenInvoiceService.getInvoiceStatus(invoiceId);
 
             if (result.success && result.data) {
                 res.json({
@@ -332,19 +214,6 @@ class GreenInvoiceController {
         try {
             const { name, email, phone, address, city, zip } = req.body;
 
-            // Get JWT token for authentication
-            let jwtToken;
-            try {
-                jwtToken = await this.getJWTToken();
-            } catch (error) {
-                console.error('Failed to get JWT token for customer creation:', error);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Authentication failed',
-                    message: 'Failed to authenticate with GreenInvoice'
-                });
-            }
-
             const customerRequest = {
                 name: name,
                 email: email,
@@ -355,18 +224,7 @@ class GreenInvoiceController {
                 country: 'IL'
             };
 
-            const response = await axios.post(
-                `${this.baseUrl}/clients`,
-                customerRequest,
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${jwtToken}`
-                    }
-                }
-            );
-
-            const result = response.data;
+            const result = await this.greenInvoiceService.createCustomer(customerRequest);
 
             if (result.success && result.data) {
                 res.json({
