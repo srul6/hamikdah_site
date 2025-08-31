@@ -42,6 +42,7 @@ export const translations = {
         city: 'עיר',
         zipCode: 'מיקוד',
         continuePayment: 'המשך לתשלום',
+        continueToPayment: 'המשך לתשלום',
         cancel: 'ביטול',
         processing: 'מעבד...',
         pay: 'שלם ₪',
@@ -60,6 +61,22 @@ export const translations = {
         continueShopping: 'המשך בקניות',
         tryAgain: 'נסה שוב',
         goHome: 'חזור לדף הבית',
+
+        // Payment
+        paymentDetails: 'פרטי תשלום',
+        billingAddress: 'כתובת לחיוב',
+        payment: 'תשלום',
+        creditCardNumber: 'מספר כרטיס אשראי',
+        expMonth: 'חודש תפוגה',
+        expYear: 'שנת תפוגה',
+        orderSummary: 'סיכום הזמנה',
+        total: 'סה"כ',
+        pay: 'שלם',
+        securePayment: 'תשלום מאובטח באמצעות Cardcom',
+        paymentSuccess: 'התשלום בוצע בהצלחה!',
+        paymentFailed: 'התשלום נכשל. אנא נסה שוב.',
+        fillRequiredFields: 'אנא מלא את כל השדות הנדרשים',
+        processing: 'מעבד...',
 
         // Terms of Service
         termsTitle: 'תנאי שימוש',
@@ -172,6 +189,7 @@ export const translations = {
         city: 'City',
         zipCode: 'ZIP Code',
         continuePayment: 'Continue to Payment',
+        continueToPayment: 'Continue to Payment',
         cancel: 'Cancel',
         processing: 'Processing...',
         pay: 'Pay ₪',
@@ -190,6 +208,22 @@ export const translations = {
         continueShopping: 'Continue Shopping',
         tryAgain: 'Try Again',
         goHome: 'Go Home',
+
+        // Payment
+        paymentDetails: 'Payment Details',
+        billingAddress: 'Billing Address',
+        payment: 'Payment',
+        creditCardNumber: 'Credit Card Number',
+        expMonth: 'Exp Month',
+        expYear: 'Exp Year',
+        orderSummary: 'Order Summary',
+        total: 'Total',
+        pay: 'Pay',
+        securePayment: 'Secure payment via Cardcom',
+        paymentSuccess: 'Payment completed successfully!',
+        paymentFailed: 'Payment failed. Please try again.',
+        fillRequiredFields: 'Please fill in all required fields',
+        processing: 'Processing...',
 
         // Terms of Service
         termsTitle: 'Terms of Service',

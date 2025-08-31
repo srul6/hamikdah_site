@@ -5,12 +5,13 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, TextField as MuiTextField
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { createCardcomPayment } from '../api/cardcom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
+import CardcomPayment from './CardcomPayment';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [customerInfo, setCustomerInfo] = useState({
         name: '',
         email: '',
@@ -43,35 +44,22 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
         setIsCheckoutOpen(true);
     };
 
-    const handlePayment = async () => {
+    const handleContinueToPayment = () => {
         if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
             alert(t.fillRequiredFields);
             return;
         }
 
-        setIsProcessing(true);
-        try {
-            const items = cart.map(item => ({
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                mainImage: item.mainImage
-            }));
+        setIsCheckoutOpen(false);
+        setIsPaymentOpen(true);
+    };
 
-            const response = await createCardcomPayment(items, total, customerInfo);
-
-            if (response.success) {
-                // Redirect to Cardcom payment page
-                window.location.href = response.paymentUrl;
-            } else {
-                alert(t.paymentInitFailed);
-            }
-        } catch (error) {
-            console.error('Payment error:', error);
-            alert(t.paymentFailed);
-        } finally {
-            setIsProcessing(false);
-        }
+    const handlePaymentComplete = (paymentData) => {
+        setIsPaymentOpen(false);
+        // Handle successful payment
+        console.log('Payment completed:', paymentData);
+        // You can redirect to success page or show success message
+        alert(t.paymentSuccess);
     };
 
     const handleInputChange = (field, value) => {
@@ -298,14 +286,35 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 <DialogActions>
                     <Button onClick={() => setIsCheckoutOpen(false)} sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.cancel}</Button>
                     <Button
-                        onClick={handlePayment}
+                        onClick={handleContinueToPayment}
                         variant="contained"
                         disabled={isProcessing}
                         sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                     >
-                        {isProcessing ? t.processing : `${t.pay}${total.toFixed(2)}`}
+                        {isProcessing ? t.processing : t.continueToPayment}
                     </Button>
                 </DialogActions>
+            </Dialog>
+
+            {/* Cardcom Payment Dialog */}
+            <Dialog
+                open={isPaymentOpen}
+                onClose={() => setIsPaymentOpen(false)}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        height: '90vh',
+                        maxHeight: '90vh'
+                    }
+                }}
+            >
+                <DialogContent sx={{ p: 0, height: '100%' }}>
+                    <CardcomPayment
+                        cart={cart}
+                        onPaymentComplete={handlePaymentComplete}
+                    />
+                </DialogContent>
             </Dialog>
         </Box>
     );

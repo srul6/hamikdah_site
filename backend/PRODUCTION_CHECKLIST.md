@@ -1,172 +1,155 @@
-# 🚀 Cardcom Production Deployment Checklist
+# Cardcom Production Deployment Checklist
 
-## ⚠️ CRITICAL: Before Going Live
+This checklist ensures your Cardcom payment integration is ready for production deployment.
 
-### 1. **Cardcom Credentials** ✅
-- [ ] Contact Cardcom for production account
-- [ ] Receive production Terminal Number
-- [ ] Receive production Username  
-- [ ] Receive production Password
-- [ ] Verify credentials are NOT test/sandbox values
+## ✅ Cardcom Credentials
 
-### 2. **Environment Variables** ✅
-- [ ] `CARDCOM_TERMINAL_NUMBER` = production terminal number
-- [ ] `CARDCOM_USERNAME` = production username
-- [ ] `CARDCOM_PASSWORD` = production password
-- [ ] `FRONTEND_URL` = HTTPS production frontend URL
-- [ ] `BACKEND_URL` = HTTPS production backend URL
-- [ ] `NODE_ENV` = production
+- [ ] **Terminal Number**: Production terminal number from Cardcom
+- [ ] **API Name**: Production API username from Cardcom  
+- [ ] **API Password**: Production API password from Cardcom
+- [ ] **Test Credentials**: Verified test credentials work correctly
 
-### 3. **URL Requirements** ✅
-- [ ] All URLs use HTTPS (not HTTP)
-- [ ] No localhost URLs in production
-- [ ] No ngrok URLs in production
-- [ ] URLs are publicly accessible
-- [ ] SSL certificates are valid
-- [ ] Callback URL is accessible from Cardcom servers
+## ✅ Environment Variables
 
-### 4. **Required Parameters** ✅
-- [ ] SumToBill > 0 and has 2 decimal places
-- [ ] CoinID = 1 (ILS) or 2 (USD)
-- [ ] ProductName is not empty
-- [ ] TransactionId is unique
-- [ ] CustomerName is provided
-- [ ] CustomerEmail is provided
-- [ ] CustomerPhone is provided
-- [ ] MaxNumOfPayments = 1
-- [ ] MinNumOfPayments = 1
-- [ ] NumOfPayments = 1
+- [ ] `CARDCOM_TERMINAL_NUMBER`: Set to production terminal number
+- [ ] `CARDCOM_API_NAME`: Set to production API name
+- [ ] `CARDCOM_API_PASSWORD`: Set to production API password
+- [ ] `FRONTEND_URL`: HTTPS URL for frontend (no localhost)
+- [ ] `BACKEND_URL`: HTTPS URL for backend (no localhost)
+- [ ] `NODE_ENV`: Set to "production"
 
-### 5. **Signature Calculation** ✅
-- [ ] Includes TerminalNumber in signature
-- [ ] Includes UserName in signature
-- [ ] Includes Password in signature
-- [ ] All parameters sorted alphabetically
-- [ ] MD5 hash calculated correctly
+## ✅ Required Parameters
 
-### 6. **Security** ✅
-- [ ] No hardcoded credentials in code
-- [ ] Environment variables properly set
-- [ ] Debug logging disabled in production
-- [ ] Sensitive data not logged
-- [ ] HTTPS communication enforced
+- [ ] **Amount**: Validated as positive number
+- [ ] **Currency**: Set to ILS (Israeli Shekel)
+- [ ] **Customer Info**: Name, email, phone validated
+- [ ] **Product Details**: Name, price, quantity included
+- [ ] **Return Value**: Unique order identifier generated
 
-### 7. **Error Handling** ✅
-- [ ] Parameter validation implemented
-- [ ] Signature verification working
-- [ ] Callback handling implemented
-- [ ] Response code handling complete
-- [ ] Network timeout handling
+## ✅ API Endpoints
 
-### 8. **Testing** ✅
-- [ ] Test with real credit card
-- [ ] Test successful payment flow
-- [ ] Test failed payment flow
-- [ ] Test callback verification
-- [ ] Test payment status query
-- [ ] Test Hebrew text encoding
+- [ ] `/api/cardcom/create-lowprofile`: Creates LowProfile deals
+- [ ] `/api/cardcom/process-transaction`: Direct transaction processing
+- [ ] `/api/cardcom/callback`: Handles Cardcom callbacks
+- [ ] `/api/cardcom/status/:lowProfileId`: Payment status queries
 
-## 🔧 Configuration Examples
+## ✅ Security Configuration
 
-### Production Environment Variables
-```env
-# Cardcom Production Credentials
-CARDCOM_TERMINAL_NUMBER=12345
-CARDCOM_USERNAME=your_production_username
-CARDCOM_PASSWORD=your_production_password
+- [ ] **HTTPS Only**: All URLs use HTTPS
+- [ ] **Credential Protection**: API credentials in environment variables
+- [ ] **Input Validation**: All parameters validated
+- [ ] **Error Handling**: Comprehensive error responses
+- [ ] **Timeout Protection**: 30-second API timeouts
 
-# Production URLs (HTTPS only)
-FRONTEND_URL=https://your-domain.com
-BACKEND_URL=https://your-backend-domain.com
+## ✅ Error Handling
 
-# Environment
-NODE_ENV=production
-```
+- [ ] **LowProfile Creation**: Handles creation failures
+- [ ] **Transaction Processing**: Handles processing errors
+- [ ] **Callback Processing**: Handles callback failures
+- [ ] **Status Queries**: Handles status check errors
+- [ ] **Network Errors**: Handles connectivity issues
 
-### Correct Payment Parameters
-```javascript
+## ✅ Testing
+
+- [ ] **LowProfile Flow**: Test complete LowProfile payment flow
+- [ ] **Direct Transaction**: Test direct transaction processing
+- [ ] **Callback Handling**: Test callback processing
+- [ ] **Status Queries**: Test payment status checks
+- [ ] **Error Scenarios**: Test various error conditions
+- [ ] **Mobile Testing**: Test on mobile devices
+- [ ] **Browser Testing**: Test on multiple browsers
+
+## ✅ Production URLs
+
+- [ ] **Frontend URL**: Publicly accessible HTTPS URL
+- [ ] **Backend URL**: Publicly accessible HTTPS URL
+- [ ] **Callback URL**: Backend callback endpoint accessible
+- [ ] **Success URL**: Frontend success page accessible
+- [ ] **Failure URL**: Frontend failure page accessible
+- [ ] **Cancel URL**: Frontend cancel page accessible
+
+## ✅ Monitoring
+
+- [ ] **Log Monitoring**: Set up payment transaction logging
+- [ ] **Error Alerting**: Configure error notifications
+- [ ] **Performance Monitoring**: Monitor API response times
+- [ ] **Callback Monitoring**: Monitor callback success rates
+
+## Example Correct LowProfile Request
+
+```json
 {
-    TerminalNumber: "12345",
-    UserName: "your_production_username",
-    SumToBill: "100.00",
-    CoinID: "1", // ILS
-    Language: "he",
-    Operation: "1",
-    IsIframe: "false",
-    IsMobile: "false",
-    ProductName: "Product Name",
-    SuccessRedirectUrl: "https://your-domain.com/payment/success",
-    ErrorRedirectUrl: "https://your-domain.com/payment/error",
-    CancelRedirectUrl: "https://your-domain.com/cart",
-    IndicatorUrl: "https://your-backend-domain.com/api/cardcom/callback",
-    TransactionId: "TXN_1234567890_abc123def456",
-    CustomerName: "John Doe",
-    CustomerEmail: "john@example.com",
-    CustomerPhone: "+972-50-123-4567",
-    CustomerAddress: "123 Main St, Tel Aviv",
-    MaxNumOfPayments: "1",
-    MinNumOfPayments: "1",
-    NumOfPayments: "1",
-    Signature: "calculated_md5_signature"
+  "TerminalNumber": 12345,
+  "ApiName": "your_api_name",
+  "ApiPassword": "your_api_password",
+  "Operation": "ChargeOnly",
+  "ReturnValue": "ORDER_1234567890_abc123",
+  "Amount": 100.50,
+  "SuccessRedirectUrl": "https://your-domain.com/payment/success",
+  "FailedRedirectUrl": "https://your-domain.com/payment/error",
+  "CancelRedirectUrl": "https://your-domain.com/cart",
+  "WebHookUrl": "https://your-backend.com/api/cardcom/callback",
+  "ProductName": "Product 1, Product 2",
+  "Language": "he",
+  "ISOCoinId": 1,
+  "Document": {
+    "Name": "John Doe",
+    "Email": "john@example.com",
+    "AddressLine1": "123 Main St",
+    "Mobile": "050-1234567",
+    "IsSendByEmail": false,
+    "IsAllowEditDocument": false,
+    "IsShowOnlyDocument": true,
+    "Language": "he",
+    "DocumentTypeToCreate": "Receipt",
+    "Products": [
+      {
+        "Description": "Product 1",
+        "Quantity": 2,
+        "UnitCost": 50.25,
+        "TotalLineCost": 100.50,
+        "IsVatFree": false
+      }
+    ]
+  }
 }
 ```
 
-## 🚨 Common Production Issues
+## Common Production Issues
 
 ### "99999;0;No Operation" Error
-**Causes:**
-- Using test credentials in production
-- Missing required parameters
-- Incorrect signature calculation
-- Invalid redirect URLs
+- **Cause**: Missing or invalid required parameters
+- **Solution**: Verify all required fields are provided and valid
 
-**Solutions:**
-1. Verify production credentials
-2. Check all required parameters
-3. Ensure signature includes credentials
-4. Use HTTPS URLs only
+### Callback Not Received
+- **Cause**: Webhook URL not publicly accessible
+- **Solution**: Ensure callback endpoint is accessible from internet
 
-### Callback Not Working
-**Causes:**
-- Callback URL not accessible
-- Firewall blocking requests
-- Incorrect URL format
+### Payment Page Not Loading
+- **Cause**: Invalid LowProfile creation or redirect URLs
+- **Solution**: Check LowProfile creation response and URL validity
 
-**Solutions:**
-1. Test callback URL accessibility
-2. Check firewall settings
-3. Verify URL format
+### Authentication Errors
+- **Cause**: Invalid API credentials
+- **Solution**: Verify production credentials are correct
 
-### Hebrew Text Issues
-**Causes:**
-- Improper URL encoding
-- Character encoding problems
+### Network Timeouts
+- **Cause**: Slow network or Cardcom server issues
+- **Solution**: Implement proper timeout handling and retry logic
 
-**Solutions:**
-1. Use `encodeURIComponent()` for Hebrew text
-2. Ensure proper UTF-8 encoding
-
-## 📞 Support Contacts
-
-### Cardcom Support
-- **Phone**: +972-3-617-7777
-- **Email**: support@cardcom.co.il
-- **Website**: https://www.cardcom.co.il/
-
-### Technical Issues
-- Check application logs
-- Verify environment variables
-- Test with Cardcom test environment first
-
-## ✅ Final Verification
+## Final Verification
 
 Before going live:
-1. [ ] All checklist items completed
-2. [ ] Production credentials verified
-3. [ ] URLs tested and accessible
-4. [ ] Payment flow tested end-to-end
-5. [ ] Callback handling verified
-6. [ ] Error scenarios tested
-7. [ ] Monitoring and logging configured
 
-**Remember**: Once live, any changes to credentials or URLs require coordination with Cardcom support.
+1. **Test with Real Cards**: Use real credit cards (not test cards)
+2. **Verify Callbacks**: Ensure callbacks are received and processed
+3. **Check Logs**: Monitor logs for any errors or issues
+4. **Test Error Scenarios**: Test various failure conditions
+5. **Performance Test**: Ensure acceptable response times
+6. **Security Review**: Verify all security measures are in place
+
+## Support Contacts
+
+- **Cardcom Support**: +972-3-617-7777
+- **Cardcom Email**: support@cardcom.co.il
+- **Technical Documentation**: Check Cardcom API documentation

@@ -4,38 +4,141 @@ const crypto = require('crypto');
 class CardcomController {
     constructor() {
         this.terminalNumber = process.env.CARDCOM_TERMINAL_NUMBER;
-        this.userName = process.env.CARDCOM_USERNAME;
-        this.password = process.env.CARDCOM_PASSWORD;
-        this.baseUrl = 'https://secure.cardcom.co.il/Interface/LowProfile.aspx';
+        this.apiName = process.env.CARDCOM_API_NAME;
+        this.apiPassword = process.env.CARDCOM_API_PASSWORD;
+        this.cardcomUrl = 'https://secure.cardcom.solutions';
 
         // Debug logging (only in development)
         if (process.env.NODE_ENV === 'development') {
             console.log('Cardcom Controller initialized with:', {
                 terminalNumber: this.terminalNumber,
-                userName: this.userName,
-                password: this.password ? '***' : 'missing',
-                baseUrl: this.baseUrl
+                apiName: this.apiName,
+                apiPassword: this.apiPassword ? '***' : 'missing',
+                cardcomUrl: this.cardcomUrl
             });
         }
     }
 
-    // Generate Cardcom signature with ALL parameters including credentials
-    generateSignature(params) {
-        // Include credentials in signature calculation as required by Cardcom
-        const allParams = {
-            ...params,
-            TerminalNumber: this.terminalNumber,
-            UserName: this.userName,
-            Password: this.password
-        };
+    // Create LowProfile deal according to official Cardcom API
+    async createLowProfile(req, res) {
+        if (process.env.NODE_ENV === 'development') {
+            console.log('=== Cardcom createLowProfile called ===');
+            console.log('Request body:', req.body);
+        }
 
-        // Sort parameters alphabetically and create signature string
-        const sortedParams = Object.keys(allParams)
-            .sort()
-            .map(key => `${key}=${allParams[key]}`)
-            .join('&');
+        try {
+            const { items, totalAmount, currency = 'ILS', customerInfo } = req.body;
 
-        return crypto.createHash('md5').update(sortedParams).digest('hex');
+            // Validate input parameters
+            const validationErrors = this.validatePaymentParams(items, totalAmount, customerInfo);
+            if (validationErrors.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation failed',
+                    message: validationErrors.join(', ')
+                });
+            }
+
+            // Check if Cardcom credentials are available
+            if (!this.terminalNumber || !this.apiName || !this.apiPassword) {
+                console.error('Cardcom credentials not found');
+                return res.status(500).json({
+                    success: false,
+                    error: 'Cardcom configuration missing',
+                    message: 'Payment service is not properly configured'
+                });
+            }
+
+            // Generate unique return value (order ID)
+            const returnValue = `ORDER_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+
+            // Prepare Cardcom LowProfile request according to official API spec
+            const lowProfileRequest = {
+                TerminalNumber: parseInt(this.terminalNumber),
+                ApiName: this.apiName,
+                ApiPassword: this.apiPassword,
+                Operation: "ChargeOnly", // Default operation
+                ReturnValue: returnValue,
+                Amount: parseFloat(totalAmount),
+                SuccessRedirectUrl: `${process.env.FRONTEND_URL}/payment/success`,
+                FailedRedirectUrl: `${process.env.FRONTEND_URL}/payment/error`,
+                CancelRedirectUrl: `${process.env.FRONTEND_URL}/cart`,
+                WebHookUrl: `${process.env.BACKEND_URL}/api/cardcom/callback`,
+                ProductName: items.map(item => {
+                    const itemName = item.name_he || item.name_en || item.name || 'Product';
+                    return itemName;
+                }).join(', '),
+                Language: 'he', // Hebrew
+                ISOCoinId: currency === 'ILS' ? 1 : 2, // 1=ILS, 2=USD
+                Document: {
+                    Name: customerInfo.name,
+                    Email: customerInfo.email,
+                    AddressLine1: customerInfo.address || '',
+                    Mobile: customerInfo.phone,
+                    IsSendByEmail: false,
+                    IsAllowEditDocument: false,
+                    IsShowOnlyDocument: true,
+                    Language: 'he',
+                    DocumentTypeToCreate: "Receipt",
+                    Products: items.map(item => ({
+                        Description: item.name_he || item.name_en || item.name || 'Product',
+                        Quantity: item.quantity || 1,
+                        UnitCost: parseFloat(item.price),
+                        TotalLineCost: parseFloat((item.price * (item.quantity || 1)).toFixed(2)),
+                        IsVatFree: false
+                    }))
+                }
+            };
+
+            // Debug logging (only in development)
+            if (process.env.NODE_ENV === 'development') {
+                console.log('LowProfile request:', {
+                    ...lowProfileRequest,
+                    ApiPassword: '***' // Hide password in logs
+                });
+            }
+
+            // Create LowProfile deal with Cardcom using official API
+            const response = await axios.post(
+                `${this.cardcomUrl}/api/v11/LowProfile/Create`,
+                lowProfileRequest,
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 30000 // 30 second timeout
+                }
+            );
+
+            const result = response.data;
+
+            if (result.ResponseCode === 0 && result.LowProfileId) {
+                res.json({
+                    success: true,
+                    lowProfileId: result.LowProfileId,
+                    url: result.Url,
+                    returnValue: returnValue,
+                    message: 'LowProfile deal created successfully'
+                });
+            } else {
+                console.error('Cardcom LowProfile creation failed:', result);
+                res.status(500).json({
+                    success: false,
+                    error: 'LowProfile creation failed',
+                    message: result.Description || 'Unknown error',
+                    responseCode: result.ResponseCode
+                });
+            }
+
+        } catch (error) {
+            console.error('Cardcom LowProfile creation failed:', error);
+            res.status(500).json({
+                success: false,
+                error: 'LowProfile creation failed',
+                message: error.message,
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
+        }
     }
 
     // Validate required parameters
@@ -67,171 +170,57 @@ class CardcomController {
         return errors;
     }
 
-    // Create payment transaction
-    async createPayment(req, res) {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('=== Cardcom createPayment called ===');
-            console.log('Request body:', req.body);
-        }
-
-        try {
-            const { items, totalAmount, currency = 'ILS', customerInfo } = req.body;
-
-            // Validate input parameters
-            const validationErrors = this.validatePaymentParams(items, totalAmount, customerInfo);
-            if (validationErrors.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Validation failed',
-                    message: validationErrors.join(', ')
-                });
-            }
-
-            // Check if Cardcom credentials are available
-            if (!this.terminalNumber || !this.userName || !this.password) {
-                console.error('Cardcom credentials not found');
-                return res.status(500).json({
-                    success: false,
-                    error: 'Cardcom configuration missing',
-                    message: 'Payment service is not properly configured'
-                });
-            }
-
-            // Generate unique transaction ID with better randomness
-            const transactionId = `TXN_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-
-            // Prepare Cardcom parameters with ALL required fields
-            const cardcomParams = {
-                TerminalNumber: this.terminalNumber,
-                UserName: this.userName,
-                SumToBill: totalAmount.toFixed(2),
-                CoinID: currency === 'ILS' ? '1' : '2', // 1=ILS, 2=USD
-                Language: 'he', // Hebrew
-                Operation: '1', // Payment operation
-                IsIframe: 'false', // Not in iframe
-                IsMobile: 'false', // Desktop mode
-                ProductName: items.map(item => {
-                    const itemName = item.name_he || item.name_en || item.name || 'Product';
-                    // Ensure Hebrew text is properly encoded
-                    return encodeURIComponent(itemName);
-                }).join(', '),
-                SuccessRedirectUrl: `${process.env.FRONTEND_URL}/payment/success`,
-                ErrorRedirectUrl: `${process.env.FRONTEND_URL}/payment/error`,
-                CancelRedirectUrl: `${process.env.FRONTEND_URL}/cart`,
-                IndicatorUrl: `${process.env.BACKEND_URL}/api/cardcom/callback`,
-                TransactionId: transactionId,
-                CustomerName: customerInfo.name.trim(),
-                CustomerEmail: customerInfo.email.trim(),
-                CustomerPhone: customerInfo.phone.trim(),
-                CustomerAddress: customerInfo.address ? customerInfo.address.trim() : '',
-                MaxNumOfPayments: '1', // Single payment
-                MinNumOfPayments: '1',
-                NumOfPayments: '1'
-            };
-
-            // Generate signature AFTER all parameters are set
-            cardcomParams.Signature = this.generateSignature(cardcomParams);
-
-            // Debug logging (only in development)
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Params sent to Cardcom:', {
-                    ...cardcomParams,
-                    Password: '***' // Hide password in logs
-                });
-            }
-
-            // Create payment URL with proper encoding
-            const queryString = Object.keys(cardcomParams)
-                .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(cardcomParams[key])}`)
-                .join('&');
-
-            const paymentUrl = `${this.baseUrl}?${queryString}`;
-
-            res.json({
-                success: true,
-                paymentUrl,
-                transactionId,
-                message: 'Payment URL generated successfully'
-            });
-
-        } catch (error) {
-            console.error('Cardcom payment creation failed:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Payment creation failed',
-                message: error.message,
-                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-            });
-        }
-    }
-
-    // Handle Cardcom callback with proper response code handling
+    // Handle Cardcom callback according to official API spec
     async handleCallback(req, res) {
         try {
             const callbackData = req.body;
 
-            // Verify callback signature
-            const receivedSignature = callbackData.Signature;
-            delete callbackData.Signature;
-            const calculatedSignature = this.generateSignature(callbackData);
+            // Log the callback data
+            console.log('Cardcom callback received:', callbackData);
 
-            if (receivedSignature !== calculatedSignature) {
-                console.error('Cardcom callback signature verification failed');
-                return res.status(400).send('Signature verification failed');
-            }
-
-            // Process the callback
+            // Process the callback according to official API spec
             const {
                 ResponseCode,
-                ResponseText,
-                TransactionId,
+                Description,
+                LowProfileId,
                 ApprovalNumber,
                 CardType,
                 CardSuffix,
-                SumToBill,
+                Amount,
                 PaymentSum,
-                PaymentCurrency
+                PaymentCurrency,
+                ReturnValue,
+                DealNumber,
+                IsSuccess,
+                TransactionId
             } = callbackData;
 
-            // Log the callback data
-            console.log('Cardcom callback received:', {
-                ResponseCode,
-                ResponseText,
-                TransactionId,
-                ApprovalNumber,
-                CardType,
-                CardSuffix,
-                SumToBill,
-                PaymentSum,
-                PaymentCurrency
-            });
+            // Handle different response codes according to official API
+            if (ResponseCode === 0 && IsSuccess) {
+                // Payment successful
+                console.log('Payment successful:', {
+                    LowProfileId,
+                    DealNumber,
+                    ApprovalNumber,
+                    Amount,
+                    ReturnValue,
+                    TransactionId
+                });
 
-            // Handle different response codes properly
-            switch (ResponseCode) {
-                case '0':
-                case '1':
-                    // Payment successful
-                    console.log('Payment successful:', TransactionId);
-                    // Here you can update your database, send confirmation emails, etc.
-                    break;
-                case '2':
-                    // Transaction declined
-                    console.log('Payment declined:', ResponseText);
-                    break;
-                case '3':
-                    // Transaction error
-                    console.log('Payment error:', ResponseText);
-                    break;
-                case '4':
-                    // Transaction timeout
-                    console.log('Payment timeout:', ResponseText);
-                    break;
-                default:
-                    // Unknown response code
-                    console.log('Unknown response code:', ResponseCode, ResponseText);
+                // Here you can update your database, send confirmation emails, etc.
+                // You should save the transaction details to your database
+
+            } else {
+                // Payment failed
+                console.log('Payment failed:', {
+                    ResponseCode,
+                    Description,
+                    LowProfileId,
+                    ReturnValue
+                });
             }
 
-            // Respond to Cardcom with OK
+            // Respond to Cardcom with OK (required by API)
             res.send('OK');
 
         } catch (error) {
@@ -240,48 +229,128 @@ class CardcomController {
         }
     }
 
-    // Get payment status with proper error handling
+    // Get payment status according to official API spec
     async getPaymentStatus(req, res) {
         try {
-            const { transactionId } = req.params;
+            const { lowProfileId } = req.params;
 
-            if (!transactionId) {
+            if (!lowProfileId) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Transaction ID is required'
+                    error: 'LowProfile ID is required'
                 });
             }
 
-            // Query Cardcom for transaction status
-            const statusParams = {
-                TerminalNumber: this.terminalNumber,
-                UserName: this.userName,
-                TransactionId: transactionId
+            // Query Cardcom for transaction status using official API
+            const statusRequest = {
+                TerminalNumber: parseInt(this.terminalNumber),
+                ApiName: this.apiName,
+                ApiPassword: this.apiPassword,
+                LowProfileId: lowProfileId
             };
 
-            statusParams.Signature = this.generateSignature(statusParams);
-
             const response = await axios.post(
-                'https://secure.cardcom.co.il/Interface/QueryTransaction.aspx',
-                statusParams,
+                `${this.cardcomUrl}/api/v11/LowProfile/GetLpResult`,
+                statusRequest,
                 {
-                    timeout: 10000, // 10 second timeout
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
                 }
             );
 
-            res.json({
-                success: true,
-                status: response.data
-            });
+            const result = response.data;
+
+            if (result.ResponseCode === 0) {
+                res.json({
+                    success: true,
+                    status: result
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: 'Status check failed',
+                    message: result.Description,
+                    responseCode: result.ResponseCode
+                });
+            }
 
         } catch (error) {
             console.error('Payment status check failed:', error);
             res.status(500).json({
                 success: false,
                 error: 'Status check failed',
+                message: error.message
+            });
+        }
+    }
+
+    // Process transaction directly (alternative to LowProfile)
+    async processTransaction(req, res) {
+        try {
+            const { cardNumber, cvv, expirationMonth, expirationYear, amount, customerInfo } = req.body;
+
+            // Validate input
+            if (!cardNumber || !cvv || !expirationMonth || !expirationYear || !amount || !customerInfo) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing required parameters'
+                });
+            }
+
+            // Prepare transaction request according to official API spec
+            const transactionRequest = {
+                TerminalNumber: parseInt(this.terminalNumber),
+                ApiName: this.apiName,
+                ApiPassword: this.apiPassword,
+                CardNumber: cardNumber,
+                Cvv: cvv,
+                ExpirationMonth: expirationMonth,
+                ExpirationYear: expirationYear,
+                Amount: parseFloat(amount),
+                Currency: 1, // ILS
+                ExternalUniqTranId: `TXN_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`,
+                CardOwnerName: customerInfo.name,
+                CardOwnerEmail: customerInfo.email,
+                CardOwnerPhone: customerInfo.phone,
+                CardOwnerId: customerInfo.id || '000000000'
+            };
+
+            const response = await axios.post(
+                `${this.cardcomUrl}/api/v11/Transactions/Transaction`,
+                transactionRequest,
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 30000
+                }
+            );
+
+            const result = response.data;
+
+            if (result.ResponseCode === 0) {
+                res.json({
+                    success: true,
+                    transactionId: result.TransactionId,
+                    approvalNumber: result.ApprovalNumber,
+                    message: 'Transaction processed successfully'
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: 'Transaction failed',
+                    message: result.Description,
+                    responseCode: result.ResponseCode
+                });
+            }
+
+        } catch (error) {
+            console.error('Transaction processing failed:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Transaction processing failed',
                 message: error.message
             });
         }
