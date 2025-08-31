@@ -9,6 +9,14 @@ class CardcomController {
         this.baseUrl = process.env.NODE_ENV === 'production'
             ? 'https://secure.cardcom.co.il/Interface/LowProfile.aspx'
             : 'https://secure.cardcom.co.il/Interface/LowProfile.aspx'; // Test URL
+
+        // Debug logging
+        console.log('Cardcom Controller initialized with:', {
+            terminalNumber: this.terminalNumber,
+            userName: this.userName,
+            password: this.password ? '***' : 'missing',
+            baseUrl: this.baseUrl
+        });
     }
 
     // Generate Cardcom signature
@@ -23,8 +31,24 @@ class CardcomController {
 
     // Create payment transaction
     async createPayment(req, res) {
+        console.log('=== Cardcom createPayment called ===');
+        console.log('Request body:', req.body);
         try {
             const { items, totalAmount, currency = 'ILS', customerInfo } = req.body;
+
+            // Check if Cardcom credentials are available
+            if (!this.terminalNumber || !this.userName || !this.password) {
+                console.error('Cardcom credentials not found:', {
+                    terminalNumber: this.terminalNumber,
+                    userName: this.userName,
+                    password: this.password ? '***' : 'missing'
+                });
+                return res.status(500).json({
+                    success: false,
+                    error: 'Cardcom configuration missing',
+                    message: 'Payment service is not properly configured'
+                });
+            }
 
             // Generate unique transaction ID
             const transactionId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -36,7 +60,11 @@ class CardcomController {
                 SumToBill: totalAmount.toFixed(2),
                 CoinID: currency === 'ILS' ? '1' : '2', // 1=ILS, 2=USD
                 Language: 'he', // Hebrew
-                ProductName: items.map(item => item.name_he || item.name_en || item.name).join(', '),
+                ProductName: items.map(item => {
+                    // Debug: Log the item to see what fields it has
+                    console.log('Item in payment:', item);
+                    return item.name_he || item.name_en || item.name || 'Product';
+                }).join(', '),
                 SuccessRedirectUrl: `${process.env.FRONTEND_URL}/payment/success`,
                 ErrorRedirectUrl: `${process.env.FRONTEND_URL}/payment/error`,
                 CancelRedirectUrl: `${process.env.FRONTEND_URL}/cart`,
@@ -53,6 +81,9 @@ class CardcomController {
 
             // Generate signature
             cardcomParams.Signature = this.generateSignature(cardcomParams);
+
+            // Debug: Log parameters being sent to Cardcom
+            console.log('Params sent to Cardcom:', cardcomParams);
 
             // Create payment URL
             const paymentUrl = `${this.baseUrl}?${new URLSearchParams(cardcomParams).toString()}`;
@@ -168,4 +199,4 @@ class CardcomController {
     }
 }
 
-module.exports = new CardcomController(); 
+module.exports = CardcomController; 
