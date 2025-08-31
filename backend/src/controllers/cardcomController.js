@@ -33,6 +33,11 @@ class CardcomController {
     async createPayment(req, res) {
         console.log('=== Cardcom createPayment called ===');
         console.log('Request body:', req.body);
+        console.log('Environment variables:', {
+            FRONTEND_URL: process.env.FRONTEND_URL,
+            BACKEND_URL: process.env.BACKEND_URL,
+            NODE_ENV: process.env.NODE_ENV
+        });
         try {
             const { items, totalAmount, currency = 'ILS', customerInfo } = req.body;
 
@@ -65,10 +70,10 @@ class CardcomController {
                     console.log('Item in payment:', item);
                     return item.name_he || item.name_en || item.name || 'Product';
                 }).join(', '),
-                SuccessRedirectUrl: `${process.env.FRONTEND_URL}/payment/success`,
-                ErrorRedirectUrl: `${process.env.FRONTEND_URL}/payment/error`,
-                CancelRedirectUrl: `${process.env.FRONTEND_URL}/cart`,
-                IndicatorUrl: `${process.env.BACKEND_URL}/api/cardcom/callback`,
+                SuccessRedirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success`,
+                ErrorRedirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/error`,
+                CancelRedirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/cart`,
+                IndicatorUrl: `${process.env.BACKEND_URL || 'http://localhost:5001'}/api/cardcom/callback`,
                 TransactionId: transactionId,
                 CustomerName: customerInfo?.name || '',
                 CustomerEmail: customerInfo?.email || '',
@@ -97,10 +102,12 @@ class CardcomController {
 
         } catch (error) {
             console.error('Cardcom payment creation failed:', error);
+            console.error('Error stack:', error.stack);
             res.status(500).json({
                 success: false,
                 error: 'Payment creation failed',
-                message: error.message
+                message: error.message,
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
             });
         }
     }
