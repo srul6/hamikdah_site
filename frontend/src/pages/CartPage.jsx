@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
     Container, Typography, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, Paper, IconButton, TextField, Box, Button,
-    Dialog, DialogTitle, DialogContent, DialogActions, TextField as MuiTextField
+    Dialog, DialogTitle, DialogContent, DialogActions, TextField as MuiTextField, Alert, Grid
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
-import CardcomPayment from './CardcomPayment';
+import GreenInvoicePayment from './GreenInvoicePayment';
+import { useNavigate } from 'react-router-dom';
+import ProductCard from '../components/ProductCard';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -19,8 +21,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
         address: ''
     });
     const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+    const navigate = useNavigate();
 
     // Scroll to top when cart page loads
     useEffect(() => {
@@ -54,7 +59,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
         setIsPaymentOpen(true);
     };
 
-    const handlePaymentComplete = (paymentData) => {
+    const handlePaymentCompleteOld = (paymentData) => {
         setIsPaymentOpen(false);
         // Handle successful payment
         console.log('Payment completed:', paymentData);
@@ -67,6 +72,31 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
             ...prev,
             [field]: value
         }));
+    };
+
+    const removeFromCart = (index) => {
+        onRemove(cart[index].id);
+    };
+
+    const updateQuantity = (index, newQuantity) => {
+        onUpdateQuantity(cart[index].id, newQuantity);
+    };
+
+    // Payment dialog
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+
+    const handlePaymentClick = () => {
+        if (cart.length === 0) {
+            setError(t.cartEmpty);
+            return;
+        }
+        setPaymentDialogOpen(true);
+    };
+
+    const handlePaymentComplete = () => {
+        setPaymentDialogOpen(false);
+        // setCart([]); // This line was removed from the new_code, so it's removed here.
+        setSuccess(t.paymentSuccess);
     };
 
     return (
@@ -101,6 +131,18 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 >
                     {cart.length === 0 ? t.emptyCart : t.yourCart}
                 </Typography>
+
+                {error && (
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                        {error}
+                    </Alert>
+                )}
+
+                {success && (
+                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+                        {success}
+                    </Alert>
+                )}
 
                 {cart.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -296,7 +338,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 </DialogActions>
             </Dialog>
 
-            {/* Cardcom Payment Dialog */}
+            {/* GreenInvoice Payment Dialog */}
             <Dialog
                 open={isPaymentOpen}
                 onClose={() => setIsPaymentOpen(false)}
@@ -310,7 +352,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 }}
             >
                 <DialogContent sx={{ p: 0, height: '100%' }}>
-                    <CardcomPayment
+                    <GreenInvoicePayment
                         cart={cart}
                         onPaymentComplete={handlePaymentComplete}
                     />

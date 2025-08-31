@@ -21,7 +21,7 @@ app.use('/images', express.static(path.join(__dirname, '../public/images')));
 // API routes - these must come BEFORE the catch-all route
 app.use('/api/products', productsRouter);
 app.use('/api/cart', require('./routes/cart'));
-app.use('/api/cardcom', require('./routes/cardcom'));
+app.use('/api/greeninvoice', require('./routes/greenInvoice'));
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));

@@ -1,28 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Container, Typography, Box, Button, Paper, TextField,
     Grid, CircularProgress, Alert
 } from '@mui/material';
-import { createCardcomLowProfile } from '../api/cardcom';
+import { createGreenInvoiceWithPayment } from '../api/greenInvoice';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 
-export default function CardcomPayment({ cart, onPaymentComplete }) {
+export default function GreenInvoicePayment({ cart, onPaymentComplete }) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [customerInfo, setCustomerInfo] = useState({
         name: '',
         email: '',
         phone: '',
-        address: ''
+        address: '',
+        city: '',
+        zip: ''
     });
-    
+
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
 
     const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    const handleCreateLowProfile = async () => {
+    const handleCreateInvoice = async () => {
         if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
             setError(t.fillRequiredFields);
             return;
@@ -41,13 +43,13 @@ export default function CardcomPayment({ cart, onPaymentComplete }) {
                 quantity: item.quantity
             }));
 
-            const response = await createCardcomLowProfile(items, total, customerInfo);
+            const response = await createGreenInvoiceWithPayment(items, total, customerInfo);
 
-            if (response.success && response.url) {
-                // Redirect to Cardcom's payment page
-                window.location.href = response.url;
+            if (response.success && response.paymentUrl) {
+                // Redirect to GreenInvoice payment page
+                window.location.href = response.paymentUrl;
             } else {
-                setError(response.message || 'Failed to create payment session');
+                setError(response.message || 'Failed to create invoice');
             }
         } catch (error) {
             console.error('Payment error:', error);
@@ -118,6 +120,24 @@ export default function CardcomPayment({ cart, onPaymentComplete }) {
                             sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                     </Grid>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label={t.city}
+                            value={customerInfo.city}
+                            onChange={(e) => handleInputChange('city', e.target.value)}
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label={t.zipCode}
+                            value={customerInfo.zip}
+                            onChange={(e) => handleInputChange('zip', e.target.value)}
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        />
+                    </Grid>
                 </Grid>
 
                 {/* Order Summary */}
@@ -145,7 +165,7 @@ export default function CardcomPayment({ cart, onPaymentComplete }) {
                     <Button
                         variant="contained"
                         size="large"
-                        onClick={handleCreateLowProfile}
+                        onClick={handleCreateInvoice}
                         disabled={isLoading}
                         sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
@@ -158,7 +178,7 @@ export default function CardcomPayment({ cart, onPaymentComplete }) {
 
                 <Box sx={{ mt: 3, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                        {t.securePayment}
+                        {t.securePaymentGreenInvoice}
                     </Typography>
                 </Box>
             </Paper>

@@ -1,124 +1,86 @@
-import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-    Container, Typography, Box, Button, Paper
+    Container, Typography, Box, Paper, Button, Alert
 } from '@mui/material';
-import { CheckCircle as CheckCircleIcon } from '@mui/icons-material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 
 export default function PaymentSuccess() {
-    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
 
-    const transactionId = searchParams.get('TransactionId');
-    const approvalNumber = searchParams.get('ApprovalNumber');
+    const isTest = searchParams.get('test') === 'true';
+
+    useEffect(() => {
+        // Scroll to top when page loads
+        window.scrollTo(0, 0);
+    }, []);
 
     const handleContinueShopping = () => {
         navigate('/');
     };
 
     return (
-        <Box sx={{
-            backgroundColor: 'rgba(245, 240, 227, 0.9)',
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pt: 8
-        }}>
-            <Container maxWidth="md">
-                <Paper
-                    elevation={0}
+        <Container maxWidth="md" sx={{ py: 8 }}>
+            <Paper elevation={3} sx={{ p: 6, textAlign: 'center' }}>
+                <CheckCircleIcon
                     sx={{
-                        p: 6,
-                        textAlign: 'center',
-                        borderRadius: 3,
-                        border: '2px solid #4caf50',
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(10px)'
+                        fontSize: 80,
+                        color: 'success.main',
+                        mb: 3
+                    }}
+                />
+
+                <Typography
+                    variant="h3"
+                    gutterBottom
+                    sx={{
+                        direction: isHebrew ? 'rtl' : 'ltr',
+                        mb: 3
                     }}
                 >
-                    <CheckCircleIcon
-                        sx={{
-                            fontSize: 80,
-                            color: '#4caf50',
-                            mb: 3
-                        }}
-                    />
+                    {isTest ? t.testPaymentSuccess : t.paymentSuccess}
+                </Typography>
 
-                    <Typography
-                        variant="h3"
-                        sx={{
-                            fontWeight: 600,
-                            color: '#1d1d1f',
-                            mb: 3,
-                            direction: isHebrew ? 'rtl' : 'ltr'
-                        }}
-                    >
-                        {t.paymentSuccess}
-                    </Typography>
+                {isTest && (
+                    <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
+                        {t.testPaymentNote}
+                    </Alert>
+                )}
 
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            color: '#666',
-                            mb: 4,
-                            direction: isHebrew ? 'rtl' : 'ltr'
-                        }}
-                    >
-                        {t.thankYouPurchase}
-                    </Typography>
+                <Typography
+                    variant="h6"
+                    sx={{
+                        direction: isHebrew ? 'rtl' : 'ltr',
+                        mb: 4,
+                        color: 'text.secondary'
+                    }}
+                >
+                    {isTest
+                        ? t.testPaymentMessage
+                        : t.thankYouPurchase
+                    }
+                </Typography>
 
-                    {transactionId && (
-                        <Box sx={{ mb: 3 }}>
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    color: '#666',
-                                    direction: isHebrew ? 'rtl' : 'ltr'
-                                }}
-                            >
-                                {t.transactionId} {transactionId}
-                            </Typography>
-                            {approvalNumber && (
-                                <Typography
-                                    variant="body1"
-                                    sx={{
-                                        color: '#666',
-                                        direction: isHebrew ? 'rtl' : 'ltr'
-                                    }}
-                                >
-                                    {t.approvalNumber} {approvalNumber}
-                                </Typography>
-                            )}
-                        </Box>
-                    )}
-
+                <Box sx={{ mt: 4 }}>
                     <Button
                         variant="contained"
                         size="large"
                         onClick={handleContinueShopping}
                         sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
-                            color: '#ffffff',
-                            px: 4,
-                            py: 1.5,
-                            fontSize: '1.1rem',
-                            fontWeight: 500,
-                            borderRadius: 1.5,
-                            direction: isHebrew ? 'rtl' : 'ltr',
-                            '&:hover': {
-                                backgroundColor: 'rgba(199, 61, 34, 1)'
-                            }
+                            '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
+                            mr: 2
                         }}
                     >
                         {t.continueShopping}
                     </Button>
-                </Paper>
-            </Container>
-        </Box>
+                </Box>
+            </Paper>
+        </Container>
     );
 }
