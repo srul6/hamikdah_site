@@ -72,9 +72,7 @@ class GreenInvoiceService {
     // Create invoice with proper format
     async createInvoice(invoiceData) {
         try {
-            // Ensure we have a valid token
             const token = await this.getToken();
-
             console.log('Creating invoice with data:', invoiceData);
 
             const response = await axios.post(
@@ -91,11 +89,8 @@ class GreenInvoiceService {
 
             console.log('GreenInvoice API response:', response.data);
             return response.data;
-
         } catch (error) {
             console.error('GreenInvoice invoice creation failed:', error);
-            
-            // Log detailed error information
             if (error.response) {
                 console.error('GreenInvoice API error response:', {
                     status: error.response.status,
@@ -108,7 +103,43 @@ class GreenInvoiceService {
             } else {
                 console.error('GreenInvoice API error:', error.message);
             }
+            throw error;
+        }
+    }
 
+    async getPaymentForm(paymentData) {
+        try {
+            const token = await this.getToken();
+            console.log('Getting payment form with data:', paymentData);
+
+            const response = await axios.post(
+                `${this.baseUrl}/payments/form`,
+                paymentData,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    timeout: 30000
+                }
+            );
+
+            console.log('GreenInvoice payment form response:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('GreenInvoice payment form creation failed:', error);
+            if (error.response) {
+                console.error('GreenInvoice API error response:', {
+                    status: error.response.status,
+                    statusText: error.response.statusText,
+                    data: error.response.data,
+                    headers: error.response.headers
+                });
+            } else if (error.request) {
+                console.error('GreenInvoice API request error:', error.request);
+            } else {
+                console.error('GreenInvoice API error:', error.message);
+            }
             throw error;
         }
     }

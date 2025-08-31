@@ -253,6 +253,133 @@ class GreenInvoiceController {
         }
     }
 
+    // Get Cardcom payment form
+    async getPaymentForm(req, res) {
+        console.log('=== GreenInvoice getPaymentForm called ===');
+        console.log('Request body:', req.body);
+
+        try {
+            const { items, totalAmount, currency = 'ILS', customerInfo } = req.body;
+
+            // Validate input parameters
+            const validationErrors = this.validateInvoiceParams(items, totalAmount, customerInfo);
+            if (validationErrors.length > 0) {
+                console.log('Validation errors:', validationErrors);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation failed',
+                    message: validationErrors.join(', ')
+                });
+            }
+
+            // Check if GreenInvoice credentials are available
+            if (!this.greenInvoiceService.apiKeyId || !this.greenInvoiceService.apiKeySecret) {
+                console.error('GreenInvoice credentials not found');
+                return res.status(500).json({
+                    success: false,
+                    error: 'GreenInvoice configuration missing',
+                    message: 'Payment service is not properly configured'
+                });
+            }
+
+            // First, create an invoice
+            const invoiceRequest = {
+                type: 305,
+                description: "Tax Invoice for Online Order",
+                date: new Date().toISOString().split('T')[0],
+                lang: "he",
+                currency: currency,
+                income: items.map(item => ({
+                    description: item.name_he || item.name_en || item.name,
+                    quantity: item.quantity || 1,
+                    price: parseFloat(item.price),
+                    vatType: 1
+                })),
+                client: {
+                    name: customerInfo.name,
+                    email: customerInfo.email,
+                    phone: customerInfo.phone,
+                    address: customerInfo.address || ''
+                },
+                payment: {
+                    method: 1,
+                    cardComPlugin: true
+                }
+            };
+
+            console.log('Creating invoice for payment form:', JSON.stringify(invoiceRequest, null, 2));
+
+            // Create the invoice first
+            const invoiceResult = await this.greenInvoiceService.createInvoice(invoiceRequest);
+
+            if (!invoiceResult || !invoiceResult.id) {
+                throw new Error('Failed to create invoice for payment form');
+            }
+
+            console.log('Invoice created for payment form:', invoiceResult.id);
+
+            // Now get the payment form for this invoice
+            const paymentFormRequest = {
+                documentId: invoiceResult.id,
+                amount: totalAmount,
+                currency: currency,
+                plugin: 'cardcom',
+                terminalType: 'E-COMMERCE'
+            };
+
+            console.log('Payment form request:', JSON.stringify(paymentFormRequest, null, 2));
+
+            // Get payment form from GreenInvoice
+            const result = await this.greenInvoiceService.getPaymentForm(paymentFormRequest);
+
+            console.log('GreenInvoice payment form response:', result);
+
+            if (result && result.formUrl) {
+                console.log('Payment form created successfully');
+
+                res.json({
+                    success: true,
+                    formUrl: result.formUrl,
+                    formId: result.formId,
+                    invoiceId: invoiceResult.id,
+                    message: 'Payment form created successfully',
+                    details: result
+                });
+            } else {
+                console.error('GreenInvoice payment form creation failed:', result);
+                res.status(500).json({
+                    success: false,
+                    error: 'Payment form creation failed',
+                    message: 'Invalid response from GreenInvoice API',
+                    details: result
+                });
+            }
+
+        } catch (error) {
+            console.error('GreenInvoice payment form creation failed:', error);
+
+            // Log more details about the error
+            if (error.response) {
+                console.error('GreenInvoice API error response:', {
+                    status: error.response.status,
+                    data: error.response.data,
+                    headers: error.response.headers
+                });
+            } else if (error.request) {
+                console.error('GreenInvoice API request error:', error.request);
+            } else {
+                console.error('GreenInvoice API error:', error.message);
+            }
+
+            res.status(500).json({
+                success: false,
+                error: 'Payment form creation failed',
+                message: error.message,
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
+        }
+    }
+
     // Validate invoice parameters
     validateInvoiceParams(items, totalAmount, customerInfo) {
         const errors = [];

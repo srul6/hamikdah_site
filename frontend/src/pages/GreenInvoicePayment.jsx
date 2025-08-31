@@ -46,7 +46,7 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete }) {
             const response = await createGreenInvoiceWithPayment(items, total, customerInfo);
 
             if (response.success && response.paymentUrl) {
-                // Redirect to GreenInvoice payment page
+                // Redirect to GreenInvoice payment page with Cardcom
                 window.location.href = response.paymentUrl;
             } else {
                 setError(response.message || 'Failed to create invoice');
@@ -178,7 +178,7 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete }) {
 
                 <Box sx={{ mt: 3, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                        {t.securePaymentGreenInvoice}
+                        {t.securePaymentCardcom}
                     </Typography>
                 </Box>
             </Paper>

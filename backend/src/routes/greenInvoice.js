@@ -16,6 +16,14 @@ router.post('/create-invoice', (req, res) => {
     greenInvoiceController.createInvoiceWithPayment.bind(greenInvoiceController)(req, res);
 });
 
+// Get Cardcom payment form
+router.post('/payment-form', (req, res) => {
+    console.log('=== GreenInvoice payment form route hit ===');
+    console.log('Request method:', req.method);
+    console.log('Request URL:', req.url);
+    greenInvoiceController.getPaymentForm.bind(greenInvoiceController)(req, res);
+});
+
 // Get invoice status
 router.get('/status/:invoiceId', greenInvoiceController.getInvoiceStatus.bind(greenInvoiceController));
 
