@@ -43,6 +43,7 @@ class GreenInvoiceController {
                 type: 305,
                 description: "Tax Invoice for Online Order",
                 date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+                lang: "he", // Hebrew language
                 currency: currency,
                 income: items.map(item => ({
                     description: item.name_he || item.name_en || item.name,
@@ -70,24 +71,26 @@ class GreenInvoiceController {
 
             console.log('GreenInvoice API response:', result);
 
-            if (result.success && result.data) {
-                const invoiceData = result.data;
-                console.log('Invoice created successfully:', invoiceData.id);
+            // Check if invoice creation was successful (GreenInvoice returns invoice data directly)
+            if (result && result.id) {
+                console.log('Invoice created successfully:', result.id);
 
                 res.json({
                     success: true,
-                    invoiceId: invoiceData.id,
-                    paymentUrl: invoiceData.paymentLink || invoiceData.url,
-                    invoiceUrl: invoiceData.url,
-                    message: 'Invoice created successfully with payment link'
+                    invoiceId: result.id,
+                    invoiceNumber: result.number,
+                    paymentUrl: result.url?.origin || result.url,
+                    invoiceUrl: result.url?.he || result.url?.origin || result.url,
+                    message: 'Invoice created successfully',
+                    details: result
                 });
             } else {
                 console.error('GreenInvoice invoice creation failed:', result);
                 res.status(500).json({
                     success: false,
                     error: 'Invoice creation failed',
-                    message: result.message || 'Unknown error',
-                    details: result.data || result
+                    message: 'Invalid response from GreenInvoice API',
+                    details: result
                 });
             }
 

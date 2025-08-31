@@ -38,6 +38,7 @@ This document summarizes the fixes implemented to resolve the GreenInvoice integ
   "type": 305,
   "description": "Tax Invoice for Online Order",
   "date": "2025-08-31",
+  "lang": "he",
   "currency": "ILS",
   "income": [
     {
@@ -62,9 +63,9 @@ This document summarizes the fixes implemented to resolve the GreenInvoice integ
 
 **Key Points:**
 - `type: 305` for Tax Invoice document type
+- `lang: "he"` for Hebrew language (correct field name)
 - `income` array (not `items` or `services`) with `vatType: 1` for standard VAT
 - `payment` object (not `payments` array) with `cardComPlugin: true`
-- No language field required (API handles language automatically)
 - Proper date format (YYYY-MM-DD)
 
 ### 4. Controller Updates
@@ -166,31 +167,34 @@ POST /api/greeninvoice/create-invoice
 4. **Data Format**: Correct invoice data structure as per requirements
 5. **Fallback Mode**: Development/testing mode when API credentials are not configured
 
-### ⚠️ Known Issues
-1. **Language Field**: The API seems to have issues with the language field
-   - Error: "Invalid language value" (errorCode: 2406)
-   - Solution: Removed language field as it's not required for Document Type 305
+### ✅ Issues Resolved
+1. **Language Field**: Fixed the language field issue
+   - **Problem**: "Invalid language value" (errorCode: 2406)
+   - **Solution**: Use `lang: "he"` instead of `language` or `locale`
+   - **Status**: ✅ Resolved
 2. **Account Configuration**: The GreenInvoice account may need additional setup for the Cardcom plugin
 
 ### 🔧 Next Steps
 1. **Production Testing**: Test with real GreenInvoice credentials in production environment
 2. **Cardcom Plugin**: Ensure Cardcom plugin is properly configured in GreenInvoice account
-3. **Language Support**: Investigate proper language field format if needed
-4. **Error Handling**: Monitor for any additional API format requirements
+3. **Error Handling**: Monitor for any additional API format requirements
 
 ## Error Handling
 
 The implementation now provides detailed error information:
 
 ```javascript
-// Example error response
+// Example successful response
 {
-  "success": false,
-  "error": "Invoice creation failed",
-  "message": "Invalid language value",
-  "details": {
-    "errorCode": 2406,
-    "errorMessage": "ערך שפה לא תקין"
+  "success": true,
+  "invoiceId": "b7ed50e0-fece-4a4f-b863-19dedc2ad024",
+  "number": 50120,
+  "type": 305,
+  "signed": true,
+  "lang": "he",
+  "url": {
+    "origin": "https://www.greeninvoice.co.il/api/v1/documents/download?d=...",
+    "he": "https://www.greeninvoice.co.il/api/v1/documents/download?d=..."
   }
 }
 ```
