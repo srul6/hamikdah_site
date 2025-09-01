@@ -4,16 +4,15 @@ import {
     Container, Typography, Box, Paper, Button, Alert,
     CircularProgress, Divider
 } from '@mui/material';
-import { CheckCircle, Receipt, Email } from '@mui/icons-material';
+import { Cancel, ShoppingCart, ArrowBack } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 
-export default function PaymentSuccess() {
+export default function PaymentCancel() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [paymentDetails, setPaymentDetails] = useState(null);
-    const [error, setError] = useState(null);
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
@@ -23,7 +22,6 @@ export default function PaymentSuccess() {
         const orderId = searchParams.get('orderId');
         const amount = searchParams.get('amount');
         const currency = searchParams.get('currency') || 'ILS';
-        const documentId = searchParams.get('documentId');
         const customerEmail = searchParams.get('customerEmail');
 
         if (orderId && amount) {
@@ -31,25 +29,20 @@ export default function PaymentSuccess() {
                 orderId,
                 amount: parseFloat(amount),
                 currency,
-                documentId,
                 customerEmail
             });
-        } else {
-            setError('Payment details not found');
         }
 
         setIsLoading(false);
     }, [searchParams]);
 
-    const handleContinueShopping = () => {
-        navigate('/');
+    const handleBackToCart = () => {
+        // Navigate back to cart to retry payment
+        navigate('/cart');
     };
 
-    const handleViewInvoice = () => {
-        if (paymentDetails?.documentId) {
-            // Open invoice in new tab (GreenInvoice will provide the URL)
-            window.open(`https://www.greeninvoice.co.il/documents/${paymentDetails.documentId}`, '_blank');
-        }
+    const handleContinueShopping = () => {
+        navigate('/');
     };
 
     if (isLoading) {
@@ -63,74 +56,55 @@ export default function PaymentSuccess() {
         );
     }
 
-    if (error) {
-        return (
-            <Container maxWidth="md" sx={{ py: 8 }}>
-                <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-                    <Alert severity="error" sx={{ mb: 3 }}>
-                        {error}
-                    </Alert>
-                    <Button
-                        variant="contained"
-                        onClick={handleContinueShopping}
-                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                    >
-                        {t.continueShopping}
-                    </Button>
-                </Paper>
-            </Container>
-        );
-    }
-
     return (
         <Container maxWidth="md" sx={{ py: 8 }}>
             <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-                {/* Success Icon */}
-                <CheckCircle
-                    sx={{
-                        fontSize: 80,
-                        color: 'success.main',
+                {/* Cancel Icon */}
+                <Cancel 
+                    sx={{ 
+                        fontSize: 80, 
+                        color: 'warning.main',
                         mb: 3
-                    }}
+                    }} 
                 />
 
-                {/* Success Message */}
-                <Typography
-                    variant="h3"
-                    gutterBottom
-                    sx={{
-                        color: 'success.main',
+                {/* Cancel Message */}
+                <Typography 
+                    variant="h3" 
+                    gutterBottom 
+                    sx={{ 
+                        color: 'warning.main',
                         direction: isHebrew ? 'rtl' : 'ltr',
                         mb: 2
                     }}
                 >
-                    {t.paymentSuccess}
+                    {t.paymentCancelled}
                 </Typography>
 
-                <Typography
-                    variant="h6"
-                    sx={{
+                <Typography 
+                    variant="h6" 
+                    sx={{ 
                         color: 'text.secondary',
                         direction: isHebrew ? 'rtl' : 'ltr',
                         mb: 4
                     }}
                 >
-                    {t.thankYouPurchase}
+                    {t.paymentCancelledMessage}
                 </Typography>
 
                 {/* Payment Details */}
                 {paymentDetails && (
-                    <Box sx={{
-                        backgroundColor: 'rgba(245, 240, 227, 0.5)',
-                        borderRadius: 2,
-                        p: 3,
+                    <Box sx={{ 
+                        backgroundColor: 'rgba(255, 244, 229, 0.5)', 
+                        borderRadius: 2, 
+                        p: 3, 
                         mb: 4,
                         textAlign: isHebrew ? 'right' : 'left'
                     }}>
                         <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                             {t.orderSummary}
                         </Typography>
-
+                        
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                                 {t.orderId}:
@@ -149,59 +123,61 @@ export default function PaymentSuccess() {
                             </Typography>
                         </Box>
 
-                        {paymentDetails.documentId && (
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                    {t.invoiceNumber}:
-                                </Typography>
-                                <Typography fontWeight="bold">
-                                    {paymentDetails.documentId}
-                                </Typography>
-                            </Box>
-                        )}
-
                         <Divider sx={{ my: 2 }} />
 
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                            <Email color="action" />
-                            <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.invoiceEmailSent} {paymentDetails.customerEmail}
-                            </Typography>
-                        </Box>
+                        <Alert severity="info" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            {t.paymentCancelledNote}
+                        </Alert>
                     </Box>
                 )}
 
                 {/* Action Buttons */}
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {paymentDetails?.documentId && (
-                        <Button
-                            variant="outlined"
-                            startIcon={<Receipt />}
-                            onClick={handleViewInvoice}
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                        >
-                            {t.viewInvoice}
-                        </Button>
-                    )}
-
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mb: 4 }}>
                     <Button
                         variant="contained"
-                        onClick={handleContinueShopping}
-                        sx={{
+                        startIcon={<ArrowBack />}
+                        onClick={handleBackToCart}
+                        sx={{ 
                             backgroundColor: 'rgba(229, 90, 61, 1)',
                             '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
                             direction: isHebrew ? 'rtl' : 'ltr'
                         }}
+                    >
+                        {t.backToCart}
+                    </Button>
+                    
+                    <Button
+                        variant="outlined"
+                        startIcon={<ShoppingCart />}
+                        onClick={handleContinueShopping}
+                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                     >
                         {t.continueShopping}
                     </Button>
                 </Box>
 
                 {/* Additional Information */}
-                <Box sx={{ mt: 4, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                        {t.paymentSuccessNote}
+                <Box sx={{ 
+                    backgroundColor: 'rgba(245, 240, 227, 0.5)', 
+                    borderRadius: 2, 
+                    p: 3,
+                    textAlign: isHebrew ? 'right' : 'left'
+                }}>
+                    <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                        {t.whyCancel}
                     </Typography>
+                    
+                    <Typography variant="body2" sx={{ mb: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                        {t.cancelReasons}
+                    </Typography>
+
+                    <Box sx={{ textAlign: isHebrew ? 'right' : 'left' }}>
+                        <Typography variant="body2" component="ul" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            <li>{t.cancelReason1}</li>
+                            <li>{t.cancelReason2}</li>
+                            <li>{t.cancelReason3}</li>
+                        </Typography>
+                    </Box>
                 </Box>
             </Paper>
         </Container>

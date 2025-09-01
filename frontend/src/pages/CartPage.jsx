@@ -12,14 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
-    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [customerInfo, setCustomerInfo] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        address: ''
-    });
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -46,32 +39,22 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
             alert(t.cartEmpty);
             return;
         }
-        setIsCheckoutOpen(true);
-    };
-
-    const handleContinueToPayment = () => {
-        if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
-            alert(t.fillRequiredFields);
-            return;
-        }
-
-        setIsCheckoutOpen(false);
+        // Go directly to payment without collecting customer details
         setIsPaymentOpen(true);
     };
 
-    const handlePaymentCompleteOld = (paymentData) => {
+    const handlePaymentComplete = (paymentData) => {
         setIsPaymentOpen(false);
-        // Handle successful payment
         console.log('Payment completed:', paymentData);
-        // You can redirect to success page or show success message
-        alert(t.paymentSuccess);
-    };
 
-    const handleInputChange = (field, value) => {
-        setCustomerInfo(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        if (paymentData.status === 'success') {
+            setSuccess(paymentData.message);
+            // Optionally clear cart or redirect
+            // setCart([]);
+            // navigate('/payment/success');
+        } else {
+            setError(paymentData.message || t.paymentFailed);
+        }
     };
 
     const removeFromCart = (index) => {
@@ -82,22 +65,9 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
         onUpdateQuantity(cart[index].id, newQuantity);
     };
 
-    // Payment dialog
-    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
-    const handlePaymentClick = () => {
-        if (cart.length === 0) {
-            setError(t.cartEmpty);
-            return;
-        }
-        setPaymentDialogOpen(true);
-    };
 
-    const handlePaymentComplete = () => {
-        setPaymentDialogOpen(false);
-        // setCart([]); // This line was removed from the new_code, so it's removed here.
-        setSuccess(t.paymentSuccess);
-    };
+
 
     return (
         <Box sx={{ backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
@@ -277,66 +247,12 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                     }
                                 }}
                             >
-                                {t.checkout}
+                                {t.proceedToPayment}
                             </Button>
                         </Box>
                     </>
                 )}
             </Container>
-
-            {/* Customer Information Dialog */}
-            <Dialog open={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.customerInfo}</DialogTitle>
-                <DialogContent>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                        <MuiTextField
-                            label={`${t.name} *`}
-                            value={customerInfo.name}
-                            onChange={(e) => handleInputChange('name', e.target.value)}
-                            fullWidth
-                            required
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                        />
-                        <MuiTextField
-                            label={`${t.email} *`}
-                            type="email"
-                            value={customerInfo.email}
-                            onChange={(e) => handleInputChange('email', e.target.value)}
-                            fullWidth
-                            required
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                        />
-                        <MuiTextField
-                            label={`${t.phone} *`}
-                            value={customerInfo.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                            fullWidth
-                            required
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                        />
-                        <MuiTextField
-                            label={t.address}
-                            value={customerInfo.address}
-                            onChange={(e) => handleInputChange('address', e.target.value)}
-                            fullWidth
-                            multiline
-                            rows={2}
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsCheckoutOpen(false)} sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.cancel}</Button>
-                    <Button
-                        onClick={handleContinueToPayment}
-                        variant="contained"
-                        disabled={isProcessing}
-                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                    >
-                        {isProcessing ? t.processing : t.continueToPayment}
-                    </Button>
-                </DialogActions>
-            </Dialog>
 
             {/* GreenInvoice Payment Dialog */}
             <Dialog
@@ -355,9 +271,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                     <GreenInvoicePayment
                         cart={cart}
                         onPaymentComplete={handlePaymentComplete}
+                        onClose={() => setIsPaymentOpen(false)}
                     />
                 </DialogContent>
             </Dialog>
+
         </Box>
     );
 }

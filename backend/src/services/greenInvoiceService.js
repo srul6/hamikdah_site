@@ -4,72 +4,62 @@ class GreenInvoiceService {
     constructor() {
         this.apiKeyId = process.env.GREENINVOICE_API_KEY_ID;
         this.apiKeySecret = process.env.GREENINVOICE_API_KEY_SECRET;
-        this.baseUrl = 'https://api.greeninvoice.co.il/api/v1';
-        this.jwtToken = null;
+        this.baseUrl = process.env.GREENINVOICE_BASE_URL || 'https://api.greeninvoice.co.il/api/v1';
+        this.token = null;
         this.tokenExpiry = null;
 
         console.log('GreenInvoice Service initialized with:', {
-            apiKeyId: this.apiKeyId ? '***' : 'missing',
-            apiKeySecret: this.apiKeySecret ? '***' : 'missing',
+            apiKeyId: this.apiKeyId ? '***' : 'NOT SET',
+            apiKeySecret: this.apiKeySecret ? '***' : 'NOT SET',
             baseUrl: this.baseUrl
         });
     }
 
-    // Authenticate and get JWT token
-    async authenticate() {
+    async getToken() {
+        // Check if we have a valid token
+        if (this.token && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+            return this.token;
+        }
+
+        console.log('Getting new JWT token from GreenInvoice...');
+
         try {
-            // Check if we have a valid token
-            if (this.jwtToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
-                return this.jwtToken;
-            }
-
-            console.log('Getting new JWT token from GreenInvoice...');
-
-            const response = await axios.post(
-                `${this.baseUrl}/account/token`,
-                {
-                    id: this.apiKeyId,
-                    secret: this.apiKeySecret
+            const response = await axios.post(`${this.baseUrl}/account/token`, {
+                id: this.apiKeyId,
+                secret: this.apiKeySecret
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
                 },
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 10000
-                }
-            );
+                timeout: 30000
+            });
 
-            console.log('JWT token response:', response.data);
+            // Extract token from response headers (GreenInvoice specific)
+            const token = response.headers['x-authorization-bearer'] || response.data.token;
 
-            if (response.data && response.data.token) {
-                this.jwtToken = response.data.token;
-                // Set token expiry based on the expires field from GreenInvoice
-                this.tokenExpiry = response.data.expires * 1000; // Convert to milliseconds
-                console.log('JWT token obtained successfully, expires:', new Date(this.tokenExpiry));
-                return this.jwtToken;
-            } else {
+            if (!token) {
                 throw new Error('No token received from GreenInvoice');
             }
 
+            // Set token expiry (GreenInvoice tokens expire in 1 hour)
+            this.token = token;
+            this.tokenExpiry = Date.now() + (55 * 60 * 1000); // 55 minutes to be safe
+
+            console.log('JWT token obtained successfully, expires:', new Date(this.tokenExpiry));
+            return token;
+
         } catch (error) {
-            console.error('Failed to get JWT token:', error);
+            console.error('Failed to get GreenInvoice token:', error);
             if (error.response) {
-                console.error('GreenInvoice API error response:', {
+                console.error('GreenInvoice token error response:', {
                     status: error.response.status,
-                    data: error.response.data,
-                    headers: error.response.headers
+                    data: error.response.data
                 });
             }
-            throw error;
+            throw new Error('Failed to authenticate with GreenInvoice');
         }
     }
 
-    // Get token (alias for authenticate)
-    async getToken() {
-        return this.authenticate();
-    }
-
-    // Create invoice with proper format
     async createInvoice(invoiceData) {
         try {
             const token = await this.getToken();
@@ -87,23 +77,46 @@ class GreenInvoiceService {
                 }
             );
 
-            console.log('GreenInvoice API response:', response.data);
+            console.log('GreenInvoice invoice creation response:', response.data);
             return response.data;
         } catch (error) {
             console.error('GreenInvoice invoice creation failed:', error);
+
+            // Enhanced error handling to capture full GreenInvoice error details
             if (error.response) {
-                console.error('GreenInvoice API error response:', {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                const errorDetails = {
                     status: error.response.status,
                     statusText: error.response.statusText,
                     data: error.response.data,
                     headers: error.response.headers
-                });
+                };
+
+                console.error('GreenInvoice API error response:', errorDetails);
+
+                // Create a custom error with full details
+                const customError = new Error('GreenInvoice API Error');
+                customError.isAxiosError = true;
+                customError.response = errorDetails;
+                customError.greenInvoiceError = error.response.data;
+
+                throw customError;
             } else if (error.request) {
+                // The request was made but no response was received
                 console.error('GreenInvoice API request error:', error.request);
+                const customError = new Error('No response received from GreenInvoice API');
+                customError.isAxiosError = true;
+                customError.request = error.request;
+                throw customError;
             } else {
+                // Something happened in setting up the request that triggered an Error
                 console.error('GreenInvoice API error:', error.message);
+                const customError = new Error(`GreenInvoice API Error: ${error.message}`);
+                customError.isAxiosError = true;
+                customError.originalError = error;
+                throw customError;
             }
-            throw error;
         }
     }
 
@@ -128,66 +141,100 @@ class GreenInvoiceService {
             return response.data;
         } catch (error) {
             console.error('GreenInvoice payment form creation failed:', error);
+
+            // Enhanced error handling to capture full GreenInvoice error details
             if (error.response) {
-                console.error('GreenInvoice API error response:', {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                const errorDetails = {
                     status: error.response.status,
                     statusText: error.response.statusText,
                     data: error.response.data,
                     headers: error.response.headers
-                });
+                };
+
+                console.error('GreenInvoice API error response:', errorDetails);
+
+                // Create a custom error with full details
+                const customError = new Error('GreenInvoice API Error');
+                customError.isAxiosError = true;
+                customError.response = errorDetails;
+                customError.greenInvoiceError = error.response.data;
+
+                throw customError;
             } else if (error.request) {
+                // The request was made but no response was received
                 console.error('GreenInvoice API request error:', error.request);
+                const customError = new Error('No response received from GreenInvoice API');
+                customError.isAxiosError = true;
+                customError.request = error.request;
+                throw customError;
             } else {
+                // Something happened in setting up the request that triggered an Error
                 console.error('GreenInvoice API error:', error.message);
+                const customError = new Error(`GreenInvoice API Error: ${error.message}`);
+                customError.isAxiosError = true;
+                customError.originalError = error;
+                throw customError;
             }
-            throw error;
         }
     }
 
-    // Get invoice status
-    async getInvoiceStatus(invoiceId) {
+    async getDocument(documentId) {
         try {
             const token = await this.getToken();
+            console.log('Getting document:', documentId);
 
             const response = await axios.get(
-                `${this.baseUrl}/documents/${invoiceId}`,
+                `${this.baseUrl}/documents/${documentId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     },
-                    timeout: 10000
+                    timeout: 30000
                 }
             );
 
+            console.log('GreenInvoice document response:', response.data);
             return response.data;
-
         } catch (error) {
-            console.error('Failed to get invoice status:', error);
-            throw error;
-        }
-    }
+            console.error('GreenInvoice document retrieval failed:', error);
 
-    // Create customer
-    async createCustomer(customerData) {
-        try {
-            const token = await this.getToken();
+            // Enhanced error handling to capture full GreenInvoice error details
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                const errorDetails = {
+                    status: error.response.status,
+                    statusText: error.response.statusText,
+                    data: error.response.data,
+                    headers: error.response.headers
+                };
 
-            const response = await axios.post(
-                `${this.baseUrl}/clients`,
-                customerData,
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+                console.error('GreenInvoice API error response:', errorDetails);
 
-            return response.data;
+                // Create a custom error with full details
+                const customError = new Error('GreenInvoice API Error');
+                customError.isAxiosError = true;
+                customError.response = errorDetails;
+                customError.greenInvoiceError = error.response.data;
 
-        } catch (error) {
-            console.error('Failed to create customer:', error);
-            throw error;
+                throw customError;
+            } else if (error.request) {
+                // The request was made but no response was received
+                console.error('GreenInvoice API request error:', error.request);
+                const customError = new Error('No response received from GreenInvoice API');
+                customError.isAxiosError = true;
+                customError.request = error.request;
+                throw customError;
+            } else {
+                // Something happened in setting up the request that triggered an Error
+                console.error('GreenInvoice API error:', error.message);
+                const customError = new Error(`GreenInvoice API Error: ${error.message}`);
+                customError.isAxiosError = true;
+                customError.originalError = error;
+                throw customError;
+            }
         }
     }
 }

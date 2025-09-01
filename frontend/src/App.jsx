@@ -9,8 +9,11 @@ import AdminPanel from './pages/AdminPanel';
 import AboutUs from './pages/AboutUs';
 import TermsOfService from './pages/TermsOfService';
 import Returns from './pages/Returns';
+import GreenInvoicePayment from './pages/GreenInvoicePayment';
 import PaymentSuccess from './pages/PaymentSuccess';
-import PaymentError from './pages/PaymentError';
+import PaymentFailure from './pages/PaymentFailure';
+import PaymentCancel from './pages/PaymentCancel';
+
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
@@ -57,8 +60,7 @@ export default function App() {
                         <Route path="/admin" element={<AdminPanel />} />
                         <Route path="/terms" element={<TermsOfService />} />
                         <Route path="/returns" element={<Returns />} />
-                        <Route path="/payment/success" element={<PaymentSuccess />} />
-                        <Route path="/payment/error" element={<PaymentError />} />
+
                     </Routes>
                     <Footer />
                 </Box>
