@@ -10,7 +10,8 @@ class GreenInvoiceController {
     // Get payment form for CardCom integration
     async getPaymentForm(req, res) {
         console.log('=== Creating GreenInvoice payment form ===');
-        console.log('Request body:', req.body);
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('Request headers:', req.headers);
 
         try {
             const { items, totalAmount, currency = 'ILS', customerInfo, id } = req.body;
@@ -18,6 +19,7 @@ class GreenInvoiceController {
             // Validate input parameters
             const errors = this.validatePaymentParams(items, totalAmount, customerInfo);
             if (errors.length > 0) {
+                console.log('Validation errors:', errors);
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid input parameters',
@@ -48,8 +50,7 @@ class GreenInvoiceController {
                     address: customerInfo.address || 'אין כתובת',
                     city: customerInfo.city || 'אין עיר',
                     zip: customerInfo.zip || 'אין פרטי כתובת',
-                    country: "IL",
-                    add: true
+                    country: "IL"
                 },
                 income: items.map(item => ({
                     description: item.name_he || item.name_en || item.name || 'פריט',
@@ -68,7 +69,7 @@ class GreenInvoiceController {
                 })
             };
 
-            console.log('Creating invoice with request:', invoiceRequest);
+            console.log('Creating invoice with request:', JSON.stringify(invoiceRequest, null, 2));
 
             // Create the payment form
             const paymentResult = await this.greenInvoiceService.getPaymentForm(invoiceRequest);
