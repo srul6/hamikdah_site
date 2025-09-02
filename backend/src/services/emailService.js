@@ -137,23 +137,24 @@ class EmailService {
 
                         <div class="section">
                             <h3>פרטי לקוח</h3>
-                            <div class="field"><strong>שם מלא:</strong> ${customerInfo.name}</div>
-                            <div class="field"><strong>אימייל:</strong> ${customerInfo.email}</div>
-                            <div class="field"><strong>טלפון:</strong> ${customerInfo.phone}</div>
+                            <div class="field"><strong>שם מלא:</strong> ${customerInfo?.name || 'לא זמין'}</div>
+                            <div class="field"><strong>אימייל:</strong> ${customerInfo?.email || 'לא זמין'}</div>
+                            <div class="field"><strong>טלפון:</strong> ${customerInfo?.phone || 'לא זמין'}</div>
                             <div class="field"><strong>הקדשה:</strong> ${dedication || 'לא צוין'}</div>
                         </div>
 
                         <div class="section">
                             <h3>פרטי משלוח</h3>
-                            <div class="field"><strong>רחוב:</strong> ${customerInfo.street}</div>
-                            <div class="field"><strong>מספר בית:</strong> ${customerInfo.houseNumber}</div>
-                            <div class="field"><strong>מספר דירה:</strong> ${customerInfo.apartmentNumber || 'לא צוין'}</div>
-                            <div class="field"><strong>קומה:</strong> ${customerInfo.floor || 'לא צוין'}</div>
-                            <div class="field"><strong>עיר:</strong> ${customerInfo.city}</div>
+                            <div class="field"><strong>רחוב:</strong> ${customerInfo?.street || 'לא זמין'}</div>
+                            <div class="field"><strong>מספר בית:</strong> ${customerInfo?.houseNumber || 'לא זמין'}</div>
+                            <div class="field"><strong>מספר דירה:</strong> ${customerInfo?.apartmentNumber || 'לא צוין'}</div>
+                            <div class="field"><strong>קומה:</strong> ${customerInfo?.floor || 'לא צוין'}</div>
+                            <div class="field"><strong>עיר:</strong> ${customerInfo?.city || 'לא זמין'}</div>
                         </div>
 
-                        <div class="section">
+                                                    <div class="section">
                             <h3>פריטים שהוזמנו</h3>
+                            ${safeItems.length > 0 ? `
                             <table class="items-table">
                                 <thead>
                                     <tr>
@@ -164,16 +165,17 @@ class EmailService {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${items.map(item => `
+                                    ${safeItems.map(item => `
                                         <tr>
-                                            <td>${item.name_he || item.name_en || item.name}</td>
-                                            <td>${item.quantity}</td>
-                                            <td>₪${item.price}</td>
-                                            <td>₪${(item.price * item.quantity).toFixed(2)}</td>
+                                            <td>${item.name_he || item.name_en || item.name || 'פריט'}</td>
+                                            <td>${item.quantity || 1}</td>
+                                            <td>₪${item.price || 0}</td>
+                                            <td>₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
                             </table>
+                            ` : '<p>לא זמין מידע על הפריטים</p>'}
                         </div>
                     </div>
                 </div>
@@ -196,6 +198,8 @@ class EmailService {
             dedication
         } = orderData;
 
+        // Safely handle missing items array
+        const safeItems = Array.isArray(items) ? items : [];
         const timestamp = purchaseTimestamp ? new Date(purchaseTimestamp).toLocaleString('he-IL') : new Date().toLocaleString('he-IL');
 
         return `
@@ -211,20 +215,20 @@ Form ID: ${formId}
 - תאריך רכישה: ${timestamp}
 
 פרטי לקוח:
-- שם מלא: ${customerInfo.name}
-- אימייל: ${customerInfo.email}
-- טלפון: ${customerInfo.phone}
+- שם מלא: ${customerInfo?.name || 'לא זמין'}
+- אימייל: ${customerInfo?.email || 'לא זמין'}
+- טלפון: ${customerInfo?.phone || 'לא זמין'}
 - הקדשה: ${dedication || 'לא צוין'}
 
 פרטי משלוח:
-- רחוב: ${customerInfo.street}
-- מספר בית: ${customerInfo.houseNumber}
-- מספר דירה: ${customerInfo.apartmentNumber || 'לא צוין'}
-- קומה: ${customerInfo.floor || 'לא צוין'}
-- עיר: ${customerInfo.city}
+- רחוב: ${customerInfo?.street || 'לא זמין'}
+- מספר בית: ${customerInfo?.houseNumber || 'לא זמין'}
+- מספר דירה: ${customerInfo?.apartmentNumber || 'לא צוין'}
+- קומה: ${customerInfo?.floor || 'לא צוין'}
+- עיר: ${customerInfo?.city || 'לא זמין'}
 
 פריטים שהוזמנו:
-${items.map(item => `- ${item.name_he || item.name_en || item.name} x${item.quantity} - ₪${item.price} (סה"כ: ₪${(item.price * item.quantity).toFixed(2)})`).join('\n')}
+${safeItems.length > 0 ? safeItems.map(item => `- ${item.name_he || item.name_en || item.name || 'פריט'} x${item.quantity || 1} - ₪${item.price || 0} (סה"כ: ₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)})`).join('\n') : 'לא זמין מידע על הפריטים'}
         `;
     }
 }

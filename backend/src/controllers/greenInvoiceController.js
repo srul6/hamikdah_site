@@ -140,8 +140,13 @@ class GreenInvoiceController {
     // Webhook endpoint to receive payment status updates from GreenInvoice
     async webhook(req, res) {
         console.log('=== GreenInvoice webhook received ===');
-        console.log('Webhook body:', JSON.stringify(req.body, null, 2));
-        console.log('Webhook headers:', req.headers);
+        console.log('🕐 Timestamp:', new Date().toISOString());
+        console.log('🌐 Remote IP:', req.ip || req.connection.remoteAddress);
+        console.log('📋 Webhook body:', JSON.stringify(req.body, null, 2));
+        console.log('📋 Webhook headers:', JSON.stringify(req.headers, null, 2));
+        console.log('🔍 Request method:', req.method);
+        console.log('🔍 Request URL:', req.url);
+        console.log('🔍 User agent:', req.headers['user-agent'] || 'Unknown');
 
         try {
             const {
@@ -166,19 +171,30 @@ class GreenInvoiceController {
                 }
             }
 
-            // Combine customer info with custom data
+            // Combine customer info with custom data, handling missing customerInfo gracefully
             const fullCustomerInfo = {
-                ...customerInfo,
+                name: customerInfo?.name || 'לא זמין',
+                email: customerInfo?.email || 'לא זמין',
+                phone: customerInfo?.phone || 'לא זמין',
+                street: customerInfo?.street || 'לא זמין',
+                houseNumber: customerInfo?.houseNumber || 'לא זמין',
+                apartmentNumber: customerInfo?.apartmentNumber || '',
+                floor: customerInfo?.floor || '',
+                city: customerInfo?.city || 'לא זמין',
+                country: customerInfo?.country || 'IL',
                 dedication: customData.dedication || ''
             };
 
             // Validate webhook data
             if (!formId || !status) {
-                console.error('Invalid webhook data received');
+                console.error('❌ Invalid webhook data received - Missing formId or status');
+                console.error('Received data:', { formId, status, documentId, paymentId });
                 return res.status(400).json({ error: 'Invalid webhook data' });
             }
 
-            console.log(`Payment webhook received - Form ID: ${formId}, Status: ${status}, Document ID: ${documentId}`);
+            console.log(`🎯 Payment webhook received - Form ID: ${formId}, Status: "${status}", Document ID: ${documentId || 'N/A'}`);
+            console.log(`💰 Amount: ${amount} ${currency}, Payment ID: ${paymentId || 'N/A'}`);
+            console.log(`👤 Customer: ${customerInfo?.name || 'N/A'} (${customerInfo?.email || 'N/A'})`);
 
             // Prepare order data for server notification and email
             const orderData = {
@@ -189,7 +205,7 @@ class GreenInvoiceController {
                 amount,
                 currency,
                 customerInfo: fullCustomerInfo,
-                items,
+                items: Array.isArray(items) ? items : [],
                 purchaseTimestamp: new Date().toISOString(),
                 dedication: customData.dedication || ''
             };
@@ -202,24 +218,40 @@ class GreenInvoiceController {
             const localStorageResult = await this.storeOrderLocally(orderData);
             console.log('Local storage result:', localStorageResult);
 
-            // Send email notification to admin
-            await this.emailService.sendOrderNotification(orderData);
+            // ALWAYS send email notification to admin regardless of status
+            console.log('📧 Sending admin email notification for status:', status);
+            try {
+                await this.emailService.sendOrderNotification(orderData);
+                console.log('✅ Admin email notification sent successfully');
+            } catch (error) {
+                console.error('❌ Failed to send admin email notification:', error);
+            }
 
             // Handle different payment statuses
+            console.log('🔄 Processing payment status:', status);
             switch (status.toLowerCase()) {
                 case 'approved':
                 case 'completed':
-                    console.log('Payment completed successfully');
+                case 'success':
+                case 'paid':
+                case 'successful':
+                    console.log('✅ Payment completed successfully - Status:', status);
 
                     // Get document details if available
                     let documentDetails = null;
-                    if (documentId) {
+                    if (documentId && documentId !== 'undefined' && documentId !== 'null') {
                         try {
+                            console.log('🔍 Fetching document details for ID:', documentId);
                             documentDetails = await this.greenInvoiceService.getDocument(documentId);
-                            console.log('Document details retrieved:', documentDetails);
+                            console.log('✅ Document details retrieved:', documentDetails);
                         } catch (error) {
-                            console.error('Failed to get document details:', error);
+                            console.error('❌ Failed to get document details:', error);
+                            console.error('Document ID was:', documentId);
+                            // Continue processing even if document fetch fails
                         }
+                    } else {
+                        console.log('⚠️  No valid documentId provided, skipping document fetch');
+                        console.log('Received documentId:', documentId);
                     }
 
                     // Update order status in your database
@@ -246,7 +278,11 @@ class GreenInvoiceController {
 
                 case 'declined':
                 case 'failed':
-                    console.log('Payment failed or declined');
+                case 'error':
+                case 'rejected':
+                case 'cancelled':
+                case 'canceled':
+                    console.log('❌ Payment failed or declined - Status:', status);
 
                     // Update order status in your database
                     await this.updateOrderStatus(formId, 'failed', {
@@ -270,7 +306,10 @@ class GreenInvoiceController {
                     break;
 
                 case 'pending':
-                    console.log('Payment is pending');
+                case 'processing':
+                case 'in_progress':
+                case 'waiting':
+                    console.log('⏳ Payment is pending - Status:', status);
 
                     // Update order status in your database
                     await this.updateOrderStatus(formId, 'pending', {
@@ -283,7 +322,17 @@ class GreenInvoiceController {
                     break;
 
                 default:
-                    console.log(`Unknown payment status: ${status}`);
+                    console.log(`⚠️  Unknown payment status: "${status}" - Processing as completed to ensure email is sent`);
+                    console.log('📧 Sending admin email notification for unknown status');
+
+                    // For unknown statuses, still send admin email and process as completed
+                    await this.updateOrderStatus(formId, 'completed', {
+                        documentId,
+                        paymentId,
+                        amount,
+                        currency,
+                        note: `Original status: ${status}`
+                    });
                     break;
             }
 
