@@ -20,9 +20,12 @@ async function testFrontendRequest() {
                 name: 'ישראל מנור',
                 email: 'test@example.com',
                 phone: '050-1234567',
-                address: 'רחוב הרצל 1',
-                city: 'תל אביב',
-                zip: '12345'
+                dedication: 'לזכות המשפחה',
+                street: 'רחוב הרצל',
+                houseNumber: '1',
+                apartmentNumber: '5',
+                floor: '3',
+                city: 'תל אביב'
             }
         };
 

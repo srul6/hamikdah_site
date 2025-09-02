@@ -1,9 +1,11 @@
 const GreenInvoiceService = require('../services/greenInvoiceService');
+const EmailService = require('../services/emailService');
 const axios = require('axios'); // Added for testing document types
 
 class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
+        this.emailService = new EmailService();
         console.log('GreenInvoice Controller initialized');
     }
 
@@ -46,10 +48,9 @@ class GreenInvoiceController {
                 client: {
                     name: customerInfo.name || 'אורח',
                     emails: [customerInfo.email],
-                    phone: customerInfo.phone || 'אין פלאפון',
-                    address: customerInfo.address || 'אין כתובת',
-                    city: customerInfo.city || 'אין עיר',
-                    zip: customerInfo.zip || 'אין פרטי כתובת',
+                    phone: customerInfo.phone || '050-0000000',
+                    address: `${customerInfo.street || ''} ${customerInfo.houseNumber || ''} ${customerInfo.apartmentNumber ? `Apt ${customerInfo.apartmentNumber}` : ''} ${customerInfo.floor ? `Floor ${customerInfo.floor}` : ''}`.trim(),
+                    city: customerInfo.city || '',
                     country: "IL"
                 },
                 income: items.map(item => ({
@@ -59,13 +60,14 @@ class GreenInvoiceController {
                     vatType: 1
                 })),
                 remarks: "תודה על הזמנתך",
-                successUrl: `${process.env.BASE_URL || 'https://your-domain.com'}/payment/success`,
-                failureUrl: `${process.env.BASE_URL || 'https://your-domain.com'}/payment/failure`,
+                successUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/success`,
+                failureUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/failure`,
                 notifyUrl: `${process.env.BACKEND_URL || 'https://your-domain.com'}/api/greeninvoice/webhook`,
                 custom: JSON.stringify({
                     orderId: Date.now(),
                     customerId: customerInfo.email,
-                    items: items.map(item => item.id).join(',')
+                    items: items.map(item => item.id).join(','),
+                    dedication: customerInfo.dedication || ''
                 })
             };
 
@@ -138,7 +140,7 @@ class GreenInvoiceController {
     // Webhook endpoint to receive payment status updates from GreenInvoice
     async webhook(req, res) {
         console.log('=== GreenInvoice webhook received ===');
-        console.log('Webhook body:', req.body);
+        console.log('Webhook body:', JSON.stringify(req.body, null, 2));
         console.log('Webhook headers:', req.headers);
 
         try {
@@ -150,8 +152,25 @@ class GreenInvoiceController {
                 amount,
                 currency,
                 customerInfo,
-                items
+                items,
+                custom
             } = req.body;
+
+            // Parse custom data to get additional customer details
+            let customData = {};
+            if (custom) {
+                try {
+                    customData = typeof custom === 'string' ? JSON.parse(custom) : custom;
+                } catch (error) {
+                    console.error('Failed to parse custom data:', error);
+                }
+            }
+
+            // Combine customer info with custom data
+            const fullCustomerInfo = {
+                ...customerInfo,
+                dedication: customData.dedication || ''
+            };
 
             // Validate webhook data
             if (!formId || !status) {
@@ -160,6 +179,26 @@ class GreenInvoiceController {
             }
 
             console.log(`Payment webhook received - Form ID: ${formId}, Status: ${status}, Document ID: ${documentId}`);
+
+            // Prepare order data for server notification and email
+            const orderData = {
+                formId,
+                status,
+                documentId,
+                paymentId,
+                amount,
+                currency,
+                customerInfo: fullCustomerInfo,
+                items,
+                purchaseTimestamp: new Date().toISOString(),
+                dedication: customData.dedication || ''
+            };
+
+            // Send order data to your server
+            await this.sendOrderToServer(orderData);
+
+            // Send email notification to admin
+            await this.emailService.sendOrderNotification(orderData);
 
             // Handle different payment statuses
             switch (status.toLowerCase()) {
@@ -285,6 +324,31 @@ class GreenInvoiceController {
         }
 
         return errors;
+    }
+
+    // Send order data to your server
+    async sendOrderToServer(orderData) {
+        try {
+            const serverUrl = 'https://hamikdah-site.onrender.com/api/orders';
+
+            console.log('Sending order data to server:', serverUrl);
+
+            const response = await axios.post(serverUrl, orderData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.SERVER_API_KEY || ''}`
+                },
+                timeout: 10000
+            });
+
+            console.log('Order data sent to server successfully:', response.status);
+            return true;
+
+        } catch (error) {
+            console.error('Failed to send order data to server:', error.message);
+            // Don't throw error - server notification failure shouldn't break the webhook
+            return false;
+        }
     }
 
     // Update order status in database (implement according to your database structure)

@@ -65,7 +65,7 @@ export default function Footer() {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                             <Button
                                 component="a"
-                                href="https://mail.google.com/mail/?view=cm&fs=1&to=gilmanor8@gmail.com"
+                                href="https://mail.google.com/mail/?view=cm&fs=1&to=hamikdash.today@gmail.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 startIcon={<EmailIcon />}
@@ -84,8 +84,7 @@ export default function Footer() {
                                     }
                                 }}
                             >
-                                gilmanor8@gmail.com
-                            </Button>
+                                hamikdash.today@gmail.com                            </Button>
                             <Button
                                 component="a"
                                 href="tel:+972532405276"

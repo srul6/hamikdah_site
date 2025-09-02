@@ -22,6 +22,7 @@ app.use('/images', express.static(path.join(__dirname, '../public/images')));
 app.use('/api/products', productsRouter);
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/greeninvoice', require('./routes/greenInvoice'));
+app.use('/api/orders', require('./routes/orders'));
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));

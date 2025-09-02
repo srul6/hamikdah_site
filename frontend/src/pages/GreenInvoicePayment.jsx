@@ -17,9 +17,12 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
         name: '',
         email: '',
         phone: '',
-        address: '',
-        city: '',
-        zip: ''
+        dedication: '',
+        street: '',
+        houseNumber: '',
+        apartmentNumber: '',
+        floor: '',
+        city: ''
     });
 
     const { language, isHebrew } = useLanguage();
@@ -28,8 +31,22 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
     const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const handleGetPaymentForm = async () => {
-        if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
-            setError(t.fillRequiredFields);
+        // Validate required fields
+        const requiredFields = {
+            name: customerInfo.name,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
+            street: customerInfo.street,
+            houseNumber: customerInfo.houseNumber,
+            city: customerInfo.city
+        };
+
+        const missingFields = Object.entries(requiredFields)
+            .filter(([key, value]) => !value || value.trim() === '')
+            .map(([key]) => key);
+
+        if (missingFields.length > 0) {
+            setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
             return;
         }
 
@@ -184,8 +201,8 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
     return (
         <Container maxWidth="md" sx={{ py: 4 }}>
             <Paper elevation={3} sx={{ p: 4 }}>
-                <Typography variant="h4" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                    {t.customerInfo}
+                <Typography variant="h4" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr', mb: 3 }}>
+                    {isHebrew ? 'פרטי לקוח' : 'Customer Information'}
                 </Typography>
 
                 {error && (
@@ -194,11 +211,12 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
                     </Alert>
                 )}
 
+                {/* Personal Information */}
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth
-                            label={t.name}
+                            label="Full Name"
                             value={customerInfo.name}
                             onChange={(e) => handleInputChange('name', e.target.value)}
                             required
@@ -208,7 +226,7 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth
-                            label={t.email}
+                            label="Email"
                             type="email"
                             value={customerInfo.email}
                             onChange={(e) => handleInputChange('email', e.target.value)}
@@ -219,7 +237,7 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth
-                            label={t.phone}
+                            label="Phone"
                             value={customerInfo.phone}
                             onChange={(e) => handleInputChange('phone', e.target.value)}
                             required
@@ -229,27 +247,79 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth
-                            label={t.address}
-                            value={customerInfo.address}
-                            onChange={(e) => handleInputChange('address', e.target.value)}
+                            label="Dedication (Optional)"
+                            value={customerInfo.dedication}
+                            onChange={(e) => handleInputChange('dedication', e.target.value)}
+                            multiline
+                            rows={2}
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        />
+                    </Grid>
+                </Grid>
+
+                {/* Shipping Details Section */}
+                <Box sx={{ mt: 4, mb: 2 }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            borderBottom: '2px solid rgba(229, 90, 61, 1)',
+                            pb: 1,
+                            mb: 3,
+                            color: 'rgba(229, 90, 61, 1)',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        {isHebrew ? 'פרטי משלוח' : 'Shipping Details'}
+                    </Typography>
+                </Box>
+
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="Street"
+                            value={customerInfo.street}
+                            onChange={(e) => handleInputChange('street', e.target.value)}
+                            required
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <TextField
+                            fullWidth
+                            label="House Number"
+                            value={customerInfo.houseNumber}
+                            onChange={(e) => handleInputChange('houseNumber', e.target.value)}
+                            required
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <TextField
+                            fullWidth
+                            label="Apartment Number (Optional)"
+                            value={customerInfo.apartmentNumber}
+                            onChange={(e) => handleInputChange('apartmentNumber', e.target.value)}
                             sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                     </Grid>
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth
-                            label={t.city}
+                            label="Floor (Optional)"
+                            value={customerInfo.floor}
+                            onChange={(e) => handleInputChange('floor', e.target.value)}
+                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="City"
                             value={customerInfo.city}
                             onChange={(e) => handleInputChange('city', e.target.value)}
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <TextField
-                            fullWidth
-                            label={t.zipCode}
-                            value={customerInfo.zip}
-                            onChange={(e) => handleInputChange('zip', e.target.value)}
+                            required
                             sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                         />
                     </Grid>
@@ -276,7 +346,23 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
                     </Box>
                 </Box>
 
-                <Box sx={{ mt: 4, textAlign: 'center' }}>
+                <Box sx={{ mt: 4, textAlign: 'center', display: 'flex', gap: 2, justifyContent: 'center' }}>
+                    <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={onClose}
+                        sx={{
+                            borderColor: 'rgba(229, 90, 61, 1)',
+                            color: 'rgba(229, 90, 61, 1)',
+                            '&:hover': {
+                                borderColor: 'rgba(199, 61, 34, 1)',
+                                backgroundColor: 'rgba(229, 90, 61, 0.1)'
+                            },
+                            minWidth: '120px'
+                        }}
+                    >
+                        {isHebrew ? 'ביטול' : 'Cancel'}
+                    </Button>
                     <Button
                         variant="contained"
                         size="large"
@@ -284,10 +370,11 @@ export default function GreenInvoicePayment({ cart, onPaymentComplete, onClose }
                         disabled={isLoading}
                         sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
-                            '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' }
+                            '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
+                            minWidth: '120px'
                         }}
                     >
-                        {isLoading ? <CircularProgress size={24} /> : `${t.pay} ₪${total.toFixed(2)}`}
+                        {isLoading ? <CircularProgress size={24} /> : `${isHebrew ? 'שלם' : 'Pay'} ₪${total.toFixed(2)}`}
                     </Button>
                 </Box>
 

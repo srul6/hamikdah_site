@@ -1,0 +1,21 @@
+# Email Configuration for Order Notifications
+# Add these to your .env file
+
+# Admin Email Settings
+ADMIN_EMAIL=your-email@gmail.com
+ADMIN_EMAIL_PASSWORD=your-app-password
+
+# SMTP Settings (optional - defaults to Gmail)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+
+# Server API Key (optional - for securing order endpoint)
+SERVER_API_KEY=your-secret-api-key
+
+# Note: For Gmail, you need to use an "App Password" instead of your regular password
+# To generate an App Password:
+# 1. Go to your Google Account settings
+# 2. Enable 2-Step Verification if not already enabled
+# 3. Go to Security > App passwords
+# 4. Generate a new app password for "Mail"
+# 5. Use that password in ADMIN_EMAIL_PASSWORD
