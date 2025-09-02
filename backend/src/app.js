@@ -23,6 +23,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/greeninvoice', require('./routes/greenInvoice'));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/debug', require('./routes/debug'));
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
