@@ -66,8 +66,17 @@ class GreenInvoiceController {
                 custom: JSON.stringify({
                     orderId: Date.now(),
                     customerId: customerInfo.email,
+                    customerName: customerInfo.name,
+                    customerPhone: customerInfo.phone,
+                    customerStreet: customerInfo.street,
+                    customerHouseNumber: customerInfo.houseNumber,
+                    customerApartmentNumber: customerInfo.apartmentNumber || '',
+                    customerFloor: customerInfo.floor || '',
+                    customerCity: customerInfo.city,
                     items: items.map(item => item.id).join(','),
-                    dedication: customerInfo.dedication || ''
+                    dedication: customerInfo.dedication || '',
+                    amount: totalAmount,
+                    currency: currency
                 })
             };
 
@@ -195,10 +204,23 @@ class GreenInvoiceController {
                         };
                     }
                     
-                    // Set default values for missing fields
+                    // Set values from custom data
                     amount = customData.amount || 0;
                     currency = customData.currency || 'ILS';
-                    items = customData.items ? [{ name_he: 'פריט', quantity: 1, price: amount }] : [];
+                    
+                    // Create items array with actual product info
+                    if (customData.items) {
+                        const itemIds = customData.items.split(',').filter(id => id.trim());
+                        items = itemIds.map(itemId => ({
+                            id: itemId.trim(),
+                            name_he: 'פריט',
+                            name_en: 'Item',
+                            quantity: 1,
+                            price: amount / itemIds.length // Distribute amount across items
+                        }));
+                    } else {
+                        items = [{ name_he: 'פריט', quantity: 1, price: amount }];
+                    }
                     
                 } catch (error) {
                     console.error('❌ Failed to parse custom data:', error);
