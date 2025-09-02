@@ -151,27 +151,62 @@ class GreenInvoiceController {
         console.log('🔍 User agent:', req.headers['user-agent'] || 'Unknown');
 
         try {
+            // Green Invoice sends different field names - map them correctly
             const {
-                formId,
-                status,
-                documentId,
-                paymentId,
-                amount,
-                currency,
-                customerInfo,
-                items,
-                custom
+                id,                    // This is the formId
+                document_id,           // This is the documentId
+                transaction_id,        // This is the paymentId
+                type,                  // Document type
+                external_data,         // This contains the custom data
+                number                 // Document number
             } = req.body;
 
-            // Parse custom data to get additional customer details
+            // Map to expected field names
+            const formId = id;
+            const documentId = document_id;
+            const paymentId = transaction_id;
+            const status = 'completed'; // Green Invoice sends webhook when payment is completed
+            const custom = external_data;
+
+            // Parse custom data to get additional customer details and order info
             let customData = {};
+            let customerInfo = {};
+            let items = [];
+            let amount = 0;
+            let currency = 'ILS';
+
             if (custom) {
                 try {
                     customData = typeof custom === 'string' ? JSON.parse(custom) : custom;
+                    console.log('✅ Custom data parsed successfully:', customData);
+                    
+                    // Extract customer info and order details from custom data
+                    if (customData.customerId) {
+                        customerInfo = {
+                            name: customData.customerName || 'לקוח',
+                            email: customData.customerId, // customerId is actually the email
+                            phone: customData.customerPhone || 'לא זמין',
+                            street: customData.customerStreet || 'לא זמין',
+                            houseNumber: customData.customerHouseNumber || 'לא זמין',
+                            apartmentNumber: customData.customerApartmentNumber || '',
+                            floor: customData.customerFloor || '',
+                            city: customData.customerCity || 'לא זמין',
+                            country: 'IL'
+                        };
+                    }
+                    
+                    // Set default values for missing fields
+                    amount = customData.amount || 0;
+                    currency = customData.currency || 'ILS';
+                    items = customData.items ? [{ name_he: 'פריט', quantity: 1, price: amount }] : [];
+                    
                 } catch (error) {
-                    console.error('Failed to parse custom data:', error);
+                    console.error('❌ Failed to parse custom data:', error);
+                    console.error('Raw custom data:', custom);
                 }
             }
+
+            // Custom data already parsed above
 
             // Combine customer info with custom data, handling missing customerInfo gracefully
             const fullCustomerInfo = {
