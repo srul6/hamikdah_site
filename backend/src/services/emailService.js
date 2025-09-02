@@ -91,6 +91,8 @@ class EmailService {
             dedication
         } = orderData;
 
+        // Safely handle missing items array
+        const safeItems = Array.isArray(items) ? items : [];
         const timestamp = purchaseTimestamp ? new Date(purchaseTimestamp).toLocaleString('he-IL') : new Date().toLocaleString('he-IL');
 
         return `
