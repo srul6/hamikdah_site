@@ -143,6 +143,8 @@ class GreenInvoiceController {
         console.log('🕐 Timestamp:', new Date().toISOString());
         console.log('🌐 Remote IP:', req.ip || req.connection.remoteAddress);
         console.log('📋 Webhook body:', JSON.stringify(req.body, null, 2));
+        console.log('📋 Webhook body type:', typeof req.body);
+        console.log('📋 Webhook body keys:', Object.keys(req.body));
         console.log('📋 Webhook headers:', JSON.stringify(req.headers, null, 2));
         console.log('🔍 Request method:', req.method);
         console.log('🔍 Request URL:', req.url);
