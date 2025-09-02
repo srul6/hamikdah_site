@@ -197,6 +197,11 @@ class GreenInvoiceController {
             // Send order data to your server
             await this.sendOrderToServer(orderData);
 
+            // Store order locally for API access
+            console.log('About to store order locally...');
+            const localStorageResult = await this.storeOrderLocally(orderData);
+            console.log('Local storage result:', localStorageResult);
+
             // Send email notification to admin
             await this.emailService.sendOrderNotification(orderData);
 
@@ -347,6 +352,36 @@ class GreenInvoiceController {
         } catch (error) {
             console.error('Failed to send order data to server:', error.message);
             // Don't throw error - server notification failure shouldn't break the webhook
+            return false;
+        }
+    }
+
+    // Store order locally for API access
+    async storeOrderLocally(orderData) {
+        try {
+            // Import the orders array directly from the orders route
+            const ordersRoute = require('../routes/orders');
+
+            console.log('Storing order locally in orders array');
+
+            // Add the order to the orders array
+            const orderWithTimestamp = {
+                ...orderData,
+                receivedAt: new Date().toISOString()
+            };
+
+            // Access the orders array from the route module
+            if (ordersRoute.orders) {
+                ordersRoute.orders.push(orderWithTimestamp);
+                console.log('Order stored locally successfully. Total orders:', ordersRoute.orders.length);
+                return true;
+            } else {
+                console.log('Orders array not accessible from route module');
+                return false;
+            }
+        } catch (error) {
+            console.error('Failed to store order locally:', error.message);
+            // Don't throw error - local storage failure shouldn't break the webhook
             return false;
         }
     }

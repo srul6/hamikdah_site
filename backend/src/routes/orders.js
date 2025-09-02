@@ -4,6 +4,9 @@ const router = express.Router();
 // Store orders in memory (in production, you'd use a database)
 let orders = [];
 
+// Export orders array for external access
+module.exports.orders = orders;
+
 // POST endpoint to receive order data from webhook
 router.post('/', (req, res) => {
     try {
