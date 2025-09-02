@@ -6,6 +6,7 @@ class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
         this.emailService = new EmailService();
+        this.processedWebhooks = new Set(); // Track processed webhooks to prevent duplicates
         console.log('GreenInvoice Controller initialized');
     }
 
@@ -160,6 +161,31 @@ class GreenInvoiceController {
         console.log('🔍 User agent:', req.headers['user-agent'] || 'Unknown');
 
         try {
+            // DUPLICATE PREVENTION: Check if we've already processed this webhook
+            const webhookId = req.body.id || req.body.document_id || req.body.transaction_id;
+            if (!webhookId) {
+                console.log('❌ No webhook ID found, rejecting duplicate prevention check');
+                return res.status(400).json({ error: 'No webhook ID provided' });
+            }
+
+            // Check if this webhook was already processed
+            if (this.processedWebhooks.has(webhookId)) {
+                console.log(`⚠️  Duplicate webhook detected - ID: ${webhookId}, skipping processing`);
+                return res.status(200).json({ message: 'Webhook already processed' });
+            }
+
+            // Mark this webhook as processed
+            this.processedWebhooks.add(webhookId);
+            console.log(`✅ Webhook ID ${webhookId} marked as processed`);
+
+            // Clean up old webhook IDs to prevent memory leaks (keep last 1000)
+            if (this.processedWebhooks.size > 1000) {
+                const webhookIds = Array.from(this.processedWebhooks);
+                const idsToRemove = webhookIds.slice(0, webhookIds.length - 1000);
+                idsToRemove.forEach(id => this.processedWebhooks.delete(id));
+                console.log(`🧹 Cleaned up ${idsToRemove.length} old webhook IDs`);
+            }
+
             // Green Invoice sends different field names - map them correctly
             const {
                 id,                    // This is the formId
@@ -188,7 +214,7 @@ class GreenInvoiceController {
                 try {
                     customData = typeof custom === 'string' ? JSON.parse(custom) : custom;
                     console.log('✅ Custom data parsed successfully:', customData);
-                    
+
                     // Extract customer info and order details from custom data
                     if (customData.customerId) {
                         customerInfo = {
@@ -203,11 +229,11 @@ class GreenInvoiceController {
                             country: 'IL'
                         };
                     }
-                    
+
                     // Set values from custom data
                     amount = customData.amount || 0;
                     currency = customData.currency || 'ILS';
-                    
+
                     // Create items array with actual product info
                     if (customData.items) {
                         const itemIds = customData.items.split(',').filter(id => id.trim());
@@ -221,7 +247,7 @@ class GreenInvoiceController {
                     } else {
                         items = [{ name_he: 'פריט', quantity: 1, price: amount }];
                     }
-                    
+
                 } catch (error) {
                     console.error('❌ Failed to parse custom data:', error);
                     console.error('Raw custom data:', custom);
