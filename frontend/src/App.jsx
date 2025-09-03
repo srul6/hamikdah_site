@@ -60,6 +60,10 @@ export default function App() {
                         <Route path="/admin" element={<AdminPanel />} />
                         <Route path="/terms" element={<TermsOfService />} />
                         <Route path="/returns" element={<Returns />} />
+                        <Route path="/payment" element={<GreenInvoicePayment />} />
+                        <Route path="/payment/success" element={<PaymentSuccess />} />
+                        <Route path="/payment/failure" element={<PaymentFailure />} />
+                        <Route path="/payment/cancel" element={<PaymentCancel />} />
 
                     </Routes>
                     <Footer />

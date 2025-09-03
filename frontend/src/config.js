@@ -8,5 +8,7 @@ export const API_BASE_URL = isDevelopment
 export const API_ENDPOINTS = {
     products: `${API_BASE_URL}/api/products`,
     greenInvoice: `${API_BASE_URL}/api/greeninvoice`,
-    cart: `${API_BASE_URL}/api/cart`
+    cart: `${API_BASE_URL}/api/cart`,
+    admin: `${API_BASE_URL}/api/admin`,
+    coupons: `${API_BASE_URL}/api/coupons`
 };

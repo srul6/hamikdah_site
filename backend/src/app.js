@@ -24,7 +24,8 @@ app.use('/api/products', productsRouter);
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/greeninvoice', require('./routes/greenInvoice'));
 app.use('/api/orders', require('./routes/orders'));
-app.use('/api/debug', require('./routes/debug'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/coupons', require('./routes/coupons'));
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
@@ -56,6 +57,22 @@ app.get('/about', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
 });
 
+// Payment result routes
+app.get('/payment/success', (req, res) => {
+    console.log('Serving payment success page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
+app.get('/payment/failure', (req, res) => {
+    console.log('Serving payment failure page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
+app.get('/payment/cancel', (req, res) => {
+    console.log('Serving payment cancel page');
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
+
 // Catch-all route: serve React app for all non-API routes
 app.get('*', (req, res) => {
     console.log(`Serving React app for: ${req.path}`);
@@ -64,7 +81,18 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-    console.log(`Backend running on port ${PORT}`);
-    console.log('Using Supabase cloud database - always accessible!');
-});
+// Production-ready server startup
+if (process.env.NODE_ENV === 'production') {
+    // Production: minimal logging, use process.env.PORT
+    app.listen(process.env.PORT, () => {
+        console.log('🚀 Hamikdash backend deployed successfully');
+        console.log('✅ Using Supabase cloud database');
+    });
+} else {
+    // Development: detailed logging, local port
+    app.listen(PORT, () => {
+        console.log(`🔧 Backend running on port ${PORT}`);
+        console.log('🔄 Development mode - detailed logging enabled');
+        console.log('✅ Using Supabase cloud database - always accessible!');
+    });
+}

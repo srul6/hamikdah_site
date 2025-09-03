@@ -26,4 +26,16 @@ router.get('/test', (req, res) => {
     greenInvoiceController.test.bind(greenInvoiceController)(req, res);
 });
 
+// Test endpoint to simulate payment success (development only)
+router.get('/test-success', (req, res) => {
+    console.log('=== GreenInvoice test success route hit ===');
+    greenInvoiceController.testPaymentSuccess.bind(greenInvoiceController)(req, res);
+});
+
+// Test endpoint to simulate payment failure (development only)
+router.get('/test-failure', (req, res) => {
+    console.log('=== GreenInvoice test failure route hit ===');
+    greenInvoiceController.testPaymentFailure.bind(greenInvoiceController)(req, res);
+});
+
 module.exports = router;

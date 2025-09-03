@@ -33,6 +33,9 @@ class GreenInvoiceController {
             // Calculate total amount from items
             const calculatedTotal = items.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
 
+            // Check if there's a delivery fee (when totalAmount > calculatedTotal)
+            const deliveryFee = totalAmount > calculatedTotal ? totalAmount - calculatedTotal : 0;
+
             // Build invoice request according to GreenInvoice payments/form schema
             const invoiceRequest = {
                 description: `תשלום על הזמנה #${Date.now()}`,
@@ -54,14 +57,23 @@ class GreenInvoiceController {
                     city: customerInfo.city || '',
                     country: "IL"
                 },
-                income: items.map(item => ({
-                    description: item.name_he || item.name_en || item.name || 'פריט',
-                    quantity: item.quantity || 1,
-                    price: parseFloat(item.price),
-                    vatType: 1
-                })),
+                income: [
+                    ...items.map(item => ({
+                        description: item.name_he || item.name_en || item.name || 'פריט',
+                        quantity: item.quantity || 1,
+                        price: parseFloat(item.price),
+                        vatType: 1
+                    })),
+                    // Add delivery fee as a separate income item if applicable
+                    ...(deliveryFee > 0 ? [{
+                        description: 'משלוח עד הבית',
+                        quantity: 1,
+                        price: deliveryFee,
+                        vatType: 1
+                    }] : [])
+                ],
                 remarks: "תודה על הזמנתך",
-                successUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/success`,
+                successUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
                 failureUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/failure`,
                 notifyUrl: `${process.env.BACKEND_URL || 'https://your-domain.com'}/api/greeninvoice/webhook`,
                 custom: JSON.stringify({
@@ -74,7 +86,11 @@ class GreenInvoiceController {
                     customerApartmentNumber: customerInfo.apartmentNumber || '',
                     customerFloor: customerInfo.floor || '',
                     customerCity: customerInfo.city,
-                    items: items.map(item => item.id).join(','),
+                    items: items.map(item => ({
+                        id: item.id,
+                        quantity: item.quantity,
+                        price: item.price
+                    })),
                     dedication: customerInfo.dedication || '',
                     amount: totalAmount,
                     currency: currency
@@ -147,18 +163,36 @@ class GreenInvoiceController {
     }
 
 
+    // Test endpoint to simulate payment success (for development only)
+    async testPaymentSuccess(req, res) {
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(403).json({ error: 'Test endpoint not available in production' });
+        }
+
+        const { orderId, amount, currency, customerEmail } = req.query;
+
+        // Redirect to success page with test data
+        const successUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${orderId || 'TEST-123'}&amount=${amount || '50'}&currency=${currency || 'ILS'}&customerEmail=${customerEmail || 'test@example.com'}`;
+
+        res.redirect(successUrl);
+    }
+
+    // Test endpoint to simulate payment failure (for development only)
+    async testPaymentFailure(req, res) {
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(403).json({ error: 'Test endpoint not available in production' });
+        }
+
+        const { reason } = req.query;
+
+        // Redirect to failure page with test data
+        const failureUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failure?reason=${encodeURIComponent(reason || 'Test failure - insufficient funds')}`;
+
+        res.redirect(failureUrl);
+    }
+
     // Webhook endpoint to receive payment status updates from GreenInvoice
     async webhook(req, res) {
-        console.log('=== GreenInvoice webhook received ===');
-        console.log('🕐 Timestamp:', new Date().toISOString());
-        console.log('🌐 Remote IP:', req.ip || req.connection.remoteAddress);
-        console.log('📋 Webhook body:', JSON.stringify(req.body, null, 2));
-        console.log('📋 Webhook body type:', typeof req.body);
-        console.log('📋 Webhook body keys:', Object.keys(req.body));
-        console.log('📋 Webhook headers:', JSON.stringify(req.headers, null, 2));
-        console.log('🔍 Request method:', req.method);
-        console.log('🔍 Request URL:', req.url);
-        console.log('🔍 User agent:', req.headers['user-agent'] || 'Unknown');
 
         try {
             // DUPLICATE PREVENTION: Check if we've already processed this webhook
@@ -236,14 +270,80 @@ class GreenInvoiceController {
 
                     // Create items array with actual product info
                     if (customData.items) {
-                        const itemIds = customData.items.split(',').filter(id => id.trim());
-                        items = itemIds.map(itemId => ({
-                            id: itemId.trim(),
-                            name_he: 'פריט',
-                            name_en: 'Item',
-                            quantity: 1,
-                            price: amount / itemIds.length // Distribute amount across items
-                        }));
+                        // Handle new structure with quantities and prices
+                        let itemData = customData.items;
+
+                        // Check if items is already an array (new format) or string (old format)
+                        if (Array.isArray(itemData)) {
+                            // New format: items array with quantities and prices
+                            try {
+                                const productsData = require('../data/products.json');
+                                items = itemData.map(item => {
+                                    const product = productsData.find(p => p.id.toString() === item.id.toString());
+                                    if (product) {
+                                        return {
+                                            id: item.id,
+                                            name_he: product.name_he || 'פריט',
+                                            name_en: product.name_en || 'Item',
+                                            quantity: item.quantity || 1,
+                                            price: item.price || 0
+                                        };
+                                    } else {
+                                        return {
+                                            id: item.id,
+                                            name_he: 'פריט לא ידוע',
+                                            name_en: 'Unknown Item',
+                                            quantity: item.quantity || 1,
+                                            price: item.price || 0
+                                        };
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('❌ Failed to load products data:', error);
+                                items = itemData.map(item => ({
+                                    id: item.id,
+                                    name_he: 'פריט',
+                                    name_en: 'Item',
+                                    quantity: item.quantity || 1,
+                                    price: item.price || 0
+                                }));
+                            }
+                        } else {
+                            // Old format: comma-separated string (fallback)
+                            const itemIds = itemData.split(',').filter(id => id.trim());
+                            try {
+                                const productsData = require('../data/products.json');
+                                items = itemIds.map(itemId => {
+                                    const product = productsData.find(p => p.id.toString() === itemId.trim());
+                                    if (product) {
+                                        return {
+                                            id: itemId.trim(),
+                                            name_he: product.name_he || 'פריט',
+                                            name_en: product.name_en || 'Item',
+                                            quantity: 1,
+                                            price: amount / itemIds.length
+                                        };
+                                    } else {
+                                        return {
+                                            id: itemId.trim(),
+                                            name_he: 'פריט לא ידוע',
+                                            name_en: 'Unknown Item',
+                                            quantity: 1,
+                                            price: amount / itemIds.length
+                                        };
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('❌ Failed to load products data:', error);
+                                items = itemIds.map(itemId => ({
+                                    id: itemId.trim(),
+                                    name_he: 'פריט',
+                                    name_en: 'Item',
+                                    quantity: 1,
+                                    price: amount / itemIds.length
+                                }));
+                            }
+                        }
                     } else {
                         items = [{ name_he: 'פריט', quantity: 1, price: amount }];
                     }
@@ -291,7 +391,15 @@ class GreenInvoiceController {
                 currency,
                 customerInfo: fullCustomerInfo,
                 items: Array.isArray(items) ? items : [],
-                purchaseTimestamp: new Date().toISOString(),
+                purchaseTimestamp: new Date().toLocaleString('he-IL', {
+                    timeZone: 'Asia/Jerusalem',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }),
                 dedication: customData.dedication || ''
             };
 

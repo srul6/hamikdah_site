@@ -7,12 +7,6 @@ class GreenInvoiceService {
         this.baseUrl = process.env.GREENINVOICE_BASE_URL || 'https://api.greeninvoice.co.il/api/v1';
         this.token = null;
         this.tokenExpiry = null;
-
-        console.log('GreenInvoice Service initialized with:', {
-            apiKeyId: this.apiKeyId ? '***' : 'NOT SET',
-            apiKeySecret: this.apiKeySecret ? '***' : 'NOT SET',
-            baseUrl: this.baseUrl
-        });
     }
 
     async getToken() {
@@ -20,8 +14,6 @@ class GreenInvoiceService {
         if (this.token && this.tokenExpiry && Date.now() < this.tokenExpiry) {
             return this.token;
         }
-
-        console.log('Getting new JWT token from GreenInvoice...');
 
         try {
             const response = await axios.post(`${this.baseUrl}/account/token`, {

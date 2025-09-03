@@ -33,6 +33,15 @@ export const translations = {
         quantity: 'כמות',
         product: 'מוצר',
         price: 'מחיר',
+        perUnit: 'ליחידה',
+        cartItems: 'פריטי העגלה',
+        shoppingCart: 'עגלת קניות',
+        orderSummary: 'סיכום הזמנה',
+        couponCode: 'קוד קופון',
+        enterCouponCode: 'הכנס קוד קופון',
+        apply: 'החל',
+        subtotal: 'סכום ביניים',
+        discount: 'הנחה',
 
         // Customer Info
         customerInfo: 'פרטי לקוח',
@@ -208,6 +217,15 @@ export const translations = {
         quantity: 'Quantity',
         product: 'Product',
         price: 'Price',
+        perUnit: 'per unit',
+        cartItems: 'Cart Items',
+        shoppingCart: 'Shopping Cart',
+        orderSummary: 'Order Summary',
+        couponCode: 'Coupon Code',
+        enterCouponCode: 'Enter coupon code',
+        apply: 'Apply',
+        subtotal: 'Subtotal',
+        discount: 'Discount',
 
         // Customer Info
         customerInfo: 'Customer Information',

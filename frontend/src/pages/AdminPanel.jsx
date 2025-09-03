@@ -46,19 +46,28 @@ export default function AdminPanel() {
     e.preventDefault();
     setLoginError('');
 
-    // Get credentials from environment variables
-    const validCredentials = {
-      username: process.env.REACT_APP_ADMIN_USERNAME || 'admin',
-      password: process.env.REACT_APP_ADMIN_PASSWORD || 'hamikdash2024'
-    };
+    try {
+      const response = await fetch(`${API_ENDPOINTS.admin}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData)
+      });
 
-    if (loginData.username === validCredentials.username &&
-      loginData.password === validCredentials.password) {
-      const token = 'admin-token-' + Date.now(); // Simple token generation
-      localStorage.setItem('adminToken', token);
-      setIsAuthenticated(true);
-    } else {
-      setLoginError('Invalid username or password');
+      const data = await response.json();
+
+      if (data.success) {
+        const token = 'admin-token-' + Date.now();
+        localStorage.setItem('adminToken', token);
+        setIsAuthenticated(true);
+        setLoginError('');
+      } else {
+        setLoginError(data.message || 'Login failed');
+      }
+    } catch (error) {
+      setLoginError('Network error. Please try again.');
+      console.error('Login error:', error);
     }
   };
 

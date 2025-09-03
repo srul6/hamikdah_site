@@ -129,7 +129,6 @@ export default function ProductCard({ product, onAddToCart }) {
           right: 0,
           color: 'white',
           pt: 8,
-          // Removed backdropFilter blur
         }}
       >
         {/* Navbar-style container for product info */}

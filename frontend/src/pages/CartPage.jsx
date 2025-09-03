@@ -1,281 +1,590 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-    Container, Typography, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, Paper, IconButton, TextField, Box, Button,
-    Dialog, DialogTitle, DialogContent, DialogActions, TextField as MuiTextField, Alert, Grid
+    Container, Typography, Box, Button, Card, CardContent, CardMedia,
+    Grid, TextField, IconButton, Alert, Chip, Divider, Paper,
+    Dialog, DialogTitle, DialogContent, DialogActions, FormControl,
+    InputLabel, Select, MenuItem, InputAdornment
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
+import {
+    Add as AddIcon,
+    Remove as RemoveIcon,
+    Delete as DeleteIcon,
+    LocalOffer as CouponIcon,
+    ShoppingCart as CartIcon,
+    Payment as PaymentIcon
+} from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
-import GreenInvoicePayment from './GreenInvoicePayment';
-import { useNavigate } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
+import { API_ENDPOINTS } from '../config';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
-    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+    const navigate = useNavigate();
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
-    const navigate = useNavigate();
 
-    // Scroll to top when cart page loads
-    useEffect(() => {
-        // Use setTimeout to ensure the component is fully rendered
-        setTimeout(() => {
-            window.scrollTo({
-                top: 0,
-                left: 0,
-                behavior: 'smooth'
-            });
-        }, 100);
-    }, []);
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [couponError, setCouponError] = useState('');
+    const [couponSuccess, setCouponSuccess] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [homeDelivery, setHomeDelivery] = useState(false);
 
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // Calculate totals
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+    const total = subtotal - discount;
 
-    const handleCheckout = () => {
-        if (cart.length === 0) {
-            alert(t.cartEmpty);
+    // Apply coupon
+    const handleApplyCoupon = async () => {
+        if (!couponCode.trim()) {
+            setCouponError('Please enter a coupon code');
             return;
         }
-        // Go directly to payment without collecting customer details
-        setIsPaymentOpen(true);
-    };
 
-    const handlePaymentComplete = (paymentData) => {
-        setIsPaymentOpen(false);
-        console.log('Payment completed:', paymentData);
+        setIsLoading(true);
+        setCouponError('');
+        setCouponSuccess('');
 
-        if (paymentData.status === 'success') {
-            setSuccess(paymentData.message);
-            // Optionally clear cart or redirect
-            // setCart([]);
-            // navigate('/payment/success');
-        } else {
-            setError(paymentData.message || t.paymentFailed);
+        try {
+            const response = await fetch(`${API_ENDPOINTS.coupons}/apply`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: couponCode.trim(),
+                    totalAmount: subtotal
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setAppliedCoupon(data);
+                setCouponSuccess(`Coupon applied! You saved ₪${data.discountAmount.toFixed(2)}`);
+                setCouponCode('');
+            } else {
+                setCouponError(data.message || 'Failed to apply coupon');
+            }
+        } catch (error) {
+            setCouponError('Network error. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const removeFromCart = (index) => {
-        onRemove(cart[index].id);
+    // Remove coupon
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponSuccess('');
+        setCouponError('');
     };
 
-    const updateQuantity = (index, newQuantity) => {
-        onUpdateQuantity(cart[index].id, newQuantity);
+    // Continue to payment
+    const handleContinueToPayment = () => {
+        if (cart.length === 0) return;
+
+        navigate('/payment', {
+            state: {
+                cart: cart,
+                subtotal: subtotal,
+                discount: discount,
+                total: total,
+                appliedCoupon: appliedCoupon,
+                homeDelivery: homeDelivery,
+                finalTotal: total + (homeDelivery && subtotal < 499 ? 30 : 0)
+            }
+        });
     };
 
-
-
-
-
-    return (
-        <Box sx={{ backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
-            <Container maxWidth="lg" sx={{
-                py: cart.length === 0 ? 12 : 4,
-                px: { xs: 2, sm: 4, md: 8 },
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center'
-            }}>
-                <Typography
-                    variant="h2"
+    if (cart.length === 0) {
+        return (
+            <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+                <CartIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 3 }} />
+                <Typography variant="h4" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                    {t.cartEmpty}
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 4, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                    {t.cartEmptyMessage}
+                </Typography>
+                <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate('/')}
                     sx={{
-                        textAlign: 'center',
-                        fontWeight: 600,
-                        color: '#1d1d1f',
-                        mt: cart.length === 0 ? 10 : 2,
-                        mb: 4,
-                        fontSize: { xs: '1.5rem', md: '2rem' },
-                        direction: isHebrew ? 'rtl' : 'ltr',
-                        ...(cart.length === 0 && {
-                            border: '2px solid rgba(229, 90, 61, 1)',
-                            borderRadius: 1.5,
-                            py: 3,
-                            px: 4,
-                            mb: 4,
-                            display: 'inline-block',
-                            minWidth: 'fit-content'
-                        })
+                        backgroundColor: 'rgba(229, 90, 61, 1)',
+                        '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' }
                     }}
                 >
-                    {cart.length === 0 ? t.emptyCart : t.yourCart}
-                </Typography>
+                    {t.continueShopping}
+                </Button>
+            </Container>
+        );
+    }
 
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                        {error}
-                    </Alert>
-                )}
+    return (
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Typography variant="h3" gutterBottom sx={{
+                textAlign: 'center',
+                mt: 8,
+                mb: 4,
+                direction: isHebrew ? 'rtl' : 'ltr',
+                color: 'rgba(229, 90, 61, 1)'
+            }}>
+                {t.shoppingCart}
+            </Typography>
 
-                {success && (
-                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-                        {success}
-                    </Alert>
-                )}
-
-                {cart.length === 0 ? (
-                    <Box sx={{ textAlign: 'center', py: 8 }}>
-                    </Box>
-                ) : (
-                    <>
-                        <TableContainer
-                            component={Paper}
-                            sx={{
-                                boxShadow: 'none',
-                                border: '2px solid rgba(229, 90, 61, 1)',
+            <Grid container spacing={6} justifyContent="center">
+                {/* Cart Items */}
+                <Grid item xs={12} md={6}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        {cart.map((item) => (
+                            <Card key={item.id} sx={{
+                                mb: 2,
+                                backgroundColor: 'transparent', // Transparent background
+                                border: '1px solid rgba(229, 90, 61, 1)', // Same color as cart text
+                                boxShadow: 'none', // Remove shadow since we have border
                                 borderRadius: 2,
-                                transition: 'border-color 0.3s ease',
-                                width: { xs: '100%', sm: '100%', md: '100%' },
-                                minWidth: { xs: '100%', sm: '100%', md: '100%' },
-                                '&:hover': {
-                                    border: '2px solid rgba(199, 61, 34, 1)'
-                                }
-                            }}
-                        >
-                            <Table>
-                                <TableHead>
-                                    <TableRow sx={{ backgroundColor: 'rgba(245, 240, 227, 0.5)' }}>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.product}</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.price}</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.quantity}</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.total}</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>{t.remove}</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {cart.map(item => (
-                                        <TableRow key={item.id} sx={{
-                                            '&:hover': { backgroundColor: 'rgba(245, 240, 227, 0.3)' },
-                                            border: '2px solid white'
+                                overflow: 'hidden',
+                                maxWidth: { xs: '250px', md: '400px' }, // 250px mobile, 400px desktop
+                                width: '100%', // Ensure cards take full available width up to max
+                                mx: 'auto', // Center the card horizontally
+                            }}>
+                                <Grid container sx={{ width: '100%' }}>
+                                    {/* Product Image */}
+                                    <Grid item xs={12} sm={4} md={3}>
+                                        <CardMedia
+                                            component="img"
+                                            height={{ xs: 200, sm: 220, md: 240 }}
+                                            image={item.homepageimage || '/logo.png'}
+                                            alt={isHebrew ? item.name_he : item.name_en}
+                                            sx={{ objectFit: 'cover' }}
+                                        />
+                                    </Grid>
+
+                                    {/* Product Details */}
+                                    <Grid item xs={12} sm={8} md={9} sx={{ width: '100%' }}>
+                                        <CardContent sx={{
+                                            height: '100%',
+                                            width: '100%',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'space-between',
+                                            minHeight: { xs: '100px', sm: '220px', md: '240px' },
+                                            p: 0// Remove default padding to use full width
                                         }}>
-                                            <TableCell>
-                                                <Typography variant="body1" align="center" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                                    {isHebrew ? item.name_he : item.name_en}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography variant="body1" align="center" sx={{ align: 'center', color: '#86868b', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>
-                                                    ₪{(item.price || 0).toFixed(2)}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <TextField
-                                                    type="number"
+                                            {/* Single Container for All Product Details */}
+                                            <Box sx={{
+                                                width: '100%',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                                height: '100%',
+                                                p: 3,
+
+
+                                                // Add padding to the container instead
+                                            }}>
+                                                {/* Top Row: Product Name (right) and Price (left) */}
+                                                <Box sx={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start',
+                                                    borderBottom: '1px solid rgba(216, 71, 42, 0.38)',
+                                                    pb: 2,
+                                                    mb: 1
+                                                }}>
+                                                    {/* Price per unit - Left side */}
+                                                    <Typography variant="body1" sx={{
+                                                        fontWeight: '500',
+                                                        fontSize: { xs: '1.1rem', sm: '1.5rem' }
+                                                    }}>
+                                                        ₪{item.price.toFixed(2)}
+                                                    </Typography>
+
+                                                    {/* Product Name - Right side */}
+                                                    <Typography variant="h6" sx={{
+                                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                                        fontWeight: '500',
+                                                        fontSize: { xs: '1.1rem', sm: '1.5rem' },
+                                                        textAlign: 'right',
+                                                    }}>
+                                                        {isHebrew ? item.name_he : item.name_en}
+                                                    </Typography>
+                                                </Box>
+
+                                                {/* Middle Row: Quantity Controls */}
+                                                <Box sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+
+                                                }}>
+                                                    <IconButton
+                                                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                                                        disabled={item.quantity <= 1}
+                                                        size="small"
+                                                        sx={{
+                                                            '&:hover': { color: ' #d8472a' }
+                                                        }}
+                                                    >
+                                                        <RemoveIcon />
+                                                    </IconButton>
+
+                                                    <Typography variant="h6" sx={{
+                                                        minWidth: '40px',
+                                                        textAlign: 'center',
+                                                        fontWeight: 'bold',
+                                                        fontSize: { xs: '1rem', sm: '1.45rem' }
+                                                    }}>
+                                                        {item.quantity}
+                                                    </Typography>
+
+                                                    <IconButton
+                                                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                                                        size="small"
+                                                        sx={{
+                                                            '&:hover': { color: '#d8472a' }
+                                                        }}
+                                                    >
+                                                        <AddIcon />
+                                                    </IconButton>
+                                                </Box>
+
+                                                {/* Bottom Row: Total (left) and Delete Button (right) */}
+                                                <Box sx={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-end',
+                                                    borderTop: '1px solid rgba(216, 71, 42, 0.38)',
+                                                    pt: 1,
+                                                    mb: -3,
+                                                    mt: 1
+
+                                                }}>
+                                                    {/* Total Price - Left side, aligned under unit price */}
+                                                    <Box sx={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'flex-start'
+                                                    }}>
+                                                        <Typography variant="caption" color="text.secondary" sx={{
+                                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                                            mb: { xs: -0.5, sm: -1 },
+                                                            fontSize: { xs: '0.75rem', sm: '1rem' }
+                                                        }}>
+                                                            {t.total}
+                                                        </Typography>
+                                                        <Typography variant="h6" color="#d8472a" fontWeight="bold" sx={{
+                                                            fontSize: { xs: '1.1rem', sm: '1.5rem' }
+                                                        }}>
+                                                            ₪{(item.price * item.quantity).toFixed(2)}
+                                                        </Typography>
+                                                    </Box>
+
+                                                    {/* Delete Button - Right side, aligned under product name */}
+                                                    <IconButton
+                                                        onClick={() => onRemove(item.id)}
+                                                        size="small"
+                                                        sx={{
+                                                            color: '#d8472a',
+                                                            '&:hover': { backgroundColor: '#d8472a' }
+                                                        }}
+                                                    >
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                </Box>
+                                            </Box>
+                                        </CardContent>
+                                    </Grid>
+                                </Grid>
+                            </Card>
+                        ))}
+                    </Box>
+                </Grid>
+
+                {/* Order Summary */}
+                <Grid item xs={12} md={4}>
+                    <Box sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        position: 'sticky', // Make the Box container sticky
+                        top: 150, // Position below navbar (increased to avoid overlap)
+                        Button: 250,
+                        zIndex: 100, // Ensure it's above other content
+                        alignSelf: 'flex-start' // Important for sticky to work in flex containers
+                    }}>
+                        <Paper elevation={3} sx={{
+                            p: 3, // Smaller padding on mobile
+                            borderRadius: 2,
+                            marginTop: { xs: -2, md: 0 },
+                            maxWidth: { xs: '260px', md: '350px' }, // Smaller width on mobile
+                            width: '100%'
+                        }}>
+                            <Typography variant="h5" gutterBottom sx={{
+                                mb: { xs: 2, md: 3 },
+                                textAlign: 'center', // Smaller margin on mobile
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                color: 'rgba(229, 90, 61, 1)',
+                                fontSize: { xs: '1.5rem', md: '2rem' } // Smaller font on mobile
+                            }}>
+                                {t.orderSummary}
+                            </Typography>
+
+                            {/* Coupon Section */}
+                            <Box sx={{ mb: { xs: 2, md: 2 } }}>
+
+                                {!appliedCoupon ? (
+                                    <Box sx={{
+                                        mt: 2.5,
+                                        display: 'flex',
+                                        gap: 1,
+                                        flexDirection: isHebrew ? 'row-reverse' : 'row' // Reverse order for Hebrew
+                                    }}>
+                                        <TextField
+                                            fullWidth
+
+                                            size="small"
+                                            placeholder={t.enterCouponCode}
+                                            value={couponCode}
+                                            onChange={(e) => setCouponCode(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                                            sx={{
+                                                direction: isHebrew ? 'rtl' : 'ltr',
+                                                '& .MuiOutlinedInput-root': {
+                                                    '& fieldset': {
+                                                        borderColor: couponCode ? '#d8472a' : '#ccc', // Orange when typing, gray when empty
+                                                    },
+                                                    '&:hover fieldset': {
+                                                        borderColor: '#d8472a', // Orange on hover
+                                                    },
+                                                    '&.Mui-focused fieldset': {
+                                                        borderColor: '#d8472a', // Orange when focused
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleApplyCoupon}
+                                            disabled={isLoading || !couponCode.trim()}
+                                            size="small"
+                                            sx={{
+                                                direction: isHebrew ? 'rtl' : 'ltr',
+                                                color: '#d8472a', // Orange color for the checkmark
+                                                borderColor: '#d8472a', // Orange border
+                                                minWidth: '40px', // Reduce button width
+                                                width: '40px', // Fixed width for compact appearance
+                                                '&:hover': {
+                                                    borderColor: '#b83a22', // Darker orange on hover
+                                                    backgroundColor: 'rgba(216, 71, 42, 0.1)' // Light orange background on hover
+                                                }
+                                            }}
+                                        >
+                                            {isLoading ? '...' : '✓'}
+                                        </Button>
+                                    </Box>
+                                ) : (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Chip
+                                            label={`${appliedCoupon.coupon.code} - ₪${appliedCoupon.discountAmount.toFixed(2)} off`}
+                                            color="success"
+                                            onDelete={handleRemoveCoupon}
+                                        />
+                                    </Box>
+                                )}
+
+                                {couponError && (
+                                    <Alert severity="error" sx={{ mt: 1 }}>
+                                        {couponError}
+                                    </Alert>
+                                )}
+
+                                {couponSuccess && (
+                                    <Alert severity="success" sx={{ mt: 1 }}>
+                                        {couponSuccess}
+                                    </Alert>
+                                )}
+                            </Box>
+
+                            <Divider sx={{}} />
+
+                            {/* Price Breakdown */}
+                            <Box sx={{ mb: 3 }}>
+                                <Box sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    mb: 1,
+                                    mt: 1,
+                                    flexDirection: isHebrew ? 'row-reverse' : 'row' // Reverse order for Hebrew
+                                }}>
+                                    <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.subtotal}:</Typography>
+                                    <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>₪{subtotal.toFixed(2)}</Typography>
+                                </Box>
+
+                                {appliedCoupon && (
+                                    <Box sx={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        mb: 1,
+                                        flexDirection: isHebrew ? 'row-reverse' : 'row' // Reverse order for Hebrew
+                                    }}>
+                                        <Typography color="success.main" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.discount}:</Typography>
+                                        <Typography color="success.main" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>-₪{discount.toFixed(2)}</Typography>
+                                    </Box>
+                                )}
+
+                                <Divider sx={{}} />
+
+                                {/* Home Delivery Section */}
+                                <Box sx={{ mb: 1.5, mt: 1.5 }}>
+                                    {/* Free Delivery Message (when total >= 499) */}
+                                    {subtotal >= 499 && (
+                                        <Typography
+                                            variant="body2"
+                                            color="rgba(229, 90, 61, 1)"
+                                            sx={{
+                                                mb: 0.5,
+                                                textAlign: 'center',
+                                                direction: isHebrew ? 'rtl' : 'ltr',
+                                                fontSize: { xs: '1rem', md: '1.2rem' }
+                                            }}
+                                        >
+                                            {isHebrew ? 'יש לך משלוח עד הבית!' : 'You have home delivery!'}
+                                        </Typography>
+                                    )}
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{
+                                            mb: 1,
+                                            textAlign: 'center',
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            fontSize: { xs: '0.8rem', md: '0.9rem' },
+                                        }}
+                                    >
+                                        {isHebrew ? 'קנייה מעל ₪499 מזכה במשלוח חינם' : 'Purchase over ₪499 qualifies for free delivery'}
+                                    </Typography>
+
+                                    {/* Delivery Selection Button (when total < 499) */}
+                                    {subtotal < 499 && (
+
+                                        <Box sx={{
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                            mb: 1
+                                        }}>
+
+
+                                            <Button
+                                                variant={homeDelivery ? "contained" : "outlined"}
+                                                size="small"
+                                                onClick={() => setHomeDelivery(!homeDelivery)}
+                                                sx={{
+                                                    backgroundColor: homeDelivery ? '#d8472a' : 'transparent',
+                                                    color: homeDelivery ? 'white' : '#d8472a',
+                                                    borderColor: '#d8472a',
+                                                    '&:hover': {
+                                                        backgroundColor: homeDelivery ? 'rgba(229, 90, 61, 1)' : 'rgba(216, 71, 42, 0.1)',
+                                                        borderColor: '#b83a22'
+                                                    },
+                                                    fontSize: { xs: '0.8rem', md: '0.9rem' },
+                                                    px: 2,
+                                                    py: 0.5
+                                                }}
+                                            >
+                                                {homeDelivery
+                                                    ? (isHebrew ? '!יש לך משלוח עד הבית' : 'Home Delivery Selected')
+                                                    : (isHebrew ? '(הוסף משלוח עד הבית +₪30)' : 'Add Home Delivery (+₪30)')
+                                                }
+                                            </Button>
+
+                                            {/* Cancel Button - Only show when delivery is selected */}
+                                            {homeDelivery && (
+                                                <Button
+                                                    variant="outlined"
                                                     size="small"
-                                                    inputProps={{ min: 1 }}
-                                                    value={item.quantity}
-                                                    onChange={e => onUpdateQuantity(item.id, Number(e.target.value))}
+                                                    onClick={() => setHomeDelivery(false)}
                                                     sx={{
-                                                        width: { xs: 70, lg: 90 },
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: 1,
-                                                        },
-                                                        '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: 'rgba(229, 90, 61, 1)'
-                                                        },
-                                                        '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: 'rgba(229, 90, 61, 0.7)'
-                                                        },
-                                                        '& .MuiInputBase-input': {
-                                                            textAlign: 'center',
-                                                            fontSize: { xs: '1rem', md: '1.1rem', lg: '1.2rem' }
-                                                        }
-                                                    }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography variant="body1" align="center" sx={{ align: 'center', fontWeight: 500, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' } }}>
-                                                    ₪{(item.price * item.quantity).toFixed(2)}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <IconButton
-                                                    onClick={() => onRemove(item.id)}
-                                                    sx={{
-                                                        color: '#86868b',
+                                                        color: '#666',
+                                                        borderColor: '#666',
+                                                        minWidth: '32px',
+                                                        width: '32px',
+                                                        height: '32px',
+                                                        p: 0,
                                                         '&:hover': {
-                                                            color: 'rgba(229, 90, 61, 1)',
-                                                            backgroundColor: 'rgba(255, 59, 48, 0.04)'
+                                                            borderColor: '#333',
+                                                            backgroundColor: 'rgba(102, 102, 102, 0.1)'
                                                         }
                                                     }}
                                                 >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    <TableRow sx={{
-                                        backgroundColor: 'rgba(245, 240, 227, 0.7)'
-                                    }}>
+                                                    ✕
+                                                </Button>
+                                            )}
+                                        </Box>
+                                    )}
 
-                                        <TableCell colSpan={5}>
-                                            <Typography align="center" variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.3rem' }, direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                                {isHebrew ? `${t.total}: ₪${total.toFixed(2)}` : `${t.total}: ₪${total.toFixed(2)}`}
+                                    {/* Pickup Text and Free Delivery Info - Only show when no delivery and total < 499 */}
+                                    {!homeDelivery && subtotal < 499 && (
+                                        <>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                    mb: 0.5,
+                                                    textAlign: 'center',
+                                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                                    fontSize: { xs: '0.8rem', md: '0.9rem' }
+                                                }}
+                                            >
+                                                {isHebrew ? 'איסוף עצמי יתבצע מרחוב העליה 7 נתיבות' : 'Self-collection will be conducted on Aliya Street 7, Netivot'}
                                             </Typography>
-                                        </TableCell>
 
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                                        </>
+                                    )}
 
-                        <Box sx={{ textAlign: 'center', mt: 4 }}>
+
+
+                                </Box>
+
+                                <Divider sx={{ my: 1 }} />
+
+                                <Box sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    flexDirection: isHebrew ? 'row-reverse' : 'row' // Reverse order for Hebrew
+                                }}>
+                                    <Typography variant="h6" fontWeight="bold" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.total}:</Typography>
+                                    <Typography variant="h6" fontWeight="bold" color="rgba(229, 90, 61, 1)" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                                        ₪{(total + (homeDelivery && subtotal < 499 ? 30 : 0)).toFixed(2)}
+                                    </Typography>
+                                </Box>
+                            </Box>
+
+                            {/* Continue to Payment Button */}
                             <Button
+                                fullWidth
                                 variant="contained"
                                 size="large"
-                                onClick={handleCheckout}
+                                onClick={handleContinueToPayment}
+                                disabled={cart.length === 0}
+                                startIcon={<PaymentIcon />}
                                 sx={{
                                     backgroundColor: 'rgba(229, 90, 61, 1)',
-                                    color: '#ffffff',
-                                    px: { xs: 2, sm: 4, md: 6 },
-                                    py: 1.5,
-                                    mb: 10,
-                                    boxShadow: 'none',
-                                    fontSize: '1.1rem',
-                                    fontWeight: 500,
-                                    borderRadius: 1.5,
-                                    transition: 'all 0.3s ease',
-                                    border: '2px solid transparent',
-                                    direction: isHebrew ? 'rtl' : 'ltr',
-                                    '&:hover': {
-                                        backgroundColor: 'rgb(245, 240, 227)',
-                                        color: 'rgba(229, 90, 61, 1)',
-                                        border: '2px solid rgba(229, 90, 61, 1)',
-                                        boxShadow: 'none',
-                                        transform: 'translateY(-2px)'
-                                    }
+                                    '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
+                                    py: 1.5
                                 }}
                             >
-                                {t.proceedToPayment}
+                                {t.continueToPayment}
                             </Button>
-                        </Box>
-                    </>
-                )}
-            </Container>
-
-            {/* GreenInvoice Payment Dialog */}
-            <Dialog
-                open={isPaymentOpen}
-                onClose={() => setIsPaymentOpen(false)}
-                maxWidth="lg"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        height: '90vh',
-                        maxHeight: '90vh'
-                    }
-                }}
-            >
-                <DialogContent sx={{ p: 0, height: '100%' }}>
-                    <GreenInvoicePayment
-                        cart={cart}
-                        onPaymentComplete={handlePaymentComplete}
-                        onClose={() => setIsPaymentOpen(false)}
-                    />
-                </DialogContent>
-            </Dialog>
-
-        </Box>
+                        </Paper>
+                    </Box>
+                </Grid>
+            </Grid>
+        </Container >
     );
 }
