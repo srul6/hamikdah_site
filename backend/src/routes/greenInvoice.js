@@ -38,4 +38,56 @@ router.get('/test-failure', (req, res) => {
     greenInvoiceController.testPaymentFailure.bind(greenInvoiceController)(req, res);
 });
 
+// Test endpoint to verify email service
+router.get('/test-email', async (req, res) => {
+    try {
+        console.log('=== Testing email service ===');
+        
+        const testOrderData = {
+            formId: 'TEST-' + Date.now(),
+            status: 'approved',
+            documentId: 'DOC-TEST-123',
+            paymentId: 'PAY-TEST-456',
+            amount: 150,
+            currency: 'ILS',
+            customerInfo: {
+                name: 'Test Customer',
+                email: 'test@example.com',
+                phone: '050-1234567',
+                street: 'Test Street',
+                houseNumber: '123',
+                apartmentNumber: '4',
+                floor: '2',
+                city: 'Jerusalem'
+            },
+            items: [
+                { name_he: 'בית המקדש', name_en: 'The Temple', quantity: 1, price: 150 }
+            ],
+            purchaseTimestamp: new Date().toISOString(),
+            dedication: 'לעילוי נשמת'
+        };
+
+        const emailService = greenInvoiceController.emailService;
+        const result = await emailService.sendOrderNotification(testOrderData);
+        
+        if (result) {
+            res.json({
+                success: true,
+                message: 'Test email sent successfully to ' + emailService.adminEmail
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send test email. Check server logs for details.'
+            });
+        }
+    } catch (error) {
+        console.error('Test email error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
