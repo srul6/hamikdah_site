@@ -1,42 +1,33 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 class EmailService {
     constructor() {
-        this.transporter = null;
-        this.adminEmail = process.env.ADMIN_EMAIL;
-        this.adminPassword = process.env.ADMIN_EMAIL_PASSWORD;
-        this.smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
-        this.smtpPort = process.env.SMTP_PORT || 587;
+        this.adminEmail = process.env.ADMIN_EMAIL || 'gilmanor8@gmail.com';
+        this.sendgridApiKey = process.env.SENDGRID_API_KEY;
+        // Use SendGrid verified sender, NOT Gmail - Gmail has DMARC and will reject
+        this.fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_VERIFIED_EMAIL;
+        this.fromName = process.env.SENDGRID_FROM_NAME || 'Hamikdash Website';
 
-        this.initializeTransporter();
+        this.initializeSendGrid();
     }
 
-    initializeTransporter() {
-        if (!this.adminEmail || !this.adminPassword) {
-            console.warn('Email service not configured - missing ADMIN_EMAIL or ADMIN_EMAIL_PASSWORD');
+    initializeSendGrid() {
+        if (!this.sendgridApiKey) {
+            console.error('❌ SendGrid API key not configured - Set SENDGRID_API_KEY in environment variables');
+            console.warn('⚠️  Email notifications will NOT be sent until configured!');
             return;
         }
 
-        this.transporter = nodemailer.createTransport({
-            host: this.smtpHost,
-            port: this.smtpPort,
-            secure: false, // true for 465, false for other ports
-            auth: {
-                user: this.adminEmail,
-                pass: this.adminPassword
-            }
-        });
-
-        console.log('Email service initialized with:', {
-            host: this.smtpHost,
-            port: this.smtpPort,
-            user: this.adminEmail ? '***' : 'NOT SET'
-        });
+        sgMail.setApiKey(this.sendgridApiKey);
+        console.log('✅ SendGrid email service initialized');
+        console.log('📧 Sending emails from:', this.fromEmail);
+        console.log('📬 Admin notifications will be sent to:', this.adminEmail);
     }
 
     async sendOrderNotification(orderData) {
-        if (!this.transporter) {
-            console.error('Email service not configured');
+        if (!this.sendgridApiKey) {
+            console.error('❌ SendGrid not configured - Email NOT sent');
+            console.error('⚠️  Please set SENDGRID_API_KEY environment variable');
             return false;
         }
 
@@ -54,25 +45,40 @@ class EmailService {
                 dedication
             } = orderData;
 
-            const subject = `New Order ${status.toUpperCase()} - Form ID: ${formId}`;
+            const subject = `🛍️ הזמנה חדשה - New Order ${status.toUpperCase()} - #${formId.substring(0, 8)}`;
 
             const htmlContent = this.generateOrderEmailHTML(orderData);
             const textContent = this.generateOrderEmailText(orderData);
 
-            const mailOptions = {
-                from: this.adminEmail,
+            const msg = {
                 to: this.adminEmail,
+                from: {
+                    email: this.fromEmail,
+                    name: this.fromName
+                },
                 subject: subject,
                 text: textContent,
-                html: htmlContent
+                html: htmlContent,
+                replyTo: this.adminEmail // Replies will go to your Gmail
             };
 
-            const result = await this.transporter.sendMail(mailOptions);
-            console.log('Order notification email sent successfully:', result.messageId);
+            console.log('📧 Sending order notification email via SendGrid...');
+            console.log('📬 To:', this.adminEmail);
+            console.log('📝 Subject:', subject);
+
+            const result = await sgMail.send(msg);
+
+            console.log('✅ Order notification email sent successfully!');
+            console.log('📊 SendGrid Response Status:', result[0]?.statusCode);
             return true;
 
         } catch (error) {
-            console.error('Failed to send order notification email:', error);
+            console.error('❌ Failed to send order notification email:', error);
+
+            if (error.response) {
+                console.error('SendGrid Error Details:', error.response.body);
+            }
+
             return false;
         }
     }

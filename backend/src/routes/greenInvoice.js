@@ -42,7 +42,7 @@ router.get('/test-failure', (req, res) => {
 router.get('/test-email', async (req, res) => {
     try {
         console.log('=== Testing email service ===');
-        
+
         const testOrderData = {
             formId: 'TEST-' + Date.now(),
             status: 'approved',
@@ -69,7 +69,7 @@ router.get('/test-email', async (req, res) => {
 
         const emailService = greenInvoiceController.emailService;
         const result = await emailService.sendOrderNotification(testOrderData);
-        
+
         if (result) {
             res.json({
                 success: true,
