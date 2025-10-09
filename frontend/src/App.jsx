@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Home from './pages/Home';
-import ProductDetail from './pages/ProductDetail';
+import ProductPageRouter from './pages/ProductPageRouter';
 import CartPage from './pages/CartPage';
 import AdminPanel from './pages/AdminPanel';
 import AboutUs from './pages/AboutUs';
@@ -20,29 +20,47 @@ import Footer from './components/Footer';
 export default function App() {
     const [cart, setCart] = useState([]);
 
-    const addToCart = (product) => {
+    const addToCart = (product, selectedColor = null) => {
         setCart(prevCart => {
-            const existingItem = prevCart.find(item => item.id === product.id);
+            // Create unique identifier based on product ID and color
+            const colorId = selectedColor ? selectedColor.name || selectedColor.name_en : null;
+            const uniqueId = colorId ? `${product.id}-${colorId}` : product.id;
+
+            const existingItem = prevCart.find(item =>
+                item.uniqueId === uniqueId ||
+                (item.id === product.id && item.selectedColor?.name === selectedColor?.name)
+            );
+
             if (existingItem) {
                 return prevCart.map(item =>
-                    item.id === product.id
+                    (item.uniqueId === uniqueId ||
+                        (item.id === product.id && item.selectedColor?.name === selectedColor?.name))
                         ? { ...item, quantity: item.quantity + 1 }
                         : item
                 );
             }
-            return [...prevCart, { ...product, quantity: 1 }];
+
+            return [...prevCart, {
+                ...product,
+                quantity: 1,
+                selectedColor: selectedColor,
+                uniqueId: uniqueId,
+                displayName: selectedColor ?
+                    `${product.name_he || product.name_en} - ${selectedColor.name_he || selectedColor.name}` :
+                    (product.name_he || product.name_en)
+            }];
         });
     };
 
-    const removeFromCart = (productId) => {
-        setCart(prevCart => prevCart.filter(item => item.id !== productId));
+    const removeFromCart = (uniqueId) => {
+        setCart(prevCart => prevCart.filter(item => item.uniqueId !== uniqueId));
     };
 
-    const updateQuantity = (productId, newQuantity) => {
+    const updateQuantity = (uniqueId, newQuantity) => {
         if (newQuantity < 1) return;
         setCart(prevCart =>
             prevCart.map(item =>
-                item.id === productId ? { ...item, quantity: newQuantity } : item
+                item.uniqueId === uniqueId ? { ...item, quantity: newQuantity } : item
             )
         );
     };
@@ -51,10 +69,15 @@ export default function App() {
         <LanguageProvider>
             <Router>
                 <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
-                    <Navbar cartCount={cart.length} />
+                    <Navbar
+                        cartCount={cart.length}
+                        cart={cart}
+                        onRemoveFromCart={removeFromCart}
+                        onUpdateQuantity={updateQuantity}
+                    />
                     <Routes>
                         <Route path="/" element={<Home onAddToCart={addToCart} />} />
-                        <Route path="/product/:id" element={<ProductDetail onAddToCart={addToCart} />} />
+                        <Route path="/product/:id" element={<ProductPageRouter onAddToCart={addToCart} />} />
                         <Route path="/cart" element={<CartPage cart={cart} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />} />
                         <Route path="/about" element={<AboutUs />} />
                         <Route path="/admin" element={<AdminPanel />} />

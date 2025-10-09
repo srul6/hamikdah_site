@@ -44,6 +44,11 @@ export default function GreenInvoicePayment() {
         }
     }, [cart, navigate]);
 
+    // Scroll to top when component mounts
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
     // Calculate total including delivery
     const displayTotal = finalTotal || total;
 

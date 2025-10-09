@@ -24,7 +24,13 @@ export default function AdminPanel() {
     price: '',
     quantity: '',
     homepageimage: '',
-    extraimages: ''
+    extraimages: '',
+    buildingTime: '',
+    pieces: '',
+    size: '',
+    recommendedAge: '',
+    children_playing: '',
+    desktop_hero_images: ''
   });
 
   useEffect(() => {
@@ -98,7 +104,17 @@ export default function AdminPanel() {
       price: parseFloat(formData.price),
       quantity: parseInt(formData.quantity) || 0,
       homepageimage: formData.homepageimage,
-      extraimages: formData.extraimages.split(',').map(img => img.trim()).filter(img => img)
+      extraimages: formData.extraimages.split(',').map(img => img.trim()).filter(img => img),
+      buildingTime: formData.buildingTime ? parseInt(formData.buildingTime) : null,
+      pieces: formData.pieces || null,
+      size: formData.size || null,
+      recommendedAge: formData.recommendedAge || null,
+      children_playing: formData.children_playing
+        ? formData.children_playing.split(',').map(s => s.trim()).filter(Boolean)
+        : [],
+      desktop_hero_images: formData.desktop_hero_images
+        ? formData.desktop_hero_images.split(',').map(s => s.trim()).filter(Boolean)
+        : []
     };
 
     try {
@@ -141,7 +157,13 @@ export default function AdminPanel() {
       price: product.price.toString(),
       quantity: (product.quantity || 0).toString(),
       homepageimage: product.homepageimage || '',
-      extraimages: product.extraimages ? product.extraimages.join(', ') : ''
+      extraimages: product.extraimages ? product.extraimages.join(', ') : '',
+      buildingTime: product.buildingTime ? product.buildingTime.toString() : '',
+      pieces: product.pieces || '',
+      size: product.size || '',
+      recommendedAge: product.recommendedAge || '',
+      children_playing: Array.isArray(product.children_playing) ? product.children_playing.join(', ') : '',
+      desktop_hero_images: Array.isArray(product.desktop_hero_images) ? product.desktop_hero_images.join(', ') : ''
     });
     setIsDialogOpen(true);
   };
@@ -181,7 +203,13 @@ export default function AdminPanel() {
       price: '',
       quantity: '',
       homepageimage: '',
-      extraimages: ''
+      extraimages: '',
+      buildingTime: '',
+      pieces: '',
+      size: '',
+      recommendedAge: '',
+      children_playing: '',
+      desktop_hero_images: ''
     });
   };
 
@@ -458,6 +486,88 @@ export default function AdminPanel() {
                   onChange={(e) => handleInputChange('extraimages', e.target.value)}
                   placeholder="e.g., image1.jpg, image2.jpg"
                   helperText="Additional images for the product gallery"
+                />
+              </Grid>
+            </Grid>
+
+            {/* Desktop Hero Images */}
+            <Typography variant="h6" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
+              Desktop Hero Images
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Desktop Hero Images (comma-separated filenames)"
+                  value={formData.desktop_hero_images}
+                  onChange={(e) => handleInputChange('desktop_hero_images', e.target.value)}
+                  placeholder="e.g., mikdash_web_screen.png, logo_mikdash_web_screen.png"
+                  helperText="Two images for the desktop hero section (left and right squares)"
+                />
+              </Grid>
+            </Grid>
+
+            {/* Children Playing Media */}
+            <Typography variant="h6" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
+              Children Playing Media
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Children Playing Media (comma-separated filenames)"
+                  value={formData.children_playing}
+                  onChange={(e) => handleInputChange('children_playing', e.target.value)}
+                  placeholder="e.g., child1.jpg, child2.jpg, child3.mp4"
+                  helperText="Images and videos to show in the children playing scroller"
+                />
+              </Grid>
+            </Grid>
+
+            {/* Product Features Section */}
+            <Typography variant="h6" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
+              Product Features
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Building Time (hours)"
+                  type="number"
+                  value={formData.buildingTime}
+                  onChange={(e) => handleInputChange('buildingTime', e.target.value)}
+                  placeholder="e.g., 2"
+                  helperText="Estimated building time in hours"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Number of Pieces"
+                  value={formData.pieces}
+                  onChange={(e) => handleInputChange('pieces', e.target.value)}
+                  placeholder="e.g., 800+"
+                  helperText="Number of pieces in the kit"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Size"
+                  value={formData.size}
+                  onChange={(e) => handleInputChange('size', e.target.value)}
+                  placeholder="e.g., 30×25×20 cm"
+                  helperText="Product dimensions"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Recommended Age"
+                  value={formData.recommendedAge}
+                  onChange={(e) => handleInputChange('recommendedAge', e.target.value)}
+                  placeholder="e.g., 10+"
+                  helperText="Recommended age for the product"
                 />
               </Grid>
             </Grid>

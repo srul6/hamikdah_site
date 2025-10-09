@@ -7,10 +7,15 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.2.0",
     "@mui/material": "^7.2.0",
+    "@react-three/drei": "^9.65.0",
+    "@react-three/fiber": "^8.13.0",
+    "framer-motion": "^12.23.22",
+    "gsap": "^3.13.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.0.0",
-    "react-scripts": "^5.0.1"
+    "react-scripts": "^5.0.1",
+    "three": "^0.152.0"
   },
   "scripts": {
     "start": "react-scripts start",

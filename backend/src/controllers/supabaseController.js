@@ -12,7 +12,7 @@ class SupabaseController {
             const { data, error } = await supabase
                 .from('products')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('id', { ascending: true });
 
             if (error) throw error;
             return data || [];

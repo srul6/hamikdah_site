@@ -10,7 +10,13 @@ exports.getAllProducts = async (req, res) => {
         const productsWithImageUrls = products.map(product => ({
             ...product,
             homepageImage: getStorageUrl(product.homepageimage),
-            extraImages: getStorageUrls(product.extraimages)
+            extraImages: getStorageUrls(product.extraimages),
+            // Map children playing media with auto-prepend folder path
+            childrenPlaying: getStorageUrls((product.children_playing || []).map(media => `mikdash_child_playing/${media}`)),
+            // Map desktop hero images (handle both filenames and full URLs)
+            desktopHeroImages: (product.desktop_hero_images || []).map(url =>
+                url.startsWith('http') ? url : getStorageUrl(url)
+            )
         }));
         res.json(productsWithImageUrls);
     } catch (error) {
@@ -28,7 +34,11 @@ exports.getProductById = async (req, res) => {
             const productWithImageUrls = {
                 ...product,
                 homepageImage: getStorageUrl(product.homepageimage),
-                extraImages: getStorageUrls(product.extraimages)
+                extraImages: getStorageUrls(product.extraimages),
+                childrenPlaying: getStorageUrls((product.children_playing || []).map(media => `mikdash_child_playing/${media}`)),
+                desktopHeroImages: (product.desktop_hero_images || []).map(url =>
+                    url.startsWith('http') ? url : getStorageUrl(url)
+                )
             };
             res.json(productWithImageUrls);
         } else {

@@ -21,7 +21,7 @@ import { Link as RouterLink } from 'react-router-dom';
 export default function Footer() {
     const currentYear = new Date().getFullYear();
     const { language, isHebrew } = useLanguage();
-    const t = translations['EN']; // Always use English translations for footer
+    const t = translations[language]; // Use current language translations
 
     // Hebrew text for Terms and Returns
     const termsText = isHebrew ? 'תנאי שימוש' : t.termsOfService;
@@ -34,12 +34,13 @@ export default function Footer() {
                 borderTop: '1px solid #e0e0e0',
                 py: 4,
                 mt: 'auto',
-                direction: 'ltr', // Always LTR for English
-                textAlign: 'left' // Always left-aligned for English
+                direction: isHebrew ? 'rtl' : 'ltr',
+                textAlign: isHebrew ? 'right' : 'left'
             }}
         >
             <Container maxWidth="lg">
-                <Grid container spacing={4}>
+                <Grid container spacing={4} sx={{ position: 'relative' }}>
+
                     {/* Company Information */}
                     <Grid item xs={12} md={6}>
                         <Typography
@@ -47,7 +48,7 @@ export default function Footer() {
                             sx={{
                                 fontWeight: 600,
                                 color: 'rgb(245, 240, 227)',
-                                mb: 2
+                                mb: 0.5
                             }}
                         >
                             {t.storeName}
@@ -57,12 +58,12 @@ export default function Footer() {
                             sx={{
                                 color: 'rgb(245, 240, 227)',
                                 lineHeight: 1.6,
-                                mb: 2
+                                mb: 1
                             }}
                         >
                             {t.storeDescription}
                         </Typography>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: isHebrew ? 'flex-start' : 'flex-start' }}>
                             <Button
                                 component="a"
                                 href="https://mail.google.com/mail/?view=cm&fs=1&to=hamikdash.today@gmail.com"
@@ -74,9 +75,15 @@ export default function Footer() {
                                     textTransform: 'none',
                                     fontSize: '0.875rem',
                                     minWidth: 'auto',
+                                    width: 'auto',
                                     backgroundColor: 'transparent',
                                     border: '1px solid transparent',
-                                    alignSelf: 'flex-start',
+                                    justifyContent: 'flex-start',
+                                    '& .MuiButton-startIcon': {
+                                        marginLeft: isHebrew ? '8px' : '0px',
+                                        marginRight: isHebrew ? '0px' : '8px'
+                                    },
+
                                     '&:hover': {
                                         backgroundColor: 'rgba(245, 240, 227, 0.1)',
                                         border: '1px solid rgb(245, 240, 227)',
@@ -94,9 +101,14 @@ export default function Footer() {
                                     textTransform: 'none',
                                     fontSize: '0.875rem',
                                     minWidth: 'auto',
+                                    width: 'auto',
                                     backgroundColor: 'transparent',
                                     border: '1px solid transparent',
-                                    alignSelf: 'flex-start',
+                                    justifyContent: 'flex-start',
+                                    '& .MuiButton-startIcon': {
+                                        marginLeft: isHebrew ? '8px' : '0px',
+                                        marginRight: isHebrew ? '0px' : '8px'
+                                    },
                                     '&:hover': {
                                         backgroundColor: 'rgba(245, 240, 227, 0.1)',
                                         border: '1px solid rgb(245, 240, 227)',
@@ -117,9 +129,14 @@ export default function Footer() {
                                     textTransform: 'none',
                                     fontSize: '0.875rem',
                                     minWidth: 'auto',
+                                    width: 'auto',
                                     backgroundColor: 'transparent',
                                     border: '1px solid transparent',
-                                    alignSelf: 'flex-start',
+                                    justifyContent: 'flex-start',
+                                    '& .MuiButton-startIcon': {
+                                        marginLeft: isHebrew ? '8px' : '0px',
+                                        marginRight: isHebrew ? '0px' : '8px'
+                                    },
                                     '&:hover': {
                                         backgroundColor: 'rgba(245, 240, 227, 0.1)',
                                         border: '1px solid rgb(245, 240, 227)',
@@ -131,51 +148,63 @@ export default function Footer() {
                         </Box>
                     </Grid>
 
+
+
                     {/* Social Media */}
                     <Grid item xs={12} md={6}>
-                        <Typography
-                            variant="h6"
-                            sx={{
-                                fontWeight: 600,
-                                color: 'rgb(245, 240, 227)',
-                                mb: 0
-                            }}
-                        >
-                            {t.followUs}
-                        </Typography>
+                        <Box sx={{
+                            display: 'flex',
+                            ...(isHebrew ? { borderRight: '1px solid rgba(245, 240, 227, 0.3)', pr: 5 } : { borderLeft: '1px solid rgba(245, 240, 227, 0.3)', pl: 5 }),
+                            flexDirection: 'column',
+                            alignItems: isHebrew ? 'flex-end' : 'flex-start'
+                        }}>
 
-                        {/* Social Media Icons */}
-                        <Box sx={{ display: 'flex', gap: 0 }}>
-                            <IconButton
-                                component="a"
-                                href="https://www.facebook.com/share/1CGo7JT8ka/"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <Typography
+                                variant="h6"
                                 sx={{
+                                    fontWeight: 600,
                                     color: 'rgb(245, 240, 227)',
-                                    '&:hover': {
-                                        color: '#1877f2',
-                                        backgroundColor: 'rgba(24, 119, 242, 0.1)'
-                                    }
+                                    mb: 0.5,
+                                    textAlign: isHebrew ? 'right' : 'left',
+
                                 }}
                             >
-                                <FacebookIcon />
-                            </IconButton>
-                            <IconButton
-                                component="a"
-                                href="https://www.instagram.com/b_mikdash/profilecard/?igsh=enMwZ21yZ3h4MGpt"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                sx={{
-                                    color: 'rgb(245, 240, 227)',
-                                    '&:hover': {
-                                        color: '#e4405f',
-                                        backgroundColor: 'rgba(228, 64, 95, 0.1)'
-                                    }
-                                }}
-                            >
-                                <InstagramIcon />
-                            </IconButton>
+                                {t.followUs}
+                            </Typography>
+
+                            {/* Social Media Icons */}
+                            <Box sx={{ display: 'flex', gap: 0 }}>
+                                <IconButton
+                                    component="a"
+                                    href="https://www.facebook.com/share/1CGo7JT8ka/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{
+                                        color: 'rgb(245, 240, 227)',
+                                        '&:hover': {
+                                            color: '#1877f2',
+                                            backgroundColor: 'rgba(24, 119, 242, 0.1)'
+                                        }
+                                    }}
+                                >
+                                    <FacebookIcon />
+                                </IconButton>
+                                <IconButton
+                                    component="a"
+                                    href="https://www.instagram.com/b_mikdash/profilecard/?igsh=enMwZ21yZ3h4MGpt"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{
+                                        color: 'rgb(245, 240, 227)',
+                                        '&:hover': {
+                                            color: '#e4405f',
+                                            backgroundColor: 'rgba(228, 64, 95, 0.1)'
+                                        }
+                                    }}
+                                >
+                                    <InstagramIcon />
+                                </IconButton>
+                            </Box>
                         </Box>
                     </Grid>
                 </Grid>
@@ -198,7 +227,7 @@ export default function Footer() {
                         variant="body2"
                         sx={{
                             color: 'rgb(245, 240, 227)',
-                            textAlign: { xs: 'center', md: 'left' }
+                            textAlign: { xs: 'center', md: isHebrew ? 'right' : 'left' }
                         }}
                     >
                         © {currentYear} {t.allRightsReserved}
@@ -210,7 +239,7 @@ export default function Footer() {
                             display: 'flex',
                             gap: 3,
                             flexWrap: 'wrap',
-                            justifyContent: { xs: 'center', md: 'flex-end' }
+                            justifyContent: { xs: 'center', md: isHebrew ? 'flex-start' : 'flex-end' }
                         }}
                     >
                         <Link
@@ -244,6 +273,6 @@ export default function Footer() {
                     </Box>
                 </Box>
             </Container>
-        </Box>
+        </Box >
     );
 } 

@@ -18,6 +18,14 @@ export default function ProductCard({ product, onAddToCart }) {
   const productName = isHebrew ? product.name_he : product.name_en;
   const productDescription = isHebrew ? product.description_he : product.description_en;
 
+  // Get default color (first color in the array, or null if no colors)
+  const getDefaultColor = () => {
+    if (product.colors && Array.isArray(product.colors) && product.colors.length > 0) {
+      return product.colors[0]; // First color is default
+    }
+    return null;
+  };
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -81,8 +89,11 @@ export default function ProductCard({ product, onAddToCart }) {
           variant="contained"
           onClick={(e) => {
             e.stopPropagation();
-            onAddToCart(product);
+            if (product.quantity > 0) {
+              onAddToCart(product, getDefaultColor());
+            }
           }}
+          disabled={!product || product.quantity <= 0}
           sx={{
             position: 'absolute',
             top: { xs: 14, sm: 18, md: 18 },
@@ -102,10 +113,18 @@ export default function ProductCard({ product, onAddToCart }) {
               color: 'rgba(199, 61, 34, 1)',
               boxShadow: 'none',
               transition: 'background-color 0.3s ease'
+            },
+            '&:disabled': {
+              backgroundColor: '#ccc',
+              color: '#999',
+              cursor: 'not-allowed'
             }
           }}
         >
-          {t.addToCart}
+          {product && product.quantity > 0 ?
+            t.addToCart :
+            (isHebrew ? 'בקרוב' : 'Coming Soon')
+          }
         </Button>
       )
       }

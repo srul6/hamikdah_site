@@ -5,6 +5,16 @@ export const translations = {
         aboutUs: 'מי אנחנו',
         cart: 'עגלה',
         admin: 'ניהול',
+        home: 'דף הבית',
+
+        // Footer
+        storeName: 'המקדש',
+        storeDescription: 'בונים את המסורת בבית',
+        followUs: 'עקבו אחרינו',
+        allRightsReserved: 'כל הזכויות שמורות',
+        privacyPolicy: 'מדיניות פרטיות',
+        termsOfService: 'תנאי שימוש',
+        returns: 'החזרות',
 
         // Home Page
         heroTitle: 'חנות המקדש',
@@ -176,6 +186,7 @@ export const translations = {
 
     EN: {
         // Navbar
+        home: 'Home',
         products: 'Products',
         aboutUs: 'About Us',
         cart: 'Cart',

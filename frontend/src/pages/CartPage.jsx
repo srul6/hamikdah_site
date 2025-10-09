@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Container, Typography, Box, Button, Card, CardContent, CardMedia,
     Grid, TextField, IconButton, Alert, Chip, Divider, Paper,
@@ -29,6 +29,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const [couponSuccess, setCouponSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [homeDelivery, setHomeDelivery] = useState(false);
+
+    // Scroll to top when component mounts
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
 
     // Calculate totals
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -154,13 +159,26 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 <Grid container sx={{ width: '100%' }}>
                                     {/* Product Image */}
                                     <Grid item xs={12} sm={4} md={3}>
-                                        <CardMedia
-                                            component="img"
-                                            height={{ xs: 200, sm: 220, md: 240 }}
-                                            image={item.homepageimage || '/logo.png'}
-                                            alt={isHebrew ? item.name_he : item.name_en}
-                                            sx={{ objectFit: 'cover' }}
-                                        />
+                                        <Link to={`/product/${item.id}`} style={{ textDecoration: 'none' }}>
+                                            <CardMedia
+                                                component="img"
+                                                height={{ xs: 200, sm: 220, md: 240 }}
+                                                image={
+                                                    (item.selectedColor && item.selectedColor.mainImage) ?
+                                                        item.selectedColor.mainImage :
+                                                        (item.homepageimage || '/logo.png')
+                                                }
+                                                alt={item.displayName || (isHebrew ? item.name_he : item.name_en)}
+                                                sx={{
+                                                    objectFit: 'cover',
+                                                    cursor: 'pointer',
+                                                    transition: 'transform 0.2s ease',
+                                                    '&:hover': {
+                                                        transform: 'scale(1.02)'
+                                                    }
+                                                }}
+                                            />
+                                        </Link>
                                     </Grid>
 
                                     {/* Product Details */}
@@ -206,12 +224,16 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                     {/* Product Name - Right side */}
                                                     <Typography variant="h6" sx={{
                                                         direction: isHebrew ? 'rtl' : 'ltr',
+                                                        maxWidth: '60%',
                                                         fontWeight: '500',
                                                         fontSize: { xs: '1.1rem', sm: '1.5rem' },
+                                                        lineHeight: '1.1',
                                                         textAlign: 'right',
                                                     }}>
-                                                        {isHebrew ? item.name_he : item.name_en}
+                                                        {item.displayName || (isHebrew ? item.name_he : item.name_en)}
                                                     </Typography>
+
+
                                                 </Box>
 
                                                 {/* Middle Row: Quantity Controls */}
@@ -222,7 +244,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
                                                 }}>
                                                     <IconButton
-                                                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                                                        onClick={() => onUpdateQuantity(item.uniqueId || item.id, item.quantity - 1)}
                                                         disabled={item.quantity <= 1}
                                                         size="small"
                                                         sx={{
@@ -242,7 +264,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                     </Typography>
 
                                                     <IconButton
-                                                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                                                        onClick={() => onUpdateQuantity(item.uniqueId || item.id, item.quantity + 1)}
                                                         size="small"
                                                         sx={{
                                                             '&:hover': { color: '#d8472a' }
@@ -285,7 +307,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
                                                     {/* Delete Button - Right side, aligned under product name */}
                                                     <IconButton
-                                                        onClick={() => onRemove(item.id)}
+                                                        onClick={() => onRemove(item.uniqueId || item.id)}
                                                         size="small"
                                                         sx={{
                                                             color: '#d8472a',
