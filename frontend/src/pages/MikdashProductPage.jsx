@@ -872,8 +872,22 @@ export default function MikdashProductPage({ onAddToCart }) {
     const [scrollY, setScrollY] = useState(0);
     const [currentChildrenIndex, setCurrentChildrenIndex] = useState(0);
     const [childrenScrollProgress, setChildrenScrollProgress] = useState(0);
+    const [currentProductGalleryIndex, setCurrentProductGalleryIndex] = useState(0);
+    const [productGalleryScrollProgress, setProductGalleryScrollProgress] = useState(0);
     const [currentAdvantageIndex, setCurrentAdvantageIndex] = useState(0);
     const [advantageScrollProgress, setAdvantageScrollProgress] = useState(0);
+
+    // Product gallery images - stored in public/2mikdash_product_images/
+    const productGalleryImages = [
+        '/2mikdash_product_images/candle.png',
+        '/2mikdash_product_images/hamikdash.png',
+        '/2mikdash_product_images/hamikdash2.png',
+        '/2mikdash_product_images/hamikdash_hidabrut.jpg',
+        '/2mikdash_product_images/kruvim.png',
+        '/2mikdash_product_images/lehem.png',
+        '/2mikdash_product_images/pnimi.png',
+        // Add more images as needed
+    ];
 
     const titleRef = useRef(null);
     const subtitleRef = useRef(null);
@@ -881,6 +895,7 @@ export default function MikdashProductPage({ onAddToCart }) {
     const buttonTargetRef = useRef(null); // Reference to the target position
     const heroSectionRef = useRef(null); // Reference to the hero section
     const childrenScrollContainerRef = useRef(null);
+    const productGalleryScrollContainerRef = useRef(null);
     const advantageScrollContainerRef = useRef(null);
 
     // GSAP animation refs for mobile
@@ -892,6 +907,7 @@ export default function MikdashProductPage({ onAddToCart }) {
     const videoGalleryRef = useRef(null);
     const productFeaturesRef = useRef(null);
     const childrenPlayingRef = useRef(null);
+    const productGalleryRef = useRef(null);
     const kitAdvantagesRef = useRef(null);
 
     // GSAP animation refs for desktop
@@ -991,6 +1007,42 @@ export default function MikdashProductPage({ onAddToCart }) {
             return () => container.removeEventListener('scroll', handleChildrenScroll);
         }
     }, [product?.childrenPlaying, isHebrew]);
+
+    // Product gallery scroll tracking
+    useEffect(() => {
+        const handleProductGalleryScroll = () => {
+            if (productGalleryScrollContainerRef.current) {
+                const container = productGalleryScrollContainerRef.current;
+                let scrollLeft = container.scrollLeft;
+                const maxScroll = container.scrollWidth - container.clientWidth;
+
+                // In RTL mode, scrollLeft is negative or zero when scrolling right
+                // We need to convert it to a positive value
+                if (isHebrew) {
+                    scrollLeft = Math.abs(scrollLeft);
+                }
+
+                const progress = maxScroll > 0 ? scrollLeft / maxScroll : 0;
+                setProductGalleryScrollProgress(progress);
+
+                const childNodes = container.childNodes[0]?.childNodes || [];
+                let totalWidth = 0;
+                for (let i = 0; i < childNodes.length; i++) {
+                    totalWidth += childNodes[i].offsetWidth + 16; // +gap
+                    if (totalWidth >= scrollLeft + container.clientWidth / 2) {
+                        setCurrentProductGalleryIndex(i);
+                        break;
+                    }
+                }
+            }
+        };
+
+        const container = productGalleryScrollContainerRef.current;
+        if (container && productGalleryImages.length > 0) {
+            container.addEventListener('scroll', handleProductGalleryScroll);
+            return () => container.removeEventListener('scroll', handleProductGalleryScroll);
+        }
+    }, [productGalleryImages, isHebrew]);
 
     // Advantages scroll tracking - exact copy from children playing
     useEffect(() => {
@@ -1795,27 +1847,6 @@ export default function MikdashProductPage({ onAddToCart }) {
                 )
             }
 
-            {/* Horizontal Scrolling Video Gallery */}
-            <Box sx={{
-                backgroundColor: 'rgb(5, 38, 51)',
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                py: 6
-            }}>
-                {/* Horizontal Scrolling Video Gallery */}
-                <GallerySection
-                    ref={videoGalleryRef}
-                    product={product}
-                    selectedColor={selectedColor}
-                    isHebrew={isHebrew}
-                />
-            </Box>
-
-            {/* Product Features Section */}
-            <ProductFeaturesSection ref={productFeaturesRef} product={product} isHebrew={isHebrew} />
-
             {/* Children Playing Media Section - scrolling like videos */}
             {product && Array.isArray(product.childrenPlaying) && product.childrenPlaying.length > 0 && (
                 <Box
@@ -1849,7 +1880,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                         >
                             {isHebrew ? 'ילדים משחקים' : 'Children Playing'}
                         </Typography>
-                            </Box>
+                    </Box>
 
                     <Box
                         ref={childrenScrollContainerRef}
@@ -1905,7 +1936,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                     allowFullScreen
                                                 />
-                    </Box>
+                                            </Box>
                                         ) : (
                                             <img
                                                 src={getImageUrl(media)}
@@ -1957,6 +1988,148 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 right: isHebrew ? 0 : 'auto',
                                 height: '100%',
                                 width: `calc(${childrenScrollProgress * 100}%)`,
+                                backgroundColor: '#f5f0e3',
+                                borderRadius: '4px',
+                                transition: 'width 0.1s ease-out'
+                            }} />
+                            </Box>
+                    </Box>
+                </Box>
+            )}
+
+            {/* Horizontal Scrolling Video Gallery */}
+            <Box sx={{
+                backgroundColor: 'rgb(5, 38, 51)',
+                minHeight: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                py: 6
+            }}>
+                {/* Horizontal Scrolling Video Gallery */}
+                            <GallerySection
+                    ref={videoGalleryRef}
+                                product={product}
+                                selectedColor={selectedColor}
+                                isHebrew={isHebrew}
+                            />
+                    </Box>
+
+            {/* Product Features Section */}
+            <ProductFeaturesSection ref={productFeaturesRef} product={product} isHebrew={isHebrew} />
+
+            {/* Product Gallery Section - scrolling like children playing */}
+            {productGalleryImages.length > 0 && (
+                <Box
+                    ref={productGalleryRef}
+                    sx={{
+                        backgroundColor: 'rgb(5, 38, 51)',
+                        minHeight: '100vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        py: 6
+                    }}>
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: isHebrew ? 'flex-end' : 'flex-start',
+                        width: '100%',
+                        mb: 3,
+                    }}>
+                        <Typography
+                            variant="h2"
+                            sx={{
+                                color: '#f5f0e3',
+                                fontWeight: 400,
+                                fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
+                                lineHeight: 1.6,
+                                maxWidth: '80%',
+                                textAlign: isHebrew ? 'right' : 'left',
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                px: { xs: 4, md: '9%' },
+                            }}
+                        >
+                            {isHebrew ? 'גלריית המוצר' : 'Product Gallery'}
+                        </Typography>
+                    </Box>
+
+                    <Box
+                        ref={productGalleryScrollContainerRef}
+                        sx={{
+                            overflowX: 'auto',
+                            overflowY: 'hidden',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none',
+                            '&::-webkit-scrollbar': { display: 'none' },
+                            width: '100%',
+                            direction: isHebrew ? 'rtl' : 'ltr'
+                        }}
+                    >
+                        <Box sx={{
+                            display: 'flex',
+                            gap: 3,
+                            py: 1,
+                            alignItems: 'center',
+                            height: { xs: '500px', sm: '450px', md: '500px' }
+                        }}>
+                            {/* Spacer at start */}
+                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
+
+                            {productGalleryImages.map((imagePath, index) => (
+                                <Box key={`pg-${index}`} sx={{
+                                    flexShrink: 0,
+                                    height: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                }}>
+                                    <img
+                                        src={imagePath}
+                                        alt={`${isHebrew ? 'תמונת מוצר' : 'Product image'} ${index + 1}`}
+                                        style={{
+                                            height: '100%',
+                                            width: 'auto',
+                                            objectFit: 'contain',
+                                            borderRadius: '8px',
+                                            display: 'block'
+                                        }}
+                                    />
+                                </Box>
+                            ))}
+
+                            {/* Spacer at end */}
+                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
+                        </Box>
+                    </Box>
+
+                    {/* Progress Indicator - exactly like video section */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                        <Box
+                            sx={{
+                                position: 'relative',
+                                width: '200px',
+                                height: '8px',
+                                backgroundColor: 'rgba(245, 240, 227, 0.3)',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                                if (productGalleryScrollContainerRef.current) {
+                                    const container = productGalleryScrollContainerRef.current;
+                                    const nextIndex = (currentProductGalleryIndex + 1) % productGalleryImages.length;
+                                    const targetChild = container.querySelectorAll('img')[nextIndex];
+                                    if (targetChild) {
+                                        targetChild.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                                    }
+                                }
+                            }}
+                        >
+                            <Box sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: isHebrew ? 'auto' : 0,
+                                right: isHebrew ? 0 : 'auto',
+                                height: '100%',
+                                width: `calc(${productGalleryScrollProgress * 100}%)`,
                                 backgroundColor: '#f5f0e3',
                                 borderRadius: '4px',
                                 transition: 'width 0.1s ease-out'
@@ -2301,10 +2474,10 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 transition: 'all 0.3s ease',
                                 border: '2px solid #f5f0e3',
                                 '&:hover': {
-                                    backgroundColor: '#002144',
-                                    color: '#FFD700',
+                                        backgroundColor: '#f5f0e3',
+                                        color: 'rgba(229, 90, 61, 1)',
                                     transform: 'translateY(-4px)',
-                                    borderColor: '#FFD700'
+                                        borderColor: 'rgba(229, 90, 61, 1)'
                                 },
                                 '&:disabled': {
                                     backgroundColor: '#666',
@@ -2357,11 +2530,10 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 minWidth: { xs: '280px', md: '320px' },
                                 border: '2px solid #f5f0e3',
                                 '&:hover': {
-                                    backgroundColor: '#002144',
-                                    color: '#FFD700',
-                                    transform: 'translateY(-2px)',
-                                    boxShadow: '0 12px 40px rgba(255, 215, 0, 0.8)',
-                                    borderColor: '#FFD700'
+                                    backgroundColor: '#f5f0e3',
+                                    color: 'rgba(229, 90, 61, 1)',
+                                    transform: 'translateY(-4px)',
+                                    borderColor: 'rgba(229, 90, 61, 1)'
                                 },
                                 '&:disabled': {
                                     backgroundColor: '#666',

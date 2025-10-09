@@ -324,21 +324,6 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                             }}
                         >
 
-
-                            {/* Separator */}
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    color: '#86868b',
-                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                    fontWeight: 400,
-                                    mx: 0,
-                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
-                                }}
-                            >
-                                |
-                            </Typography>
-
                             <Box
                                 ref={buttonRef}
                                 onMouseEnter={handleProductsHover}
@@ -427,6 +412,20 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                 </Typography>
                             </Link>
 
+                            {/* Separator */}
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    color: '#86868b',
+                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                    fontWeight: 400,
+                                    mx: 0,
+                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                }}
+                            >
+                                |
+                            </Typography>
+
                             {/* Language Switcher */}
                             <Typography
                                 onClick={toggleLanguage}
@@ -449,6 +448,30 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
 
                     {/* Cart and Mobile Menu */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                        {/* Hebrew Mode: Hamburger first, then Cart */}
+                        {isMobile && isHebrew && (
+                            <IconButton
+                                onClick={isMobileProductsPage ? handleBackToMainMenu : handleMobileMenuToggle}
+                                sx={{
+                                    color: 'rgba(173, 153, 103, 0.9)',
+                                    transition: 'color 0.2s ease',
+                                    '&:hover': {
+                                        color: 'rgba(199, 61, 34, 1)'
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                        fontSize: '1.5rem',
+                                        strokeWidth: 0.5
+                                    }
+                                }}
+                            >
+                                {isMobileMenuOpen ? (
+                                    isMobileProductsPage ? <ArrowBackIcon /> : <CloseIcon />
+                                ) : (
+                                    <MenuIcon />
+                                )}
+                            </IconButton>
+                        )}
+
                         {/* Cart Icon - Hidden when mobile menu is open */}
                         {(!isMobile || !isMobileMenuOpen) && (
                             isMobile ? (
@@ -491,8 +514,8 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                             )
                         )}
 
-                        {/* Mobile Menu Button - Hamburger, X, or Back Arrow */}
-                        {isMobile && (
+                        {/* English Mode: Cart first, then Hamburger */}
+                        {isMobile && !isHebrew && (
                             <IconButton
                                 onClick={isMobileProductsPage ? handleBackToMainMenu : handleMobileMenuToggle}
                                 sx={{
@@ -633,6 +656,18 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                     >
                         {cart.length === 0 ? (
                             <Box sx={{ textAlign: 'center', py: 4 }}>
+                                <Box
+                                    component="img"
+                                    src="/empty_bag.png"
+                                    alt="Empty cart"
+                                    sx={{
+                                        width: '80px',
+                                        height: 'auto',
+                                        mb: 2,
+                                        mx: 'auto',
+                                        display: 'block'
+                                    }}
+                                />
                                 <Typography variant="body1" sx={{ color: '#666', mb: 2 }}>
                                     {isHebrew ? 'העגלה ריקה' : 'Your cart is empty'}
                                 </Typography>

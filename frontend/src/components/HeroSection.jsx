@@ -52,17 +52,19 @@ export default function HeroSection() {
                 }
             }}
         >
-            <CardMedia
-                component="img"
+            <Box
                 sx={{
-                    width: '100%', // Full width - no padding needed
-                    height: '100%', // Full height - no padding needed
-                    objectFit: 'cover',
-                    borderRadius: '15px', // More rounded corners
-                    display: 'block'
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '15px',
+                    backgroundImage: {
+                        xs: 'url(/first_web.jpg)',
+                        md: 'url(/hero_section.jpg)'
+                    },
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
                 }}
-                image="/first_web.jpg" // You can change this to your image path
-                alt="Hero Section"
             />
 
             {/* Button Overlay - Positioned in lower quarter */}

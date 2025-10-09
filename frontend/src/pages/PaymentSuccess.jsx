@@ -83,7 +83,7 @@ export default function PaymentSuccess() {
     }
 
     return (
-        <Container maxWidth="md" sx={{ py: 8 }}>
+        <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
             <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
                 {/* Success Icon */}
                 <CheckCircle
@@ -131,7 +131,7 @@ export default function PaymentSuccess() {
                             {t.orderSummary}
                         </Typography>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isHebrew ? 'row-reverse' : 'row' }}>
                             <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                                 {t.orderId}:
                             </Typography>
@@ -140,7 +140,7 @@ export default function PaymentSuccess() {
                             </Typography>
                         </Box>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isHebrew ? 'row-reverse' : 'row' }}>
                             <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                                 {t.total}:
                             </Typography>
@@ -150,7 +150,7 @@ export default function PaymentSuccess() {
                         </Box>
 
                         {paymentDetails.documentId && (
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isHebrew ? 'row-reverse' : 'row' }}>
                                 <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                                     {t.invoiceNumber}:
                                 </Typography>
@@ -163,10 +163,11 @@ export default function PaymentSuccess() {
                         <Divider sx={{ my: 2 }} />
 
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                            <Email color="action" />
+                            {!isHebrew && <Email color="action" />}
                             <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                                 {t.invoiceEmailSent} {paymentDetails.customerEmail}
                             </Typography>
+                            {isHebrew && <Email color="action" />}
                         </Box>
                     </Box>
                 )}
@@ -178,7 +179,13 @@ export default function PaymentSuccess() {
                             variant="outlined"
                             startIcon={<Receipt />}
                             onClick={handleViewInvoice}
-                            sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                            sx={{
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                '& .MuiButton-startIcon': {
+                                    marginLeft: isHebrew ? '6px' : '-6px',
+                                    marginRight: isHebrew ? '-6px' : '6px'
+                                }
+                            }}
                         >
                             {t.viewInvoice}
                         </Button>

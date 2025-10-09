@@ -78,7 +78,7 @@ export const translations = {
         approvalNumber: 'מספר אישור:',
         errorCode: 'קוד שגיאה:',
         errorMessage: 'הודעת שגיאה:',
-        continueShopping: 'המשך בקניות',
+        continueShopping: 'לחזור לאתר',
         tryAgain: 'נסה שוב',
         goHome: 'חזור לדף הבית',
 

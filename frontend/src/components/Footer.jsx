@@ -42,7 +42,7 @@ export default function Footer() {
                 <Grid container spacing={4} sx={{ position: 'relative' }}>
 
                     {/* Company Information */}
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={6} sx={isHebrew ? { ml: 5 } : {}}>
                         <Typography
                             variant="h5"
                             sx={{
@@ -154,7 +154,13 @@ export default function Footer() {
                     <Grid item xs={12} md={6}>
                         <Box sx={{
                             display: 'flex',
-                            ...(isHebrew ? { borderRight: '1px solid rgba(245, 240, 227, 0.3)', pr: 5 } : { borderLeft: '1px solid rgba(245, 240, 227, 0.3)', pl: 5 }),
+                            ...(isHebrew ? {
+                                borderRight: { md: '1px solid rgba(245, 240, 227, 0.3)', xs: 'none' },
+                                pr: { xs: 0, md: 5 }
+                            } : {
+                                borderLeft: { md: '1px solid rgba(245, 240, 227, 0.3)', xs: 'none' },
+                                pl: { xs: 0, md: 5 }
+                            }),
                             flexDirection: 'column',
                             alignItems: isHebrew ? 'flex-end' : 'flex-start'
                         }}>

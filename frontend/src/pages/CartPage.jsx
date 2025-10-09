@@ -12,7 +12,9 @@ import {
     Delete as DeleteIcon,
     LocalOffer as CouponIcon,
     ShoppingCart as CartIcon,
-    Payment as PaymentIcon
+    Payment as PaymentIcon,
+    ArrowForward as ArrowForwardIcon,
+    ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -105,18 +107,31 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
     if (cart.length === 0) {
         return (
-            <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
-                <CartIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 3 }} />
-                <Typography variant="h4" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+            <Container maxWidth="md" sx={{ pt: 15, pb: 8, textAlign: 'center' }}>
+                <Box
+                    component="img"
+                    src="/empty_bag.png"
+                    alt="Empty cart"
+                    sx={{
+                        width: { xs: '150px', sm: '200px', md: '250px' },
+                        height: 'auto',
+                        mb: 2,
+                        mx: 'auto',
+                        display: 'block'
+                    }}
+                />
+                <Typography variant="h5" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                     {t.cartEmpty}
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 4, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                     {t.cartEmptyMessage}
                 </Typography>
                 <Button
                     variant="contained"
                     size="large"
                     onClick={() => navigate('/')}
+                    startIcon={isHebrew ? <ArrowBackIcon /> : null}
+                    endIcon={!isHebrew ? <ArrowForwardIcon /> : null}
                     sx={{
                         backgroundColor: 'rgba(229, 90, 61, 1)',
                         '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' }

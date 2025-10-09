@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Container, Typography, Box, Button, Paper, TextField,
     Grid, CircularProgress, Alert, Dialog, DialogTitle,
-    DialogContent, DialogActions
+    DialogContent, DialogActions, FormControlLabel, Checkbox
 } from '@mui/material';
 import { getPaymentForm } from '../api/greenInvoice';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -32,6 +32,7 @@ export default function GreenInvoicePayment() {
         city: ''
     });
     const [fieldErrors, setFieldErrors] = useState({});
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
@@ -121,6 +122,12 @@ export default function GreenInvoicePayment() {
                 hasErrors = true;
             }
         });
+
+        // Check if terms and conditions are accepted
+        if (!termsAccepted) {
+            setError(isHebrew ? 'אנא אשר את תנאי השימוש כדי להמשיך' : 'Please accept the terms and conditions to continue');
+            return;
+        }
 
         if (hasErrors) {
             setFieldErrors(newFieldErrors);
@@ -975,6 +982,73 @@ export default function GreenInvoicePayment() {
                     </Box>
                 </Box>
 
+                {/* Terms and Conditions Section */}
+                <Box sx={{ mb: 0, textAlign: 'center' }}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={termsAccepted}
+                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                sx={{
+                                    p: 0,
+                                    color: 'rgba(229, 90, 61, 1)',
+                                    '&.Mui-checked': {
+                                        color: 'rgba(229, 90, 61, 1)',
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                        fontSize: 18,
+                                    }
+                                }}
+                            />
+                        }
+                        label={
+                            <Typography variant="body2" sx={{
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                fontSize: { xs: '0.85rem', sm: '0.9rem', md: '1rem' },
+                                color: 'text.primary'
+                            }}>
+                                {isHebrew ? 'קראתי ואני מאשר את ' : 'I confirm the '}
+                                <Button
+                                    component="a"
+                                    href="/terms"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{
+                                        color: 'rgba(229, 90, 61, 1)',
+                                        textDecoration: 'underline',
+                                        textUnderlineOffset: '4px',
+                                        fontSize: 'inherit',
+                                        fontWeight: 'inherit',
+                                        p: 0,
+                                        minWidth: 'auto',
+                                        textTransform: 'none',
+                                        '&:hover': {
+                                            textDecoration: 'underline',
+                                            textUnderlineOffset: '4px',
+                                            backgroundColor: 'transparent'
+                                        }
+                                    }}
+                                >
+                                    {isHebrew ? 'תנאי השימוש' : 'terms and conditions'}
+                                </Button>
+                            </Typography>
+                        }
+                        labelPlacement={isHebrew ? 'start' : 'end'}
+                        sx={{
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            mx: 'auto',
+                            maxWidth: { xs: '90%', sm: '80%', md: '70%' },
+                            flexDirection: isHebrew ? 'row-reverse' : 'row',
+                            gap: 0.5,
+                            '& .MuiFormControlLabel-label': {
+                                marginLeft: isHebrew ? 0 : '0px',
+                                marginRight: isHebrew ? '0px' : 0
+                            }
+                        }}
+                    />
+                </Box>
+
                 {/* Action Buttons Section */}
                 <Box sx={{
                     mt: 6,
@@ -990,7 +1064,7 @@ export default function GreenInvoicePayment() {
                         variant="contained"
                         size="large"
                         onClick={handleGetPaymentForm}
-                        disabled={isLoading}
+                        disabled={isLoading || !termsAccepted}
                         sx={{
                             background: 'linear-gradient(135deg, rgba(229, 90, 61, 1) 0%, rgba(199, 61, 34, 1) 100%)',
                             color: 'white',
