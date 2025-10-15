@@ -276,11 +276,17 @@ class GreenInvoiceController {
                         // Check if items is already an array (new format) or string (old format)
                         if (Array.isArray(itemData)) {
                             // New format: items array with quantities and prices
+                            // Fetch products from Supabase for accurate names
                             try {
-                                const productsData = require('../data/products.json');
-                                items = itemData.map(item => {
+                                const supabaseController = require('./supabaseController');
+                                const productsData = await supabaseController.getAllProducts();
+                                
+                                console.log('✅ Fetched', productsData.length, 'products from Supabase');
+                                
+                                items = await Promise.all(itemData.map(async (item) => {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
                                     if (product) {
+                                        console.log(`✅ Found product: ${product.name_he} / ${product.name_en}`);
                                         return {
                                             id: item.id,
                                             name_he: product.name_he || 'פריט',
@@ -289,6 +295,7 @@ class GreenInvoiceController {
                                             price: item.price || 0
                                         };
                                     } else {
+                                        console.warn(`⚠️  Product not found for ID: ${item.id}`);
                                         return {
                                             id: item.id,
                                             name_he: 'פריט לא ידוע',
@@ -297,9 +304,11 @@ class GreenInvoiceController {
                                             price: item.price || 0
                                         };
                                     }
-                                });
+                                }));
                             } catch (error) {
-                                console.error('❌ Failed to load products data:', error);
+                                console.error('❌ Failed to fetch products from Supabase:', error);
+                                console.error('Error details:', error.message);
+                                // Fallback: use generic item names
                                 items = itemData.map(item => ({
                                     id: item.id,
                                     name_he: 'פריט',
@@ -312,8 +321,10 @@ class GreenInvoiceController {
                             // Old format: comma-separated string (fallback)
                             const itemIds = itemData.split(',').filter(id => id.trim());
                             try {
-                                const productsData = require('../data/products.json');
-                                items = itemIds.map(itemId => {
+                                const supabaseController = require('./supabaseController');
+                                const productsData = await supabaseController.getAllProducts();
+                                
+                                items = await Promise.all(itemIds.map(async (itemId) => {
                                     const product = productsData.find(p => p.id.toString() === itemId.trim());
                                     if (product) {
                                         return {
@@ -332,9 +343,9 @@ class GreenInvoiceController {
                                             price: amount / itemIds.length
                                         };
                                     }
-                                });
+                                }));
                             } catch (error) {
-                                console.error('❌ Failed to load products data:', error);
+                                console.error('❌ Failed to fetch products from Supabase:', error);
                                 items = itemIds.map(itemId => ({
                                     id: itemId.trim(),
                                     name_he: 'פריט',
