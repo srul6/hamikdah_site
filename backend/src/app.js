@@ -42,6 +42,41 @@ app.get('/', (req, res) => {
     });
 });
 
+// Payment success redirect - handle GreenInvoice callback
+app.get('/payment/success', (req, res) => {
+    console.log('Payment success callback received - redirecting to frontend');
+    console.log('Query params:', req.query);
+    
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const queryString = new URLSearchParams(req.query).toString();
+    const redirectUrl = `${frontendUrl}/payment/success${queryString ? '?' + queryString : ''}`;
+    
+    console.log('Redirecting to:', redirectUrl);
+    res.redirect(redirectUrl);
+});
+
+// Payment failure redirect
+app.get('/payment/failure', (req, res) => {
+    console.log('Payment failure callback received - redirecting to frontend');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const queryString = new URLSearchParams(req.query).toString();
+    const redirectUrl = `${frontendUrl}/payment/failure${queryString ? '?' + queryString : ''}`;
+    
+    console.log('Redirecting to:', redirectUrl);
+    res.redirect(redirectUrl);
+});
+
+// Payment cancel redirect
+app.get('/payment/cancel', (req, res) => {
+    console.log('Payment cancel callback received - redirecting to frontend');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const queryString = new URLSearchParams(req.query).toString();
+    const redirectUrl = `${frontendUrl}/payment/cancel${queryString ? '?' + queryString : ''}`;
+    
+    console.log('Redirecting to:', redirectUrl);
+    res.redirect(redirectUrl);
+});
+
 // Catch-all for non-API routes - return helpful message
 app.get('*', (req, res) => {
     console.log(`Non-API route requested: ${req.path}`);
