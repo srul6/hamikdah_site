@@ -280,9 +280,9 @@ class GreenInvoiceController {
                             try {
                                 const supabaseController = require('./supabaseController');
                                 const productsData = await supabaseController.getAllProducts();
-                                
+
                                 console.log('✅ Fetched', productsData.length, 'products from Supabase');
-                                
+
                                 items = await Promise.all(itemData.map(async (item) => {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
                                     if (product) {
@@ -323,7 +323,7 @@ class GreenInvoiceController {
                             try {
                                 const supabaseController = require('./supabaseController');
                                 const productsData = await supabaseController.getAllProducts();
-                                
+
                                 items = await Promise.all(itemIds.map(async (itemId) => {
                                     const product = productsData.find(p => p.id.toString() === itemId.trim());
                                     if (product) {
@@ -449,8 +449,9 @@ class GreenInvoiceController {
                             documentDetails = await this.greenInvoiceService.getDocument(documentId);
                             console.log('✅ Document details retrieved:', documentDetails);
                         } catch (error) {
-                            console.error('❌ Failed to get document details:', error);
+                            console.error('❌ Failed to get document details:', error.message || error);
                             console.error('Document ID was:', documentId);
+                            console.log('⚠️  Continuing without document details - this is OK, email will still be sent');
                             // Continue processing even if document fetch fails
                         }
                     } else {

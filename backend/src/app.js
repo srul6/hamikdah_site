@@ -27,56 +27,29 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/coupons', require('./routes/coupons'));
 
-// Serve static files from the React build
-app.use(express.static(path.join(__dirname, '../../frontend/build')));
-
 // Handle API routes that weren't matched above
 app.all('/api/*', (req, res) => {
     console.log(`API route not found: ${req.method} ${req.path}`);
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// Specific routes for React app pages
-app.get('/admin', (req, res) => {
-    console.log('Serving admin page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+// Health check endpoint
+app.get('/', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        message: 'Hamikdash Backend API',
+        timestamp: new Date().toISOString()
+    });
 });
 
-app.get('/terms', (req, res) => {
-    console.log('Serving terms page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/returns', (req, res) => {
-    console.log('Serving returns page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/about', (req, res) => {
-    console.log('Serving about page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-// Payment result routes
-app.get('/payment/success', (req, res) => {
-    console.log('Serving payment success page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/payment/failure', (req, res) => {
-    console.log('Serving payment failure page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/payment/cancel', (req, res) => {
-    console.log('Serving payment cancel page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-// Catch-all route: serve React app for all non-API routes
+// Catch-all for non-API routes - return helpful message
 app.get('*', (req, res) => {
-    console.log(`Serving React app for: ${req.path}`);
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+    console.log(`Non-API route requested: ${req.path}`);
+    res.status(404).json({ 
+        error: 'Not Found',
+        message: 'This is the backend API. Frontend is served separately.',
+        requestedPath: req.path
+    });
 });
 
 const PORT = process.env.PORT || 5001;
