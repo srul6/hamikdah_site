@@ -27,64 +27,19 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/coupons', require('./routes/coupons'));
 
+// Serve static files from the React build
+app.use(express.static(path.join(__dirname, '../../frontend/build')));
+
 // Handle API routes that weren't matched above
 app.all('/api/*', (req, res) => {
     console.log(`API route not found: ${req.method} ${req.path}`);
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// Health check endpoint
-app.get('/', (req, res) => {
-    res.json({ 
-        status: 'ok', 
-        message: 'Hamikdash Backend API',
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Payment success redirect - handle GreenInvoice callback
-app.get('/payment/success', (req, res) => {
-    console.log('Payment success callback received - redirecting to frontend');
-    console.log('Query params:', req.query);
-    
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const queryString = new URLSearchParams(req.query).toString();
-    const redirectUrl = `${frontendUrl}/payment/success${queryString ? '?' + queryString : ''}`;
-    
-    console.log('Redirecting to:', redirectUrl);
-    res.redirect(redirectUrl);
-});
-
-// Payment failure redirect
-app.get('/payment/failure', (req, res) => {
-    console.log('Payment failure callback received - redirecting to frontend');
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const queryString = new URLSearchParams(req.query).toString();
-    const redirectUrl = `${frontendUrl}/payment/failure${queryString ? '?' + queryString : ''}`;
-    
-    console.log('Redirecting to:', redirectUrl);
-    res.redirect(redirectUrl);
-});
-
-// Payment cancel redirect
-app.get('/payment/cancel', (req, res) => {
-    console.log('Payment cancel callback received - redirecting to frontend');
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const queryString = new URLSearchParams(req.query).toString();
-    const redirectUrl = `${frontendUrl}/payment/cancel${queryString ? '?' + queryString : ''}`;
-    
-    console.log('Redirecting to:', redirectUrl);
-    res.redirect(redirectUrl);
-});
-
-// Catch-all for non-API routes - return helpful message
+// Catch-all route: serve React app for all non-API routes
 app.get('*', (req, res) => {
-    console.log(`Non-API route requested: ${req.path}`);
-    res.status(404).json({ 
-        error: 'Not Found',
-        message: 'This is the backend API. Frontend is served separately.',
-        requestedPath: req.path
-    });
+    console.log(`Serving React app for: ${req.path}`);
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
 });
 
 const PORT = process.env.PORT || 5001;
