@@ -109,7 +109,16 @@ class EmailService {
 
         // Safely handle missing items array
         const safeItems = Array.isArray(items) ? items : [];
-        const timestamp = purchaseTimestamp ? new Date(purchaseTimestamp).toLocaleString('he-IL') : new Date().toLocaleString('he-IL');
+        // purchaseTimestamp is already a formatted string from the webhook
+        const timestamp = purchaseTimestamp || new Date().toLocaleString('he-IL', {
+            timeZone: 'Asia/Jerusalem',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
 
         return `
             <!DOCTYPE html>
@@ -218,7 +227,16 @@ class EmailService {
 
         // Safely handle missing items array
         const safeItems = Array.isArray(items) ? items : [];
-        const timestamp = purchaseTimestamp ? new Date(purchaseTimestamp).toLocaleString('he-IL') : new Date().toLocaleString('he-IL');
+        // purchaseTimestamp is already a formatted string from the webhook
+        const timestamp = purchaseTimestamp || new Date().toLocaleString('he-IL', {
+            timeZone: 'Asia/Jerusalem',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
 
         return `
 הזמנה חדשה - ${status.toUpperCase()}
