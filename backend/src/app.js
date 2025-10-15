@@ -39,7 +39,29 @@ app.all('/api/*', (req, res) => {
 // Catch-all route: serve React app for all non-API routes
 app.get('*', (req, res) => {
     console.log(`Serving React app for: ${req.path}`);
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+    const indexPath = path.join(__dirname, '../../frontend/build/index.html');
+    
+    // Check if build exists
+    const fs = require('fs');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        console.error('❌ Frontend build not found at:', indexPath);
+        console.error('⚠️  Please check your Render build command includes: cd frontend && npm install && npm run build');
+        res.status(503).send(`
+            <html>
+                <head><title>Build Error</title></head>
+                <body style="font-family: Arial; padding: 50px; text-align: center;">
+                    <h1>⚠️ Frontend Build Not Found</h1>
+                    <p>The React app hasn't been built yet.</p>
+                    <p>Please check Render build settings.</p>
+                    <hr>
+                    <p>Build path: ${indexPath}</p>
+                    <p><a href="/api/orders">View Orders API</a></p>
+                </body>
+            </html>
+        `);
+    }
 });
 
 const PORT = process.env.PORT || 5001;
