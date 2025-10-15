@@ -59,7 +59,17 @@ class EmailService {
                 subject: subject,
                 text: textContent,
                 html: htmlContent,
-                replyTo: this.adminEmail // Replies will go to your Gmail
+                replyTo: this.adminEmail, // Replies will go to your Gmail
+                // Improve deliverability
+                categories: ['order-notification', 'transactional'],
+                customArgs: {
+                    order_type: 'purchase',
+                    notification_type: 'admin'
+                },
+                trackingSettings: {
+                    clickTracking: { enable: false },
+                    openTracking: { enable: false }
+                }
             };
 
             console.log('📧 Sending order notification email via SendGrid...');
