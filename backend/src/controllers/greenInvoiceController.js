@@ -1,13 +1,13 @@
 const GreenInvoiceService = require('../services/greenInvoiceService');
 const EmailService = require('../services/emailService');
-const SupabaseController = require('./supabaseController');
+const supabaseController = require('./supabaseController'); // Import instance directly
 const axios = require('axios'); // Added for testing document types
 
 class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
         this.emailService = new EmailService();
-        this.supabaseController = new SupabaseController();
+        this.supabaseController = supabaseController; // Use the existing instance
         this.processedWebhooks = new Set(); // Track processed webhooks to prevent duplicates
         console.log('GreenInvoice Controller initialized');
     }
