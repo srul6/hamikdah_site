@@ -881,11 +881,10 @@ export default function MikdashProductPage({ onAddToCart }) {
     const productGalleryImages = [
         '/2mikdash_product_images/candle.png',
         '/2mikdash_product_images/hamikdash.png',
-        '/2mikdash_product_images/hamikdash2.png',
-        '/2mikdash_product_images/hamikdash_hidabrut.jpg',
         '/2mikdash_product_images/kruvim.png',
         '/2mikdash_product_images/lehem.png',
         '/2mikdash_product_images/pnimi.png',
+        '/2mikdash_product_images/hamikdash2.png'
         // Add more images as needed
     ];
 
@@ -2049,7 +2048,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 px: { xs: 4, md: '9%' },
                             }}
                         >
-                            {isHebrew ? 'גלריית המוצר' : 'Product Gallery'}
+                            {isHebrew ? 'תמונות מקרוב' : 'Product Gallery'}
                         </Typography>
                     </Box>
 
