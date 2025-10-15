@@ -73,9 +73,9 @@ class GreenInvoiceController {
                     }] : [])
                 ],
                 remarks: "תודה על הזמנתך",
-                successUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
-                failureUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/failure`,
-                notifyUrl: `${process.env.BACKEND_URL || 'https://your-domain.com'}/api/greeninvoice/webhook`,
+                successUrl: `${process.env.BACKEND_URL || process.env.FRONTEND_URL || 'https://hamikdah-site.onrender.com'}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
+                failureUrl: `${process.env.BACKEND_URL || process.env.FRONTEND_URL || 'https://hamikdah-site.onrender.com'}/payment/failure`,
+                notifyUrl: `${process.env.BACKEND_URL || 'https://hamikdah-site.onrender.com'}/api/greeninvoice/webhook`,
                 custom: JSON.stringify({
                     orderId: Date.now(),
                     customerId: customerInfo.email,
