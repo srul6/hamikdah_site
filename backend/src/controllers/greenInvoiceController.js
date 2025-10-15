@@ -73,9 +73,9 @@ class GreenInvoiceController {
                     }] : [])
                 ],
                 remarks: "תודה על הזמנתך",
-                successUrl: `${process.env.BACKEND_URL || process.env.FRONTEND_URL || 'https://hamikdah-site.onrender.com'}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
-                failureUrl: `${process.env.BACKEND_URL || process.env.FRONTEND_URL || 'https://hamikdah-site.onrender.com'}/payment/failure`,
-                notifyUrl: `${process.env.BACKEND_URL || 'https://hamikdah-site.onrender.com'}/api/greeninvoice/webhook`,
+                successUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
+                failureUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/failure`,
+                notifyUrl: `${process.env.BACKEND_URL || 'https://your-domain.com'}/api/greeninvoice/webhook`,
                 custom: JSON.stringify({
                     orderId: Date.now(),
                     customerId: customerInfo.email,
@@ -276,17 +276,11 @@ class GreenInvoiceController {
                         // Check if items is already an array (new format) or string (old format)
                         if (Array.isArray(itemData)) {
                             // New format: items array with quantities and prices
-                            // Fetch products from Supabase for accurate names
                             try {
-                                const supabaseController = require('./supabaseController');
-                                const productsData = await supabaseController.getAllProducts();
-
-                                console.log('✅ Fetched', productsData.length, 'products from Supabase');
-
-                                items = await Promise.all(itemData.map(async (item) => {
+                                const productsData = require('../data/products.json');
+                                items = itemData.map(item => {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
                                     if (product) {
-                                        console.log(`✅ Found product: ${product.name_he} / ${product.name_en}`);
                                         return {
                                             id: item.id,
                                             name_he: product.name_he || 'פריט',
@@ -295,7 +289,6 @@ class GreenInvoiceController {
                                             price: item.price || 0
                                         };
                                     } else {
-                                        console.warn(`⚠️  Product not found for ID: ${item.id}`);
                                         return {
                                             id: item.id,
                                             name_he: 'פריט לא ידוע',
@@ -304,11 +297,9 @@ class GreenInvoiceController {
                                             price: item.price || 0
                                         };
                                     }
-                                }));
+                                });
                             } catch (error) {
-                                console.error('❌ Failed to fetch products from Supabase:', error);
-                                console.error('Error details:', error.message);
-                                // Fallback: use generic item names
+                                console.error('❌ Failed to load products data:', error);
                                 items = itemData.map(item => ({
                                     id: item.id,
                                     name_he: 'פריט',
@@ -321,10 +312,8 @@ class GreenInvoiceController {
                             // Old format: comma-separated string (fallback)
                             const itemIds = itemData.split(',').filter(id => id.trim());
                             try {
-                                const supabaseController = require('./supabaseController');
-                                const productsData = await supabaseController.getAllProducts();
-
-                                items = await Promise.all(itemIds.map(async (itemId) => {
+                                const productsData = require('../data/products.json');
+                                items = itemIds.map(itemId => {
                                     const product = productsData.find(p => p.id.toString() === itemId.trim());
                                     if (product) {
                                         return {
@@ -343,9 +332,9 @@ class GreenInvoiceController {
                                             price: amount / itemIds.length
                                         };
                                     }
-                                }));
+                                });
                             } catch (error) {
-                                console.error('❌ Failed to fetch products from Supabase:', error);
+                                console.error('❌ Failed to load products data:', error);
                                 items = itemIds.map(itemId => ({
                                     id: itemId.trim(),
                                     name_he: 'פריט',
@@ -449,9 +438,8 @@ class GreenInvoiceController {
                             documentDetails = await this.greenInvoiceService.getDocument(documentId);
                             console.log('✅ Document details retrieved:', documentDetails);
                         } catch (error) {
-                            console.error('❌ Failed to get document details:', error.message || error);
+                            console.error('❌ Failed to get document details:', error);
                             console.error('Document ID was:', documentId);
-                            console.log('⚠️  Continuing without document details - this is OK, email will still be sent');
                             // Continue processing even if document fetch fails
                         }
                     } else {

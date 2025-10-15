@@ -19,19 +19,12 @@ export default function PaymentSuccess() {
     const t = translations[language];
 
     useEffect(() => {
-        // Log all URL parameters for debugging
-        console.log('PaymentSuccess page loaded');
-        console.log('Full URL:', window.location.href);
-        console.log('Search params:', window.location.search);
-        
         // Extract payment details from URL parameters
         const orderId = searchParams.get('orderId');
         const amount = searchParams.get('amount');
         const currency = searchParams.get('currency') || 'ILS';
         const documentId = searchParams.get('documentId');
         const customerEmail = searchParams.get('customerEmail');
-
-        console.log('Parsed parameters:', { orderId, amount, currency, documentId, customerEmail });
 
         if (orderId && amount) {
             setPaymentDetails({
@@ -41,17 +34,12 @@ export default function PaymentSuccess() {
                 documentId,
                 customerEmail
             });
-            console.log('Payment details set successfully');
         } else {
-            console.error('Missing required parameters:', { orderId, amount });
-            setError(isHebrew ? 
-                'לא נמצאו פרטי תשלום. אנא צור קשר עם התמיכה.' : 
-                'Payment details not found. Please contact support.'
-            );
+            setError('Payment details not found');
         }
 
         setIsLoading(false);
-    }, [searchParams, isHebrew]);
+    }, [searchParams]);
 
     const handleContinueShopping = () => {
         navigate('/');
