@@ -1,11 +1,13 @@
 const GreenInvoiceService = require('../services/greenInvoiceService');
 const EmailService = require('../services/emailService');
+const SupabaseController = require('./supabaseController');
 const axios = require('axios'); // Added for testing document types
 
 class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
         this.emailService = new EmailService();
+        this.supabaseController = new SupabaseController();
         this.processedWebhooks = new Set(); // Track processed webhooks to prevent duplicates
         console.log('GreenInvoice Controller initialized');
     }
@@ -73,9 +75,9 @@ class GreenInvoiceController {
                     }] : [])
                 ],
                 remarks: "תודה על הזמנתך",
-                successUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
-                failureUrl: `${process.env.FRONTEND_URL || 'https://your-domain.com'}/payment/failure`,
-                notifyUrl: `${process.env.BACKEND_URL || 'https://your-domain.com'}/api/greeninvoice/webhook`,
+                successUrl: `${process.env.FRONTEND_URL}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
+                failureUrl: `${process.env.FRONTEND_URL}/payment/failure`,
+                notifyUrl: `${process.env.BACKEND_URL}/api/greeninvoice/webhook`,
                 custom: JSON.stringify({
                     orderId: Date.now(),
                     customerId: customerInfo.email,
@@ -277,10 +279,14 @@ class GreenInvoiceController {
                         if (Array.isArray(itemData)) {
                             // New format: items array with quantities and prices
                             try {
-                                const productsData = require('../data/products.json');
-                                items = itemData.map(item => {
+                                // Fetch products from Supabase
+                                const productsData = await this.supabaseController.getAllProducts();
+                                console.log('✅ Fetched products from Supabase:', productsData.length);
+
+                                items = await Promise.all(itemData.map(async item => {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
                                     if (product) {
+                                        console.log('✅ Found product:', product.name_he, product.name_en);
                                         return {
                                             id: item.id,
                                             name_he: product.name_he || 'פריט',
@@ -289,6 +295,7 @@ class GreenInvoiceController {
                                             price: item.price || 0
                                         };
                                     } else {
+                                        console.log('⚠️  Product not found for ID:', item.id);
                                         return {
                                             id: item.id,
                                             name_he: 'פריט לא ידוע',
@@ -297,9 +304,9 @@ class GreenInvoiceController {
                                             price: item.price || 0
                                         };
                                     }
-                                });
+                                }));
                             } catch (error) {
-                                console.error('❌ Failed to load products data:', error);
+                                console.error('❌ Failed to load products from Supabase:', error);
                                 items = itemData.map(item => ({
                                     id: item.id,
                                     name_he: 'פריט',
@@ -312,7 +319,8 @@ class GreenInvoiceController {
                             // Old format: comma-separated string (fallback)
                             const itemIds = itemData.split(',').filter(id => id.trim());
                             try {
-                                const productsData = require('../data/products.json');
+                                // Fetch products from Supabase
+                                const productsData = await this.supabaseController.getAllProducts();
                                 items = itemIds.map(itemId => {
                                     const product = productsData.find(p => p.id.toString() === itemId.trim());
                                     if (product) {
@@ -334,7 +342,7 @@ class GreenInvoiceController {
                                     }
                                 });
                             } catch (error) {
-                                console.error('❌ Failed to load products data:', error);
+                                console.error('❌ Failed to load products from Supabase:', error);
                                 items = itemIds.map(itemId => ({
                                     id: itemId.trim(),
                                     name_he: 'פריט',

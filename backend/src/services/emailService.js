@@ -90,7 +90,16 @@ class EmailService {
 
         // Safely handle missing items array
         const safeItems = Array.isArray(items) ? items : [];
-        const timestamp = purchaseTimestamp ? new Date(purchaseTimestamp).toLocaleString('he-IL') : new Date().toLocaleString('he-IL');
+        // purchaseTimestamp is already formatted as a string from the controller
+        const timestamp = purchaseTimestamp || new Date().toLocaleString('he-IL', {
+            timeZone: 'Asia/Jerusalem',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
 
         return `
             <!DOCTYPE html>
@@ -147,20 +156,25 @@ class EmailService {
                         border-bottom: 2px solid #e55a3d;
                         padding-bottom: 10px;
                         margin-bottom: 15px;
+                        text-align: right;
                     }
                     .field { 
                         margin-bottom: 12px;
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
+                        direction: rtl;
+                        text-align: right;
                     }
                     .field strong { 
                         color: #666;
                         font-weight: 600;
+                        text-align: right;
                     }
                     .field-value {
                         color: #333;
                         font-weight: 500;
+                        text-align: left;
                     }
                     .items-table { 
                         width: 100%; 
@@ -233,23 +247,23 @@ class EmailService {
                         <div class="section">
                             <h3>📋 פרטי ההזמנה</h3>
                             <div class="field">
-                                <strong>סטטוס:</strong>
+                                <strong>סטטוס: </strong>
                                 <span class="status-${status}">${status.toUpperCase()}</span>
                             </div>
                             <div class="field">
-                                <strong>Form ID:</strong>
+                                <strong>Form ID: </strong>
                                 <span class="field-value">${formId}</span>
                             </div>
                             <div class="field">
-                                <strong>Document ID:</strong>
+                                <strong>Document ID: </strong>
                                 <span class="field-value">${documentId || 'לא זמין'}</span>
                             </div>
                             <div class="field">
-                                <strong>Payment ID:</strong>
+                                <strong>Payment ID :</strong>
                                 <span class="field-value">${paymentId || 'לא זמין'}</span>
                             </div>
                             <div class="field">
-                                <strong>תאריך רכישה:</strong>
+                                <strong>תאריך רכישה: </strong>
                                 <span class="field-value">${timestamp}</span>
                             </div>
                         </div>
@@ -261,20 +275,20 @@ class EmailService {
                         <div class="section">
                             <h3>👤 פרטי הלקוח</h3>
                             <div class="field">
-                                <strong>שם מלא:</strong>
+                                <strong>שם מלא: </strong>
                                 <span class="field-value">${customerInfo?.name || 'לא זמין'}</span>
                             </div>
                             <div class="field">
-                                <strong>אימייל:</strong>
+                                <strong>אימייל: </strong>
                                 <span class="field-value">${customerInfo?.email || 'לא זמין'}</span>
                             </div>
                             <div class="field">
-                                <strong>טלפון:</strong>
+                                <strong>טלפון: </strong>
                                 <span class="field-value">${customerInfo?.phone || 'לא זמין'}</span>
                             </div>
                             ${dedication ? `
                             <div class="field">
-                                <strong>הקדשה:</strong>
+                                <strong>הקדשה: </strong>
                                 <span class="field-value">${dedication}</span>
                             </div>
                             ` : ''}
@@ -283,23 +297,19 @@ class EmailService {
                         <div class="section">
                             <h3>📦 פרטי משלוח</h3>
                             <div class="field">
-                                <strong>כתובת:</strong>
+                                <strong>כתובת: </strong>
                                 <span class="field-value">${customerInfo?.street || 'לא זמין'} ${customerInfo?.houseNumber || ''}</span>
                             </div>
-                            ${customerInfo?.apartmentNumber ? `
                             <div class="field">
-                                <strong>דירה:</strong>
-                                <span class="field-value">${customerInfo.apartmentNumber}</span>
+                                <strong>דירה: </strong>
+                                <span class="field-value">${customerInfo.apartmentNumber || 'לא צוין'}</span>
                             </div>
-                            ` : ''}
-                            ${customerInfo?.floor ? `
                             <div class="field">
-                                <strong>קומה:</strong>
-                                <span class="field-value">${customerInfo.floor}</span>
+                                <strong>קומה: </strong>
+                                <span class="field-value">${customerInfo.floor || 'לא צוין'}</span>
                             </div>
-                            ` : ''}
                             <div class="field">
-                                <strong>עיר:</strong>
+                                <strong>עיר: </strong>
                                 <span class="field-value">${customerInfo?.city || 'לא זמין'}</span>
                             </div>
                         </div>
@@ -357,7 +367,16 @@ class EmailService {
 
         // Safely handle missing items array
         const safeItems = Array.isArray(items) ? items : [];
-        const timestamp = purchaseTimestamp ? new Date(purchaseTimestamp).toLocaleString('he-IL') : new Date().toLocaleString('he-IL');
+        // purchaseTimestamp is already formatted as a string from the controller
+        const timestamp = purchaseTimestamp || new Date().toLocaleString('he-IL', {
+            timeZone: 'Asia/Jerusalem',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
 
         return `
 🎉 הזמנה חדשה - ${status.toUpperCase()}
