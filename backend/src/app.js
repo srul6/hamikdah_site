@@ -26,6 +26,8 @@ app.use('/api/greeninvoice', require('./routes/greenInvoice'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/upload', require('./routes/upload'));
+app.use('/api/comments', require('./routes/comments'));
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));

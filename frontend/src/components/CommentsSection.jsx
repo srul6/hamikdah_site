@@ -4,71 +4,40 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
-
-// Comments data - easily editable
-// Add 'type' field: 'text' for written comments, 'video' for video comments
-// For videos, add 'videoUrl' field with the video file path
-const comments = [
-    {
-        id: 1,
-        name_he: "דוד כהן",
-        name_en: "David Cohen",
-        text_he: "המוצרים איכותיים מאוד ומגיעים בזמן. ממליץ בחום!",
-        text_en: "The products are very high quality and arrive on time. Highly recommend!",
-        type: "text",
-        rating: 5
-    },
-    {
-        id: 2,
-        name_he: "משה גולדברג",
-        name_en: "Moshe Goldberg",
-        videoUrl: "/comment1.mp4", // Example video path
-        type: "video",
-        rating: 5
-    },
-    {
-        id: 3,
-        name_he: "שרה לוי",
-        name_en: "Sarah Levy",
-        text_he: "שירות לקוחות מעולה ומוצרים יפים. אהבתי במיוחד את הנרות.",
-        text_en: "Excellent customer service and beautiful products. I especially loved the candles.",
-        type: "text",
-        rating: 5
-    },
-    {
-        id: 4,
-        name_he: "רחל אברהם",
-        name_en: "Rachel Abraham",
-        text_he: "הדגמים של בית הכנסת והמקדש מדהימים. מושלם לבית.",
-        text_en: "The synagogue and temple models are amazing. Perfect for the home.",
-        type: "text",
-        rating: 5
-    },
-    {
-        id: 5,
-        name_he: "יוסף שפירא",
-        name_en: "Yosef Shapiro",
-        videoUrl: "/testimonial-video-2.mp4", // Example video path
-        type: "video",
-        rating: 5
-    },
-    {
-        id: 6,
-        name_he: "מיכל רוזן",
-        name_en: "Michal Rosen",
-        text_he: "המוצרים מעוצבים יפה ומתאימים לכל בית יהודי.",
-        text_en: "The products are beautifully designed and suitable for every Jewish home.",
-        type: "text",
-        rating: 5
-    }
-];
+import { fetchComments } from '../api/comments';
 
 export default function CommentsSection() {
     const sectionRef = useRef(null);
     const [playingVideos, setPlayingVideos] = useState({});
     const videoRefs = useRef({});
+    const [comments, setComments] = useState([]);
+    const [loading, setLoading] = useState(true);
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+
+    // Fetch comments from API
+    useEffect(() => {
+        async function loadComments() {
+            try {
+                setLoading(true);
+                const data = await fetchComments();
+                // Convert snake_case to camelCase for compatibility
+                const formattedComments = data.map(comment => ({
+                    ...comment,
+                    videoUrl: comment.video_url || comment.videoUrl,
+                    imageUrl: comment.image_url || comment.imageUrl
+                }));
+                setComments(formattedComments);
+            } catch (error) {
+                console.error('Error loading comments:', error);
+                // Keep comments as empty array on error
+                setComments([]);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadComments();
+    }, []);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -167,13 +136,35 @@ export default function CommentsSection() {
                         px: 2
                     }}
                 >
-                    {comments.map((comment) => (
+                    {loading ? (
+                        <Box sx={{
+                            width: '100%',
+                            textAlign: 'center',
+                            py: 8,
+                            color: '#666'
+                        }}>
+                            <Typography variant="h6">
+                                {isHebrew ? 'טוען תגובות...' : 'Loading comments...'}
+                            </Typography>
+                        </Box>
+                    ) : comments.length === 0 ? (
+                        <Box sx={{
+                            width: '100%',
+                            textAlign: 'center',
+                            py: 8,
+                            color: '#666'
+                        }}>
+                            <Typography variant="h6">
+                                {isHebrew ? 'אין תגובות זמינות כרגע' : 'No comments available yet'}
+                            </Typography>
+                        </Box>
+                    ) : comments.map((comment) => (
                         <Card
                             key={comment.id}
                             sx={{
-                                minWidth: 280, // Less wide
-                                maxWidth: 280, // Less wide
-                                height: 350, // More tall
+                                minWidth: { xs: 320, sm: 340, md: 340, lg: 340, xl: 340 }, // Increased width
+                                maxWidth: { xs: 320, sm: 340, md: 340, lg: 340, xl: 340 }, // Increased width
+                                height: 390, // Increased height
                                 flexShrink: 0,
                                 borderRadius: 3, // Increased from 3 to 4 for more rounded corners
                                 border: '2px solid #d8472a', // Black border
@@ -224,7 +215,7 @@ export default function CommentsSection() {
                                         {isHebrew ? comment.name_he : comment.name_en}
                                     </Typography>
                                 </>
-                            ) : (
+                            ) : comment.type === 'video' ? (
                                 // Video Comment
                                 <>
                                     <Box
@@ -278,6 +269,34 @@ export default function CommentsSection() {
                                         >
                                             {playingVideos[comment.id] ? <PauseIcon /> : <PlayArrowIcon />}
                                         </IconButton>
+                                    </Box>
+                                </>
+                            ) : (
+                                // Image Comment
+                                <>
+                                    <Box
+                                        sx={{
+                                            width: '100%',
+                                            height: '100%',
+                                            position: 'relative',
+                                            borderRadius: '8px',
+                                            overflow: 'hidden',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: '#f5f5f5'
+                                        }}
+                                    >
+                                        <img
+                                            src={comment.imageUrl}
+                                            alt={isHebrew ? comment.name_he : comment.name_en}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                borderRadius: '8px'
+                                            }}
+                                        />
                                     </Box>
                                 </>
                             )}

@@ -11,8 +11,10 @@ exports.getAllProducts = async (req, res) => {
             ...product,
             homepageImage: getStorageUrl(product.homepageimage),
             extraImages: getStorageUrls(product.extraimages),
-            // Map children playing media with auto-prepend folder path
-            childrenPlaying: getStorageUrls((product.children_playing || []).map(media => `mikdash_child_playing/${media}`)),
+            // Map children playing media - handle both full URLs and filenames
+            childrenPlaying: (product.children_playing || []).map(media =>
+                media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
+            ),
             // Map desktop hero images (handle both filenames and full URLs)
             desktopHeroImages: (product.desktop_hero_images || []).map(url =>
                 url.startsWith('http') ? url : getStorageUrl(url)
@@ -35,7 +37,10 @@ exports.getProductById = async (req, res) => {
                 ...product,
                 homepageImage: getStorageUrl(product.homepageimage),
                 extraImages: getStorageUrls(product.extraimages),
-                childrenPlaying: getStorageUrls((product.children_playing || []).map(media => `mikdash_child_playing/${media}`)),
+                // Map children playing media - handle both full URLs and filenames
+                childrenPlaying: (product.children_playing || []).map(media =>
+                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
+                ),
                 desktopHeroImages: (product.desktop_hero_images || []).map(url =>
                     url.startsWith('http') ? url : getStorageUrl(url)
                 )

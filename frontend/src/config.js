@@ -10,5 +10,6 @@ export const API_ENDPOINTS = {
     greenInvoice: `${API_BASE_URL}/api/greeninvoice`,
     cart: `${API_BASE_URL}/api/cart`,
     admin: `${API_BASE_URL}/api/admin`,
-    coupons: `${API_BASE_URL}/api/coupons`
+    coupons: `${API_BASE_URL}/api/coupons`,
+    upload: `${API_BASE_URL}/api/upload`
 };

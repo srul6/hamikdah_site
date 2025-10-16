@@ -723,38 +723,44 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                 {isHebrew ? 'מידות' : 'Dimensions'}
                             </Typography>
                             <Box sx={{ textAlign: 'center' }}>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: '#f5f0e3',
-                                        fontWeight: 600,
-                                        fontSize: { xs: '1rem', md: '1.1rem' },
-                                        mb: 0.5
-                                    }}
-                                >
-                                    {isHebrew ? 'גובה – 30 ס״מ' : 'Height – 30 cm'}
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: '#f5f0e3',
-                                        fontWeight: 600,
-                                        fontSize: { xs: '1rem', md: '1.1rem' },
-                                        mb: 0.5
-                                    }}
-                                >
-                                    {isHebrew ? 'רוחב – 25 ס״מ' : 'Width – 25 cm'}
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: '#f5f0e3',
-                                        fontWeight: 600,
-                                        fontSize: { xs: '1rem', md: '1.1rem' }
-                                    }}
-                                >
-                                    {isHebrew ? 'אורך – 20 ס״מ' : 'Length – 20 cm'}
-                                </Typography>
+                                {product?.height && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: '#f5f0e3',
+                                            fontWeight: 600,
+                                            fontSize: { xs: '1rem', md: '1.1rem' },
+                                            mb: 0.5
+                                        }}
+                                    >
+                                        {isHebrew ? `גובה – ${product.height}` : `Height – ${product.height}`}
+                                    </Typography>
+                                )}
+                                {product?.width && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: '#f5f0e3',
+                                            fontWeight: 600,
+                                            fontSize: { xs: '1rem', md: '1.1rem' },
+                                            mb: 0.5
+                                        }}
+                                    >
+                                        {isHebrew ? `רוחב – ${product.width}` : `Width – ${product.width}`}
+                                    </Typography>
+                                )}
+                                {product?.length && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: '#f5f0e3',
+                                            fontWeight: 600,
+                                            fontSize: { xs: '1rem', md: '1.1rem' }
+                                        }}
+                                    >
+                                        {isHebrew ? `אורך – ${product.length}` : `Length – ${product.length}`}
+                                    </Typography>
+                                )}
                             </Box>
                         </Card>
                     </Grid>
@@ -1904,7 +1910,8 @@ export default function MikdashProductPage({ onAddToCart }) {
                             <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
 
                             {product.childrenPlaying.map((media, index) => {
-                                const isVideo = media.includes('youtube.com/embed') || media.includes('.mp4') || media.includes('.mov') || media.includes('.webm');
+                                const isYouTube = media.includes('youtube.com/embed');
+                                const isUploadedVideo = media.includes('.mp4') || media.includes('.mov') || media.includes('.webm') || media.includes('.avi') || media.includes('.mkv');
 
                                 return (
                                     <Box key={`cp-${index}`} sx={{
@@ -1913,7 +1920,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                                         display: 'flex',
                                         alignItems: 'center',
                                     }}>
-                                        {isVideo ? (
+                                        {isYouTube ? (
                                             <Box sx={{
                                                 height: '100%',
                                                 width: 'auto',
@@ -1932,8 +1939,30 @@ export default function MikdashProductPage({ onAddToCart }) {
                                                         border: 'none',
                                                         borderRadius: '8px'
                                                     }}
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                     allowFullScreen
+                                                />
+                                            </Box>
+                                        ) : isUploadedVideo ? (
+                                            <Box sx={{
+                                                height: '100%',
+                                                width: 'auto',
+                                                aspectRatio: '16/9',
+                                                borderRadius: 2,
+                                                overflow: 'hidden',
+                                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                                position: 'relative'
+                                            }}>
+                                                <video
+                                                    src={media}
+                                                    controls
+                                                    style={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                        borderRadius: '8px'
+                                                    }}
+                                                    preload="metadata"
                                                 />
                                             </Box>
                                         ) : (

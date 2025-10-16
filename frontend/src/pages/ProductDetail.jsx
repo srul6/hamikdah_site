@@ -591,22 +591,52 @@ export default function ProductDetail({ onAddToCart }) {
                   sx={{
                     fontWeight: 600,
                     color: '#1d1d1f',
-                    mb: 0,
+                    mb: 1,
                     fontSize: { xs: '1rem', md: '1.2rem' }
                   }}
                 >
-                  {isHebrew ? 'גודל' : 'Size'}
+                  {isHebrew ? 'מידות' : 'Dimensions'}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: 'rgba(229, 90, 61, 1)',
-                    fontWeight: 600,
-                    fontSize: { xs: '1.1rem', md: '1.3rem' }
-                  }}
-                >
-                  {product?.size || (isHebrew ? '25×20×15 ס״מ' : '25×20×15 cm')}
-                </Typography>
+                <Box sx={{ textAlign: 'center' }}>
+                  {product?.height && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'rgba(229, 90, 61, 1)',
+                        fontWeight: 600,
+                        fontSize: { xs: '0.9rem', md: '1rem' },
+                        mb: 0.5
+                      }}
+                    >
+                      {isHebrew ? `גובה – ${product.height}` : `Height – ${product.height}`}
+                    </Typography>
+                  )}
+                  {product?.width && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'rgba(229, 90, 61, 1)',
+                        fontWeight: 600,
+                        fontSize: { xs: '0.9rem', md: '1rem' },
+                        mb: 0.5
+                      }}
+                    >
+                      {isHebrew ? `רוחב – ${product.width}` : `Width – ${product.width}`}
+                    </Typography>
+                  )}
+                  {product?.length && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'rgba(229, 90, 61, 1)',
+                        fontWeight: 600,
+                        fontSize: { xs: '0.9rem', md: '1rem' }
+                      }}
+                    >
+                      {isHebrew ? `אורך – ${product.length}` : `Length – ${product.length}`}
+                    </Typography>
+                  )}
+                </Box>
               </Card>
             </Grid>
 

@@ -59,6 +59,8 @@ class SupabaseController {
     // Update product
     async updateProduct(id, updateData) {
         try {
+            console.log('📝 Updating product:', id, 'with data:', updateData);
+
             const { data, error } = await supabase
                 .from('products')
                 .update(updateData)
@@ -66,10 +68,19 @@ class SupabaseController {
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('❌ Supabase update error:', error);
+                console.error('   Error details:', JSON.stringify(error, null, 2));
+                throw error;
+            }
+
+            console.log('✅ Product updated successfully:', data);
             return data;
         } catch (error) {
-            console.error('Error updating product:', error);
+            console.error('❌ Error updating product:', error);
+            console.error('   Error message:', error.message);
+            console.error('   Error details:', error.details || 'No details');
+            console.error('   Error hint:', error.hint || 'No hint');
             throw error;
         }
     }
@@ -122,6 +133,147 @@ class SupabaseController {
             return true;
         } catch (error) {
             console.error('Error saving cart:', error);
+            throw error;
+        }
+    }
+
+    // Image upload to Supabase Storage
+    async uploadImage(file, folder = 'products') {
+        try {
+            // Generate unique filename
+            const timestamp = Date.now();
+            const fileExt = file.originalname.split('.').pop();
+            const fileName = `${folder}/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+            console.log('📤 Uploading image to Supabase Storage:', fileName);
+
+            // Upload to Supabase Storage
+            const { data, error } = await supabase.storage
+                .from('product-images') // Bucket name
+                .upload(fileName, file.buffer, {
+                    contentType: file.mimetype,
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (error) {
+                console.error('❌ Supabase upload error:', error);
+                throw error;
+            }
+
+            // Get public URL
+            const { data: publicUrlData } = supabase.storage
+                .from('product-images')
+                .getPublicUrl(fileName);
+
+            console.log('✅ Image uploaded successfully');
+            console.log('   File path:', fileName);
+            console.log('   Public URL:', publicUrlData.publicUrl);
+
+            return {
+                success: true,
+                url: publicUrlData.publicUrl, // Return full Supabase URL
+                path: fileName
+            };
+        } catch (error) {
+            console.error('❌ Error uploading image:', error);
+            throw error;
+        }
+    }
+
+    // Delete image from Supabase Storage
+    async deleteImage(filePath) {
+        try {
+            const { error } = await supabase.storage
+                .from('product-images')
+                .remove([filePath]);
+
+            if (error) throw error;
+
+            console.log('✅ Image deleted successfully:', filePath);
+            return true;
+        } catch (error) {
+            console.error('❌ Error deleting image:', error);
+            throw error;
+        }
+    }
+
+    // Comments methods
+    async getAllComments() {
+        try {
+            const { data, error } = await supabase
+                .from('comments')
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('❌ Error fetching comments:', error);
+            throw error;
+        }
+    }
+
+    async getCommentById(id) {
+        try {
+            const { data, error } = await supabase
+                .from('comments')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error fetching comment:', error);
+            throw error;
+        }
+    }
+
+    async createComment(commentData) {
+        try {
+            const { data, error } = await supabase
+                .from('comments')
+                .insert([commentData])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error creating comment:', error);
+            throw error;
+        }
+    }
+
+    async updateComment(id, commentData) {
+        try {
+            const { data, error } = await supabase
+                .from('comments')
+                .update(commentData)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error updating comment:', error);
+            throw error;
+        }
+    }
+
+    async deleteComment(id) {
+        try {
+            const { error } = await supabase
+                .from('comments')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('❌ Error deleting comment:', error);
             throw error;
         }
     }
