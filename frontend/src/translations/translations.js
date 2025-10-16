@@ -22,7 +22,9 @@ export const translations = {
         addToCart: 'הוסף לעגלה',
         loadingProducts: '...טוען מוצרים',
         mainTitle: 'מוצרים איכותיים לבית היהודי',
-        mainDescription: 'אנו מתמחים במכירת מוצרים ייחודיים ואיכותיים לבית הכנסת ולמשפחה היהודית',
+        mainDescription: 'אנו מתמחים במכירת מוצרים ייחודיים ואיכותיים למשפחה היהודית.',
+        secondTitle: 'גלו את מוצר הדגל שלנו',
+        secondDescription: 'המקדש השני - המוצר שממנו הכל התחיל.',
         whatOurCustomersSay: 'מה הלקוחות שלנו אומרים',
 
         // Product Detail
@@ -208,6 +210,8 @@ export const translations = {
         loadingProducts: 'Loading products...',
         mainTitle: 'High-quality products for the Jewish home',
         mainDescription: 'We specialize in selling unique, high-quality products for the synagogue and the Jewish family.',
+        secondTitle: 'Discover Our Products',
+        secondDescription: 'Each product is carefully selected to enrich your Jewish holiday and tradition experience at home',
         whatOurCustomersSay: 'What Our Customers Say',
 
         // Product Detail

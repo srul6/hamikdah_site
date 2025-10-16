@@ -277,6 +277,52 @@ class SupabaseController {
             throw error;
         }
     }
+
+    // Reduce product quantity after successful purchase
+    async reduceProductQuantity(productId, quantityToReduce) {
+        try {
+            console.log(`🔄 Reducing quantity for product ${productId} by ${quantityToReduce}`);
+
+            // Get current product
+            const { data: product, error: fetchError } = await supabase
+                .from('products')
+                .select('quantity')
+                .eq('id', productId)
+                .single();
+
+            if (fetchError) {
+                console.error('❌ Error fetching product:', fetchError);
+                throw fetchError;
+            }
+
+            if (!product) {
+                console.error(`❌ Product ${productId} not found`);
+                throw new Error(`Product ${productId} not found`);
+            }
+
+            const currentQuantity = product.quantity || 0;
+            const newQuantity = Math.max(0, currentQuantity - quantityToReduce); // Don't go below 0
+
+            console.log(`📊 Product ${productId}: Current quantity: ${currentQuantity}, Reducing by: ${quantityToReduce}, New quantity: ${newQuantity}`);
+
+            // Update quantity
+            const { error: updateError } = await supabase
+                .from('products')
+                .update({ quantity: newQuantity })
+                .eq('id', productId);
+
+            if (updateError) {
+                console.error('❌ Error updating product quantity:', updateError);
+                throw updateError;
+            }
+
+            console.log(`✅ Successfully reduced product ${productId} quantity to ${newQuantity}`);
+            return { success: true, newQuantity };
+        } catch (error) {
+            console.error('❌ Error reducing product quantity:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new SupabaseController(); 

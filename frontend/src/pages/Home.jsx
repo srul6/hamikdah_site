@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchProducts } from '../api/products';
 import { Box, Typography, Grid } from '@mui/material';
 import ProductCard from '../components/ProductCard';
@@ -7,15 +7,110 @@ import CommentsSection from '../components/CommentsSection';
 import HeroSection from '../components/HeroSection';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Home({ onAddToCart }) {
   const [products, setProducts] = useState([]);
   const { language, isHebrew } = useLanguage();
   const t = translations[language];
 
+  // Refs for animations
+  const firstTitleRef = useRef(null);
+  const firstDescRef = useRef(null);
+  const secondTitleRef = useRef(null);
+  const secondDescRef = useRef(null);
+
   useEffect(() => {
     fetchProducts().then(setProducts);
   }, []);
+
+  // Animation effect - slide from left to right
+  useEffect(() => {
+    if (!products.length) return;
+
+    const ctx = gsap.context(() => {
+      // First section animations - slide from left to right
+      if (firstTitleRef.current) {
+        gsap.fromTo(
+          firstTitleRef.current,
+          { x: -100, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: firstTitleRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse'
+            }
+          }
+        );
+      }
+
+      if (firstDescRef.current) {
+        gsap.fromTo(
+          firstDescRef.current,
+          { x: -100, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1,
+            delay: 0.2,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: firstDescRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse'
+            }
+          }
+        );
+      }
+
+      // Second section animations - slide from left to right
+      if (secondTitleRef.current) {
+        gsap.fromTo(
+          secondTitleRef.current,
+          { x: -100, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: secondTitleRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse'
+            }
+          }
+        );
+      }
+
+      if (secondDescRef.current) {
+        gsap.fromTo(
+          secondDescRef.current,
+          { x: -100, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1,
+            delay: 0.2,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: secondDescRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse'
+            }
+          }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [products]);
 
   return (
     <Box sx={{
@@ -49,7 +144,7 @@ export default function Home({ onAddToCart }) {
 
           {/* Text Section - Title and description */}
           <Box sx={{
-            maxWidth: '80%', // Changed to max width
+            maxWidth: '100%', // Changed to max width
             margin: '0 auto',
             px: { xs: 2, sm: 3, md: 4 },
             pt: 6, // Responsive horizontal padding
@@ -58,19 +153,21 @@ export default function Home({ onAddToCart }) {
             direction: isHebrew ? 'rtl' : 'ltr'
           }}>
             <Typography
+              ref={firstTitleRef}
               variant="h3"
               sx={{
                 fontWeight: 600,
-                color: '#1d1d1f',
-                mb: 2,
-                fontSize: { xs: '2.1rem', sm: '3rem', md: '3.5rem' }, // Increased font sizes
-                lineHeight: 1.2
+                color: 'rgb(5, 38, 51)',
+                fontSize: { xs: '1.8rem', sm: '3rem', md: '3.5rem' }, // Increased font sizes
+                mb: 1,
+                lineHeight: 0.9
               }}
             >
               {t.mainTitle}
             </Typography>
 
             <Typography
+              ref={firstDescRef}
               variant="h5"
               sx={{
                 color: '#86868b',
@@ -103,7 +200,7 @@ export default function Home({ onAddToCart }) {
 
           {/* Second Text Section - Title and description */}
           <Box sx={{
-            maxWidth: '80%', // Changed to max width
+            maxWidth: '100%', // Changed to max width
             margin: '0 auto',
             px: { xs: 2, sm: 3, md: 4 },
             pt: 10, // Responsive horizontal padding
@@ -112,18 +209,21 @@ export default function Home({ onAddToCart }) {
             direction: isHebrew ? 'rtl' : 'ltr'
           }}>
             <Typography
+              ref={secondTitleRef}
               variant="h2"
               sx={{
                 fontWeight: 600,
                 color: '#1d1d1f',
-                mb: 2,
-                fontSize: { xs: '2.1rem', sm: '3rem', md: '3.5rem' }, // Increased font sizes
+                fontSize: { xs: '1.8rem', sm: '3rem', md: '3.5rem' }, // Increased font sizes
+                mb: 1,
+                lineHeight: 0.9
               }}
             >
-              {t.mainTitle}
+              {t.secondTitle}
             </Typography>
 
             <Typography
+              ref={secondDescRef}
               variant="h5"
               sx={{
                 color: '#86868b',
@@ -133,7 +233,7 @@ export default function Home({ onAddToCart }) {
                 lineHeight: 1.2
               }}
             >
-              {t.mainDescription}
+              {t.secondDescription}
             </Typography>
           </Box>
 

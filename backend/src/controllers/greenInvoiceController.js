@@ -438,6 +438,28 @@ class GreenInvoiceController {
                 case 'successful':
                     console.log('✅ Payment completed successfully - Status:', status);
 
+                    // Reduce product quantities for purchased items
+                    console.log('📦 Reducing product quantities for purchased items...');
+                    if (Array.isArray(items) && items.length > 0) {
+                        for (const item of items) {
+                            if (item.id) {
+                                try {
+                                    const quantityToReduce = item.quantity || 1;
+                                    console.log(`📉 Reducing quantity for product ID ${item.id} by ${quantityToReduce}`);
+                                    await this.supabaseController.reduceProductQuantity(item.id, quantityToReduce);
+                                    console.log(`✅ Successfully reduced quantity for product ID ${item.id}`);
+                                } catch (error) {
+                                    console.error(`❌ Failed to reduce quantity for product ID ${item.id}:`, error);
+                                    // Continue processing other items even if one fails
+                                }
+                            } else {
+                                console.log(`⚠️  Item has no ID, skipping quantity reduction:`, item);
+                            }
+                        }
+                    } else {
+                        console.log('⚠️  No items found in order, skipping quantity reduction');
+                    }
+
                     // Get document details if available
                     let documentDetails = null;
                     if (documentId && documentId !== 'undefined' && documentId !== 'null') {

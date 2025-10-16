@@ -14,18 +14,18 @@ export default function Returns() {
     return (
         <Container maxWidth="md" sx={{ py: 4, mt: 8 }}>
             <Paper elevation={3} sx={{ p: 4, borderRadius: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
-                <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h3" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
                     {t.returnsTitle}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.returnPeriod}
                 </Typography>
                 <Typography paragraph>
                     {t.returnPeriodText}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.eligibleItems}
                 </Typography>
                 <Typography paragraph>
@@ -34,7 +34,7 @@ export default function Returns() {
                     • {t.notDamaged}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.nonEligibleItems}
                 </Typography>
                 <Typography paragraph>
@@ -42,7 +42,7 @@ export default function Returns() {
                     • {t.over14Days}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.returnProcess}
                 </Typography>
                 <Typography paragraph>
@@ -54,7 +54,7 @@ export default function Returns() {
                     {t.address}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.refundTiming}
                 </Typography>
                 <Typography paragraph>
@@ -64,7 +64,7 @@ export default function Returns() {
                     • {t.refundSameMethod}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.damagedItems}
                 </Typography>
                 <Typography paragraph>
@@ -74,23 +74,23 @@ export default function Returns() {
                     {t.damagedItemsNote}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.shippingCosts}
                 </Typography>
                 <Typography paragraph>
                     {t.shippingCostsText}
                 </Typography>
 
-                <Typography variant="h5" gutterBottom sx={{ mt: 3 }}>
+                <Typography color="rgb(229, 90, 61)" variant="h5" gutterBottom sx={{ mt: 3 }}>
                     {t.contactUs}
                 </Typography>
                 <Typography paragraph>
                     {t.contactUsText}
                 </Typography>
                 <Typography paragraph>
-                    <strong>Email:</strong> {t.returnsEmail}<br />
-                    <strong>Phone:</strong> {t.returnsPhone}<br />
-                    <strong>Address:</strong> {t.returnsAddress}
+                    <strong>{isHebrew ? 'אימייל:' : 'Email:'}</strong> {t.returnsEmail}<br />
+                    <strong>{isHebrew ? 'טלפון:' : 'Phone:'}</strong> {t.returnsPhone}<br />
+                    <strong>{isHebrew ? 'כתובת:' : 'Address:'}</strong> {t.returnsAddress}
                 </Typography>
             </Paper>
         </Container>

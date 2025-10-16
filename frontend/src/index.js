@@ -24,7 +24,7 @@ const theme = createTheme({
         },
     },
     typography: {
-        fontFamily: 'YourCustomFont, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'Sunday, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         h1: {
             fontWeight: 600,
         },

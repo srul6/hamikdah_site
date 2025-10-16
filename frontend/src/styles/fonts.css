@@ -8,10 +8,27 @@
     font-display: swap;
 } */
 
-@font-face {
+/* @font-face {
     font-family: 'YourCustomFont';
     src: url('../assets/fonts/ploni-light-aaa.woff2') format('opentype');
     font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+} */
+
+/* Varela font - replaced with Sunday */
+/* @font-face {
+    font-family: 'Varela';
+    src: url('../assets/fonts/varela-extra-regular-fm.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+} */
+
+@font-face {
+    font-family: 'Sunday';
+    src: url('../assets/fonts/Sunday-Light.woff2') format('woff2');
+    font-weight: 300;
     font-style: normal;
     font-display: swap;
 }

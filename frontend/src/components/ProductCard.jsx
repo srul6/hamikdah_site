@@ -217,7 +217,7 @@ export default function ProductCard({ product, onAddToCart }) {
               fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' } // Reduced mobile font size
             }}
           >
-            ₪{(product.price || 0).toFixed(2)}
+            ₪ {(product.price || 0).toFixed(2)}
           </Typography>
 
           {/* Right: Product Name */}
