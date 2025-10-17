@@ -10,10 +10,12 @@ import AddIcon from '@mui/icons-material/Add';
 import LockIcon from '@mui/icons-material/Lock';
 import CommentIcon from '@mui/icons-material/Comment';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import { API_ENDPOINTS } from '../config';
 import ImageUploader from '../components/ImageUploader';
 import VideoUploader from '../components/VideoUploader';
 import { fetchComments, createComment, updateComment, deleteComment } from '../api/comments';
+import { fetchOrders, deleteOrder } from '../api/orders';
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,6 +27,9 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState(0);
   const [comments, setComments] = useState([]);
   const [editingComment, setEditingComment] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name_he: '',
@@ -70,6 +75,7 @@ export default function AdminPanel() {
     if (isAuthenticated) {
       fetchProducts();
       fetchCommentsData();
+      fetchOrdersData();
     }
   }, [isAuthenticated]);
 
@@ -79,6 +85,15 @@ export default function AdminPanel() {
       setComments(commentsData);
     } catch (error) {
       console.error('Error fetching comments:', error);
+    }
+  };
+
+  const fetchOrdersData = async () => {
+    try {
+      const ordersData = await fetchOrders();
+      setOrders(ordersData);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
     }
   };
 
@@ -508,6 +523,12 @@ export default function AdminPanel() {
             iconPosition="start"
             sx={{ textTransform: 'none', fontWeight: 600 }}
           />
+          <Tab
+            icon={<ShoppingBagIcon />}
+            label="Orders"
+            iconPosition="start"
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          />
         </Tabs>
       </Box>
 
@@ -747,6 +768,125 @@ export default function AdminPanel() {
               </Grid>
             ))}
           </Grid>
+        </>
+      )}
+
+      {/* Orders Tab */}
+      {activeTab === 2 && (
+        <>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              <strong>Orders Management:</strong> View all customer orders with complete details.
+              Orders are automatically saved after successful payments.
+            </Typography>
+          </Alert>
+
+          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+            Total Orders: {orders.length}
+          </Typography>
+
+          <Grid container spacing={3}>
+            {orders.map((order) => (
+              <Grid item xs={12} md={6} lg={4} key={order.id}>
+                <Card sx={{
+                  height: '100%',
+                  border: '1px solid #e0e0e0',
+                  '&:hover': {
+                    boxShadow: 3,
+                    borderColor: '#667eea'
+                  },
+                  transition: 'all 0.3s'
+                }}>
+                  <CardContent>
+                    {/* Order Status */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Chip
+                        label={order.status}
+                        color={order.status === 'completed' ? 'success' : 'warning'}
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        #{order.id}
+                      </Typography>
+                    </Box>
+
+                    {/* Customer Info */}
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                      {order.customer_name}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      📧 {order.customer_email}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      📱 {order.customer_phone || 'N/A'}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      📍 {order.customer_street} {order.customer_house_number}, {order.customer_city}
+                    </Typography>
+
+                    {/* Order Details */}
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                      💰 {order.amount} {order.currency}
+                    </Typography>
+
+                    {/* Items */}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      📦 Items: {Array.isArray(order.items) ? order.items.length : 0}
+                    </Typography>
+
+                    {/* Date */}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                      🗓️ {new Date(order.created_at).toLocaleString('he-IL')}
+                    </Typography>
+
+                    {/* Actions */}
+                    <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsOrderDialogOpen(true);
+                        }}
+                        sx={{ flex: 1 }}
+                      >
+                        View Details
+                      </Button>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={async () => {
+                          if (window.confirm('Are you sure you want to delete this order?')) {
+                            try {
+                              await deleteOrder(order.id);
+                              fetchOrdersData();
+                              alert('Order deleted successfully!');
+                            } catch (error) {
+                              alert('Error deleting order');
+                            }
+                          }
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          {orders.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Typography variant="h6" color="text.secondary">
+                No orders yet. Orders will appear here after successful payments.
+              </Typography>
+            </Box>
+          )}
         </>
       )}
 
@@ -1390,6 +1530,149 @@ export default function AdminPanel() {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Order Details Dialog */}
+      <Dialog
+        open={isOrderDialogOpen}
+        onClose={() => setIsOrderDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.15)'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          pb: 2,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          borderRadius: '16px 16px 0 0',
+          px: 4,
+          py: 3
+        }}>
+          <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
+            Order Details
+          </Typography>
+          <Typography variant="body1" sx={{ opacity: 0.9 }}>
+            Order #{selectedOrder?.id} - {selectedOrder?.status}
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent sx={{ px: 4, py: 3 }}>
+          {selectedOrder && (
+            <Grid container spacing={3}>
+              {/* Customer Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#667eea' }}>
+                  👤 Customer Information
+                </Typography>
+                <Box sx={{ pl: 2 }}>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Name:</strong> {selectedOrder.customer_name}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Email:</strong> {selectedOrder.customer_email}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Phone:</strong> {selectedOrder.customer_phone || 'N/A'}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Address:</strong> {selectedOrder.customer_street} {selectedOrder.customer_house_number}
+                    {selectedOrder.customer_apartment_number && `, Apt ${selectedOrder.customer_apartment_number}`}
+                    {selectedOrder.customer_floor && `, Floor ${selectedOrder.customer_floor}`}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>City:</strong> {selectedOrder.customer_city}, {selectedOrder.customer_country}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              {/* Order Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#667eea' }}>
+                  📦 Order Information
+                </Typography>
+                <Box sx={{ pl: 2 }}>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Form ID:</strong> {selectedOrder.form_id}
+                  </Typography>
+                  {selectedOrder.document_id && (
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Document ID:</strong> {selectedOrder.document_id}
+                    </Typography>
+                  )}
+                  {selectedOrder.payment_id && (
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Payment ID:</strong> {selectedOrder.payment_id}
+                    </Typography>
+                  )}
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Status:</strong> <Chip label={selectedOrder.status} size="small" color={selectedOrder.status === 'completed' ? 'success' : 'warning'} />
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Amount:</strong> {selectedOrder.amount} {selectedOrder.currency}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    <strong>Order Date:</strong> {new Date(selectedOrder.created_at).toLocaleString('he-IL')}
+                  </Typography>
+                  {selectedOrder.dedication && (
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Dedication:</strong> {selectedOrder.dedication}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+
+              {/* Items */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#667eea' }}>
+                  🛍️ Items Purchased
+                </Typography>
+                {Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
+                  <Box sx={{ pl: 2 }}>
+                    {selectedOrder.items.map((item, index) => (
+                      <Box key={index} sx={{ mb: 2, pb: 2, borderBottom: index < selectedOrder.items.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                          {item.name_he || item.name_en || 'Unknown Product'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Quantity: {item.quantity || 1} × {item.price} {selectedOrder.currency}
+                        </Typography>
+                        {item.id && (
+                          <Typography variant="caption" color="text.secondary">
+                            Product ID: {item.id}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>
+                    No items information available
+                  </Typography>
+                )}
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 4, py: 3 }}>
+          <Button
+            onClick={() => setIsOrderDialogOpen(false)}
+            variant="outlined"
+            sx={{
+              borderRadius: '8px',
+              px: 3,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );

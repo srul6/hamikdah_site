@@ -411,13 +411,32 @@ class GreenInvoiceController {
                 dedication: customData.dedication || ''
             };
 
-            // Send order data to your server
-            await this.sendOrderToServer(orderData);
+            // Save order to database (this happens for ALL webhooks, regardless of status)
+            console.log('💾 Saving order to database...');
+            try {
+                // Check if order already exists (to prevent duplicates)
+                let existingOrder = null;
+                try {
+                    existingOrder = await this.supabaseController.getOrderByFormId(formId);
+                } catch (err) {
+                    // Order doesn't exist, which is fine
+                }
 
-            // Store order locally for API access
-            console.log('About to store order locally...');
-            const localStorageResult = await this.storeOrderLocally(orderData);
-            console.log('Local storage result:', localStorageResult);
+                if (!existingOrder) {
+                    await this.supabaseController.createOrder(orderData);
+                    console.log('✅ Order saved to database successfully');
+                } else {
+                    console.log('ℹ️  Order already exists in database, skipping creation');
+                    // Update the existing order status if needed
+                    if (existingOrder.status !== orderData.status) {
+                        await this.supabaseController.updateOrderByFormId(formId, orderData);
+                        console.log('✅ Order status updated in database');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Failed to save order to database:', error);
+                // Continue processing even if database save fails
+            }
 
             // ALWAYS send email notification to admin regardless of status
             console.log('📧 Sending admin email notification for status:', status);

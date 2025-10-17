@@ -1,51 +1,12 @@
 const express = require('express');
 const router = express.Router();
-
-// Store orders in memory (in production, you'd use a database)
-let orders = [];
-
-// Export orders array for external access
-module.exports.orders = orders;
-
-// POST endpoint to receive order data from webhook
-router.post('/', (req, res) => {
-    try {
-        console.log('=== Order received from webhook ===');
-        console.log('Order data:', JSON.stringify(req.body, null, 2));
-
-        const orderData = req.body;
-
-        // Add timestamp if not present
-        if (!orderData.receivedAt) {
-            orderData.receivedAt = new Date().toISOString();
-        }
-
-        // Store the order
-        orders.push(orderData);
-
-        console.log(`Order stored successfully. Total orders: ${orders.length}`);
-
-        res.json({
-            success: true,
-            message: 'Order received and stored successfully',
-            orderId: orderData.formId,
-            totalOrders: orders.length
-        });
-
-    } catch (error) {
-        console.error('Error processing order:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to process order',
-            message: error.message
-        });
-    }
-});
+const supabaseController = require('../controllers/supabaseController');
 
 // GET endpoint to retrieve all orders
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
-        console.log('Retrieving all orders...');
+        console.log('📋 Retrieving all orders from database...');
+        const orders = await supabaseController.getAllOrders();
 
         res.json({
             success: true,
@@ -54,7 +15,7 @@ router.get('/', (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error retrieving orders:', error);
+        console.error('❌ Error retrieving orders:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve orders',
@@ -63,19 +24,19 @@ router.get('/', (req, res) => {
     }
 });
 
-// GET endpoint to retrieve a specific order by formId
-router.get('/:formId', (req, res) => {
+// GET endpoint to retrieve a specific order by ID
+router.get('/:id', async (req, res) => {
     try {
-        const { formId } = req.params;
-        console.log(`Retrieving order with formId: ${formId}`);
+        const { id } = req.params;
+        console.log(`🔍 Retrieving order with ID: ${id}`);
 
-        const order = orders.find(o => o.formId === formId);
+        const order = await supabaseController.getOrderById(id);
 
         if (!order) {
             return res.status(404).json({
                 success: false,
                 error: 'Order not found',
-                message: `No order found with formId: ${formId}`
+                message: `No order found with ID: ${id}`
             });
         }
 
@@ -85,7 +46,7 @@ router.get('/:formId', (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error retrieving order:', error);
+        console.error('❌ Error retrieving order:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve order',
@@ -94,24 +55,72 @@ router.get('/:formId', (req, res) => {
     }
 });
 
-// DELETE endpoint to clear all orders (for testing)
-router.delete('/', (req, res) => {
+// POST endpoint to create a new order (usually called from webhook)
+router.post('/', async (req, res) => {
     try {
-        console.log('Clearing all orders...');
+        console.log('📝 Creating new order...');
+        const orderData = req.body;
 
-        const orderCount = orders.length;
-        orders = [];
+        const newOrder = await supabaseController.createOrder(orderData);
 
         res.json({
             success: true,
-            message: `Cleared ${orderCount} orders`
+            message: 'Order created successfully',
+            order: newOrder
         });
 
     } catch (error) {
-        console.error('Error clearing orders:', error);
+        console.error('❌ Error creating order:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to clear orders',
+            error: 'Failed to create order',
+            message: error.message
+        });
+    }
+});
+
+// PUT endpoint to update order status
+router.put('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`📝 Updating order ${id}...`);
+
+        const updatedOrder = await supabaseController.updateOrder(id, req.body);
+
+        res.json({
+            success: true,
+            message: 'Order updated successfully',
+            order: updatedOrder
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating order:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update order',
+            message: error.message
+        });
+    }
+});
+
+// DELETE endpoint to delete an order
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`🗑️  Deleting order ${id}...`);
+
+        await supabaseController.deleteOrder(id);
+
+        res.json({
+            success: true,
+            message: 'Order deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error deleting order:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete order',
             message: error.message
         });
     }

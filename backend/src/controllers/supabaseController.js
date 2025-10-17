@@ -323,6 +323,149 @@ class SupabaseController {
             throw error;
         }
     }
+
+    // ===== ORDERS MANAGEMENT =====
+
+    async getAllOrders() {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('❌ Error fetching orders:', error);
+            throw error;
+        }
+    }
+
+    async getOrderById(id) {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error fetching order:', error);
+            throw error;
+        }
+    }
+
+    async getOrderByFormId(formId) {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('form_id', formId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error fetching order by form_id:', error);
+            throw error;
+        }
+    }
+
+    async createOrder(orderData) {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .insert([{
+                    form_id: orderData.formId,
+                    document_id: orderData.documentId,
+                    payment_id: orderData.paymentId,
+                    status: orderData.status || 'pending',
+                    amount: orderData.amount,
+                    currency: orderData.currency || 'ILS',
+                    customer_name: orderData.customerInfo.name,
+                    customer_email: orderData.customerInfo.email,
+                    customer_phone: orderData.customerInfo.phone,
+                    customer_street: orderData.customerInfo.street,
+                    customer_house_number: orderData.customerInfo.houseNumber,
+                    customer_apartment_number: orderData.customerInfo.apartmentNumber,
+                    customer_floor: orderData.customerInfo.floor,
+                    customer_city: orderData.customerInfo.city,
+                    customer_country: orderData.customerInfo.country,
+                    items: orderData.items,
+                    dedication: orderData.dedication,
+                    purchase_timestamp: orderData.purchaseTimestamp ? new Date(orderData.purchaseTimestamp) : new Date()
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error creating order:', error);
+            throw error;
+        }
+    }
+
+    async updateOrder(id, orderData) {
+        try {
+            const updateFields = {};
+            if (orderData.status) updateFields.status = orderData.status;
+            if (orderData.documentId) updateFields.document_id = orderData.documentId;
+            if (orderData.paymentId) updateFields.payment_id = orderData.paymentId;
+
+            const { data, error } = await supabase
+                .from('orders')
+                .update(updateFields)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error updating order:', error);
+            throw error;
+        }
+    }
+
+    async updateOrderByFormId(formId, orderData) {
+        try {
+            const updateFields = {};
+            if (orderData.status) updateFields.status = orderData.status;
+            if (orderData.documentId) updateFields.document_id = orderData.documentId;
+            if (orderData.paymentId) updateFields.payment_id = orderData.paymentId;
+
+            const { data, error } = await supabase
+                .from('orders')
+                .update(updateFields)
+                .eq('form_id', formId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('❌ Error updating order by form_id:', error);
+            throw error;
+        }
+    }
+
+    async deleteOrder(id) {
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('❌ Error deleting order:', error);
+            throw error;
+        }
+    }
 }
 
-module.exports = new SupabaseController(); 
+module.exports = new SupabaseController();
