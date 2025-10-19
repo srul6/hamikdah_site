@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { getPaymentForm } from '../api/greenInvoice';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useFormData } from '../contexts/FormDataContext';
 import { translations } from '../translations/translations';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -13,8 +14,7 @@ export default function GreenInvoicePayment() {
     const location = useLocation();
     const navigate = useNavigate();
     const { cart, subtotal, discount, total, appliedCoupon, homeDelivery, finalTotal } = location.state || {};
-
-
+    const { formData: savedFormData, updateField, updateFields } = useFormData();
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -36,6 +36,16 @@ export default function GreenInvoicePayment() {
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+
+    // Load saved form data from cookies on mount
+    useEffect(() => {
+        if (savedFormData && Object.keys(savedFormData).length > 0) {
+            setCustomerInfo(prev => ({
+                ...prev,
+                ...savedFormData
+            }));
+        }
+    }, [savedFormData]);
 
     // Redirect if no cart data
     useEffect(() => {
@@ -181,6 +191,9 @@ export default function GreenInvoicePayment() {
             ...prev,
             [field]: value
         }));
+
+        // Save to cookies for persistence
+        updateField(field, value);
 
         // Clear field error when user starts typing
         if (fieldErrors[field]) {

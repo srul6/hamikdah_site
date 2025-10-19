@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { CheckCircle, Receipt, Email } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useCart } from '../contexts/CartContext';
 import { translations } from '../translations/translations';
 
 export default function PaymentSuccess() {
@@ -14,6 +15,7 @@ export default function PaymentSuccess() {
     const [isLoading, setIsLoading] = useState(true);
     const [paymentDetails, setPaymentDetails] = useState(null);
     const [error, setError] = useState(null);
+    const { clearCart } = useCart();
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
@@ -34,12 +36,15 @@ export default function PaymentSuccess() {
                 documentId,
                 customerEmail
             });
+
+            // Clear the cart after successful payment
+            clearCart();
         } else {
             setError('Payment details not found');
         }
 
         setIsLoading(false);
-    }, [searchParams]);
+    }, [searchParams, clearCart]);
 
     const handleContinueShopping = () => {
         navigate('/');

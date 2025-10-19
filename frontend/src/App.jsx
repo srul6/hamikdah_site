@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { CartProvider, useCart } from './contexts/CartContext';
+import { FormDataProvider } from './contexts/FormDataContext';
 import Home from './pages/Home';
 import ProductPageRouter from './pages/ProductPageRouter';
 import CartPage from './pages/CartPage';
@@ -17,81 +19,87 @@ import PaymentCancel from './pages/PaymentCancel';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
-export default function App() {
-    const [cart, setCart] = useState([]);
+// Inner component that uses cart context
+function AppContent() {
+    const { cart, addToCart: addToCartContext, removeFromCart: removeFromCartContext, updateQuantity: updateQuantityContext } = useCart();
 
-    const addToCart = (product, selectedColor = null) => {
-        setCart(prevCart => {
-            // Create unique identifier based on product ID and color
-            const colorId = selectedColor ? selectedColor.name || selectedColor.name_en : null;
-            const uniqueId = colorId ? `${product.id}-${colorId}` : product.id;
+    // Wrapper function to maintain compatibility with existing addToCart signature
+    const handleAddToCart = (product, selectedColor = null) => {
+        // Create uniqueId for compatibility
+        const colorId = selectedColor ? selectedColor.name || selectedColor.name_en : null;
+        const uniqueId = colorId ? `${product.id}-${colorId}` : product.id;
 
-            const existingItem = prevCart.find(item =>
-                item.uniqueId === uniqueId ||
-                (item.id === product.id && item.selectedColor?.name === selectedColor?.name)
-            );
+        // Add displayName for compatibility
+        const displayName = selectedColor ?
+            `${product.name_he || product.name_en} - ${selectedColor.name_he || selectedColor.name}` :
+            (product.name_he || product.name_en);
 
-            if (existingItem) {
-                return prevCart.map(item =>
-                    (item.uniqueId === uniqueId ||
-                        (item.id === product.id && item.selectedColor?.name === selectedColor?.name))
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            }
-
-            return [...prevCart, {
-                ...product,
-                quantity: 1,
-                selectedColor: selectedColor,
-                uniqueId: uniqueId,
-                displayName: selectedColor ?
-                    `${product.name_he || product.name_en} - ${selectedColor.name_he || selectedColor.name}` :
-                    (product.name_he || product.name_en)
-            }];
-        });
+        // Use context's addToCart with color
+        addToCartContext({
+            ...product,
+            uniqueId,
+            displayName
+        }, 1, selectedColor);
     };
 
-    const removeFromCart = (uniqueId) => {
-        setCart(prevCart => prevCart.filter(item => item.uniqueId !== uniqueId));
+    // Wrapper for removeFromCart to use uniqueId
+    const handleRemoveFromCart = (uniqueId) => {
+        // Find the item by uniqueId
+        const item = cart.find(item => item.uniqueId === uniqueId);
+        if (item) {
+            removeFromCartContext(item.id, item.selectedColor);
+        }
     };
 
-    const updateQuantity = (uniqueId, newQuantity) => {
-        if (newQuantity < 1) return;
-        setCart(prevCart =>
-            prevCart.map(item =>
-                item.uniqueId === uniqueId ? { ...item, quantity: newQuantity } : item
-            )
-        );
+    // Wrapper for updateQuantity to use uniqueId
+    const handleUpdateQuantity = (uniqueId, newQuantity) => {
+        // Find the item by uniqueId
+        const item = cart.find(item => item.uniqueId === uniqueId);
+        if (item) {
+            updateQuantityContext(item.id, newQuantity, item.selectedColor);
+        }
     };
+
+    // Calculate cart count for navbar
+    const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
 
     return (
-        <LanguageProvider>
-            <Router>
-                <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
-                    <Navbar
-                        cartCount={cart.length}
-                        cart={cart}
-                        onRemoveFromCart={removeFromCart}
-                        onUpdateQuantity={updateQuantity}
-                    />
-                    <Routes>
-                        <Route path="/" element={<Home onAddToCart={addToCart} />} />
-                        <Route path="/product/:id" element={<ProductPageRouter onAddToCart={addToCart} />} />
-                        <Route path="/cart" element={<CartPage cart={cart} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />} />
-                        <Route path="/about" element={<AboutUs />} />
-                        <Route path="/admin" element={<AdminPanel />} />
-                        <Route path="/terms" element={<TermsOfService />} />
-                        <Route path="/returns" element={<Returns />} />
-                        <Route path="/payment" element={<GreenInvoicePayment />} />
-                        <Route path="/payment/success" element={<PaymentSuccess />} />
-                        <Route path="/payment/failure" element={<PaymentFailure />} />
-                        <Route path="/payment/cancel" element={<PaymentCancel />} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
+            <Navbar
+                cartCount={cartCount}
+                cart={cart}
+                onRemoveFromCart={handleRemoveFromCart}
+                onUpdateQuantity={handleUpdateQuantity}
+            />
+            <Routes>
+                <Route path="/" element={<Home onAddToCart={handleAddToCart} />} />
+                <Route path="/product/:id" element={<ProductPageRouter onAddToCart={handleAddToCart} />} />
+                <Route path="/cart" element={<CartPage cart={cart} onRemove={handleRemoveFromCart} onUpdateQuantity={handleUpdateQuantity} />} />
+                <Route path="/about" element={<AboutUs />} />
+                <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/returns" element={<Returns />} />
+                <Route path="/payment" element={<GreenInvoicePayment />} />
+                <Route path="/payment/success" element={<PaymentSuccess />} />
+                <Route path="/payment/failure" element={<PaymentFailure />} />
+                <Route path="/payment/cancel" element={<PaymentCancel />} />
+            </Routes>
+            <Footer />
+        </Box>
+    );
+}
 
-                    </Routes>
-                    <Footer />
-                </Box>
-            </Router>
+// Main App component with all providers
+export default function App() {
+    return (
+        <LanguageProvider>
+            <CartProvider>
+                <FormDataProvider>
+                    <Router>
+                        <AppContent />
+                    </Router>
+                </FormDataProvider>
+            </CartProvider>
         </LanguageProvider>
     );
 }

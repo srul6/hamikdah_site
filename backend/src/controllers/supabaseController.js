@@ -375,6 +375,34 @@ class SupabaseController {
 
     async createOrder(orderData) {
         try {
+            // Parse the purchase timestamp
+            // The format is "DD.MM.YYYY, HH:MM:SS" from he-IL locale
+            let parsedTimestamp = new Date(); // Default to now
+
+            if (orderData.purchaseTimestamp) {
+                try {
+                    // Parse "17.10.2025, 17:36:17" format
+                    const timestampStr = orderData.purchaseTimestamp;
+                    const [datePart, timePart] = timestampStr.split(', ');
+                    const [day, month, year] = datePart.split('.');
+                    const [hours, minutes, seconds] = timePart.split(':');
+
+                    // Create date in Israel timezone
+                    parsedTimestamp = new Date(
+                        parseInt(year),
+                        parseInt(month) - 1, // Months are 0-indexed
+                        parseInt(day),
+                        parseInt(hours),
+                        parseInt(minutes),
+                        parseInt(seconds)
+                    );
+
+                    console.log(`📅 Parsed timestamp: ${timestampStr} → ${parsedTimestamp.toISOString()}`);
+                } catch (parseError) {
+                    console.error('⚠️  Failed to parse purchase timestamp, using current time:', parseError);
+                }
+            }
+
             const { data, error } = await supabase
                 .from('orders')
                 .insert([{
@@ -395,7 +423,7 @@ class SupabaseController {
                     customer_country: orderData.customerInfo.country,
                     items: orderData.items,
                     dedication: orderData.dedication,
-                    purchase_timestamp: orderData.purchaseTimestamp ? new Date(orderData.purchaseTimestamp) : new Date()
+                    purchase_timestamp: parsedTimestamp
                 }])
                 .select()
                 .single();

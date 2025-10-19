@@ -1,60 +1,141 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt');
+const { generateToken, setAuthCookie, clearAuthCookie, requireAuth } = require('../middleware/authMiddleware');
 
-// Admin credentials (in production, use environment variables)
-const ADMIN_CREDENTIALS = {
-    username: process.env.ADMIN_USERNAME || 'admin',
-    password: process.env.ADMIN_PASSWORD || 'hamikdash2024'
-};
+// Admin credentials - MUST be hashed in production
+// To generate a hash: bcrypt.hashSync('your-password', 10)
+const ADMIN_USERS = [
+    {
+        username: process.env.ADMIN_USERNAME || 'admin',
+        // This is a hashed version of 'hamikdash2024'
+        // In production, set ADMIN_PASSWORD_HASH in .env with your own bcrypt hash
+        passwordHash: process.env.ADMIN_PASSWORD_HASH || '$2b$10$kPW3rWbN8zHnbNwaLrVaIu6LhA3TkzghS7cNWvyPKWEatO/VZ1x2a'
+    }
+];
 
-// Admin login endpoint
-router.post('/login', (req, res) => {
-    const { username, password } = req.body;
+/**
+ * Admin login endpoint
+ * Sets HttpOnly + Secure + SameSite=Strict cookie
+ * Password is hashed and compared securely
+ */
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
 
-    // Validate credentials
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-        // Set session or return success token
+        // Validate input
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username and password required'
+            });
+        }
+
+        // Find admin user
+        const admin = ADMIN_USERS.find(u => u.username === username);
+
+        if (!admin) {
+            // Don't reveal if username exists (security)
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+
+        // For development/initial setup - allow plain password comparison
+        let isValidPassword = false;
+
+        if (admin.passwordHash.startsWith('$2b$')) {
+            // Hashed password - use bcrypt
+            isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+        } else {
+            // Plain password (development only - NOT secure!)
+            isValidPassword = password === admin.passwordHash;
+            console.warn('⚠️  WARNING: Using plain text password - NOT secure for production!');
+        }
+
+        if (!isValidPassword) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+
+        // Generate JWT token
+        const token = generateToken({
+            username: admin.username,
+            role: 'admin',
+            loginTime: new Date().toISOString()
+        });
+
+        // Set HttpOnly cookie with the token
+        setAuthCookie(res, token);
+
+        console.log(`✅ Admin logged in: ${username}`);
+
         res.json({
             success: true,
             message: 'Login successful',
-            user: { username: ADMIN_CREDENTIALS.username }
+            user: { username: admin.username }
         });
-    } else {
-        res.status(401).json({
+
+    } catch (error) {
+        console.error('❌ Login error:', error);
+        res.status(500).json({
             success: false,
-            message: 'Invalid credentials'
+            message: 'Login failed'
         });
     }
 });
 
-// Verify admin session (simple token-based for now)
-router.get('/verify', (req, res) => {
-    // In a real app, you'd verify JWT tokens or sessions
-    // For now, we'll use a simple approach
+/**
+ * Admin logout endpoint
+ * Clears the HttpOnly cookie
+ */
+router.post('/logout', (req, res) => {
+    clearAuthCookie(res);
+
     res.json({
         success: true,
-        message: 'Admin verification endpoint'
+        message: 'Logged out successfully'
     });
 });
 
-// Get admin data (orders, etc.)
-router.get('/orders', (req, res) => {
-    try {
-        // Import orders array from orders route
-        const { orders } = require('./orders');
+/**
+ * Verify admin session
+ * Protected route - requires valid session cookie
+ */
+router.get('/verify', requireAuth, (req, res) => {
+    res.json({
+        success: true,
+        message: 'Session valid',
+        user: {
+            username: req.admin.username,
+            role: req.admin.role
+        }
+    });
+});
 
-        res.json({
-            success: true,
-            orders: orders || [],
-            total: orders ? orders.length : 0
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch orders',
-            error: error.message
+/**
+ * Check session status without requiring auth
+ * Used by frontend to check if still logged in
+ */
+router.get('/check-session', (req, res) => {
+    const token = req.cookies?.admin_session;
+
+    if (!token) {
+        return res.json({
+            authenticated: false
         });
     }
+
+    const { verifyToken } = require('../middleware/authMiddleware');
+    const decoded = verifyToken(token);
+
+    res.json({
+        authenticated: !!decoded,
+        user: decoded ? { username: decoded.username } : null
+    });
 });
 
 module.exports = router;

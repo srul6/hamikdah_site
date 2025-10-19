@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Container, Typography, Box, TextField, Button, Grid, Card, CardContent,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Alert, Paper,
-  Tabs, Tab, MenuItem, Chip
+  Tabs, Tab, MenuItem, Chip, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TablePagination
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -11,11 +12,14 @@ import LockIcon from '@mui/icons-material/Lock';
 import CommentIcon from '@mui/icons-material/Comment';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
+import DownloadIcon from '@mui/icons-material/Download';
 import { API_ENDPOINTS } from '../config';
 import ImageUploader from '../components/ImageUploader';
 import VideoUploader from '../components/VideoUploader';
 import { fetchComments, createComment, updateComment, deleteComment } from '../api/comments';
 import { fetchOrders, deleteOrder } from '../api/orders';
+import { setCookie, getCookie, deleteCookie } from '../utils/cookieManager';
+import * as XLSX from 'xlsx';
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,6 +34,8 @@ export default function AdminPanel() {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [orderPage, setOrderPage] = useState(0);
+  const [orderRowsPerPage, setOrderRowsPerPage] = useState(10);
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name_he: '',
@@ -64,12 +70,24 @@ export default function AdminPanel() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Check if user is already authenticated
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      setIsAuthenticated(true);
-    }
+    // Check if user is already authenticated (server-side session check)
+    checkSession();
   }, []);
+
+  const checkSession = async () => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.admin}/check-session`, {
+        credentials: 'include' // Send HttpOnly cookies
+      });
+      const data = await response.json();
+
+      if (data.authenticated) {
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -77,6 +95,33 @@ export default function AdminPanel() {
       fetchCommentsData();
       fetchOrdersData();
     }
+  }, [isAuthenticated]);
+
+  // Check session validity every 5 minutes
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkSessionValidity = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.admin}/check-session`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!data.authenticated) {
+          // Session expired or invalid
+          setIsAuthenticated(false);
+          alert('הפעלה פגה תוקף. אנא התחבר שוב.');
+        }
+      } catch (error) {
+        console.error('Session validation failed:', error);
+      }
+    };
+
+    // Check every 5 minutes
+    const interval = setInterval(checkSessionValidity, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   const fetchCommentsData = async () => {
@@ -107,18 +152,19 @@ export default function AdminPanel() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important: Send and receive cookies
         body: JSON.stringify(loginData)
       });
 
       const data = await response.json();
 
       if (data.success) {
-        const token = 'admin-token-' + Date.now();
-        localStorage.setItem('adminToken', token);
+        // Server sets HttpOnly cookie automatically
+        // No need to store token in JavaScript
         setIsAuthenticated(true);
         setLoginError('');
       } else {
-        setLoginError(data.message || 'Login failed');
+        setLoginError(data.message || 'Invalid credentials');
       }
     } catch (error) {
       setLoginError('Network error. Please try again.');
@@ -126,8 +172,17 @@ export default function AdminPanel() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken');
+  const handleLogout = async () => {
+    try {
+      // Call server logout endpoint to clear HttpOnly cookie
+      await fetch(`${API_ENDPOINTS.admin}/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+
     setIsAuthenticated(false);
     setLoginData({ username: '', password: '' });
   };
@@ -399,6 +454,70 @@ export default function AdminPanel() {
     });
   };
 
+  const handleExportToExcel = () => {
+    try {
+      // Filter only completed orders
+      const completedOrders = orders.filter(order => order.status === 'completed');
+
+      if (completedOrders.length === 0) {
+        alert('אין הזמנות שהושלמו לייצוא');
+        return;
+      }
+
+      // Prepare data for Excel - only specific fields
+      const exportData = completedOrders.map(order => {
+        // Get items details (without prices)
+        const itemsText = Array.isArray(order.items)
+          ? order.items.map(item =>
+            `${item.name_he || item.name_en} (כמות: ${item.quantity || 1})`
+          ).join('; ')
+          : 'אין פריטים';
+
+        // Format full address
+        const fullAddress = `${order.customer_street || ''} ${order.customer_house_number || ''}${order.customer_apartment_number ? `, דירה ${order.customer_apartment_number}` : ''
+          }${order.customer_floor ? `, קומה ${order.customer_floor}` : ''}, ${order.customer_city || ''}, ${order.customer_country || ''}`.trim();
+
+        return {
+          'שם לקוח': order.customer_name,
+          'אימייל': order.customer_email,
+          'טלפון': order.customer_phone || 'לא זמין',
+          'כתובת מלאה': fullAddress,
+          'פריטים': itemsText,
+          'סכום': `₪${order.amount}`
+        };
+      });
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Set column widths for the 6 columns
+      ws['!cols'] = [
+        { wch: 20 },  // שם לקוח
+        { wch: 30 },  // אימייל
+        { wch: 15 },  // טלפון
+        { wch: 50 },  // כתובת מלאה
+        { wch: 60 },  // פריטים
+        { wch: 12 }   // סכום
+      ];
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'הזמנות');
+
+      // Generate filename with current date
+      const filename = `completed_orders_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+
+      console.log(`✅ Exported ${completedOrders.length} completed orders to ${filename}`);
+      alert(`${completedOrders.length} הזמנות שהושלמו יוצאו בהצלחה!`);
+    } catch (error) {
+      console.error('❌ Error exporting to Excel:', error);
+      alert('שגיאה בייצוא לאקסל. אנא נסה שוב.');
+    }
+  };
+
   // Show login form if not authenticated
   if (!isAuthenticated) {
     return (
@@ -510,24 +629,51 @@ export default function AdminPanel() {
 
       {/* Tab Navigation */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          sx={{
+            '& .MuiTab-root': {
+              '&:hover': {
+                backgroundColor: 'rgba(102, 126, 234, 0.08)',
+                color: '#667eea',
+                transition: 'all 0.3s'
+              }
+            }
+          }}
+        >
           <Tab
             icon={<InventoryIcon />}
             label="Products"
             iconPosition="start"
-            sx={{ textTransform: 'none', fontWeight: 600 }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
           />
           <Tab
             icon={<CommentIcon />}
             label="Comments"
             iconPosition="start"
-            sx={{ textTransform: 'none', fontWeight: 600 }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
           />
           <Tab
             icon={<ShoppingBagIcon />}
             label="Orders"
             iconPosition="start"
-            sx={{ textTransform: 'none', fontWeight: 600 }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
           />
         </Tabs>
       </Box>
@@ -535,13 +681,11 @@ export default function AdminPanel() {
       {/* Products Tab */}
       {activeTab === 0 && (
         <>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              <strong>Image Setup:</strong> Upload your images to Supabase Storage in the "product-images" bucket,
-              then use the filename (e.g., "candle.jpg") in the form fields below.
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Products Management
             </Typography>
-          </Alert>
-
+          </Box>
           <Grid container spacing={3}>
             {products.map((product) => (
               <Grid item xs={12} md={6} lg={4} key={product.id}>
@@ -641,251 +785,324 @@ export default function AdminPanel() {
       {/* Comments Tab */}
       {activeTab === 1 && (
         <>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              <strong>Comments Management:</strong> Manage customer testimonials and video reviews.
-              Upload videos to the "comments" folder in Supabase Storage.
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Comments Management
             </Typography>
-          </Alert>
+            <Chip
+              label={`${comments.length} תגובות`}
+              color="primary"
+              sx={{ fontWeight: 600, fontSize: '0.9rem', px: 2, py: 2.5 }}
+            />
+          </Box>
 
-          <Grid container spacing={3}>
-            {comments.map((comment) => (
-              <Grid item xs={12} md={6} lg={4} key={comment.id}>
-                <Card sx={{
-                  height: '100%',
-                  maxHeight: '400px',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  <CardContent sx={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden'
-                  }}>
-                    {/* Comment Type Indicator */}
-                    <Box sx={{ mb: 2 }}>
+          {comments.length === 0 ? (
+            <Paper sx={{ p: 8, textAlign: 'center', backgroundColor: '#f9f9f9' }}>
+              <Typography variant="h6" color="text.secondary">
+                אין תגובות עדיין. תגובות יופיעו כאן לאחר הוספתן.
+              </Typography>
+            </Paper>
+          ) : (
+            <Box sx={{ direction: 'rtl' }}>
+              {comments.map((comment, index) => (
+                <Paper
+                  key={comment.id}
+                  sx={{
+                    mb: 2,
+                    p: 3,
+                    borderRadius: 2,
+                    border: '1px solid #e0e0e0',
+                    '&:hover': {
+                      boxShadow: 2,
+                      borderColor: '#667eea'
+                    },
+                    transition: 'all 0.3s'
+                  }}
+                >
+                  <Grid container spacing={3} alignItems="center">
+                    {/* Comment Type */}
+                    <Grid item xs={12} sm={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        סוג
+                      </Typography>
                       <Chip
-                        label={comment.type === 'video' ? 'Video Comment' : 'Text Comment'}
-                        color={comment.type === 'video' ? 'primary' : 'default'}
+                        label={
+                          comment.type === 'video' ? 'וידאו' :
+                            comment.type === 'image' ? 'תמונה' :
+                              'טקסט'
+                        }
+                        color={comment.type === 'text' ? 'default' : 'primary'}
                         size="small"
+                        sx={{ fontWeight: 600 }}
                       />
-                    </Box>
+                    </Grid>
 
-                    {/* Comment Content Preview */}
-                    {comment.type === 'text' ? (
-                      <Box sx={{ flex: 1, mb: 2 }}>
+                    {/* Customer Name */}
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        שם לקוח
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {comment.name_he || comment.name_en}
+                      </Typography>
+                    </Grid>
+
+                    {/* Preview/Content */}
+                    <Grid item xs={12} sm={5}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        תוכן
+                      </Typography>
+                      {comment.type === 'text' ? (
                         <Typography variant="body2" sx={{
                           color: 'text.secondary',
                           display: '-webkit-box',
-                          WebkitLineClamp: 3,
+                          WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          height: '60px'
+                          textOverflow: 'ellipsis'
                         }}>
                           "{comment.text_he || comment.text_en}"
                         </Typography>
-                      </Box>
-                    ) : comment.type === 'video' ? (
-                      <Box sx={{
-                        flex: 1,
-                        mb: 2,
-                        backgroundColor: '#f5f5f5',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '120px'
-                      }}>
+                      ) : comment.type === 'video' ? (
                         <Typography variant="body2" color="text.secondary">
-                          📹 Video: {(comment.video_url || comment.videoUrl)?.split('/').pop() || 'No video'}
+                          📹 {(comment.video_url || comment.videoUrl)?.split('/').pop() || 'אין וידאו'}
                         </Typography>
-                      </Box>
-                    ) : (
-                      <Box sx={{
-                        flex: 1,
-                        mb: 2,
-                        backgroundColor: '#f5f5f5',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '120px',
-                        overflow: 'hidden'
-                      }}>
-                        {(comment.image_url || comment.imageUrl) ? (
-                          <img
-                            src={comment.image_url || comment.imageUrl}
-                            alt="Comment preview"
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              objectFit: 'contain'
-                            }}
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            🖼️ Image: No image
-                          </Typography>
-                        )}
-                      </Box>
-                    )}
-
-                    {/* Customer Name */}
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                      {comment.name_he || comment.name_en}
-                    </Typography>
-
-                    {/* Rating */}
-                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-                      ⭐ {comment.rating}/5
-                    </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          🖼️ {(comment.image_url || comment.imageUrl)?.split('/').pop() || 'אין תמונה'}
+                        </Typography>
+                      )}
+                    </Grid>
 
                     {/* Actions */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditComment(comment)}
-                        sx={{ color: '#0071e3' }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteComment(comment.id)}
-                        sx={{ color: '#ff3b30' }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                      ID: {comment.id}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<EditIcon />}
+                          onClick={() => handleEditComment(comment)}
+                          sx={{
+                            fontSize: '0.75rem',
+                            px: 1.5,
+                            py: 0.5
+                          }}
+                        >
+                          ערוך
+                        </Button>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </Box>
+          )}
         </>
       )}
 
       {/* Orders Tab */}
       {activeTab === 2 && (
         <>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              <strong>Orders Management:</strong> View all customer orders with complete details.
-              Orders are automatically saved after successful payments.
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Orders Management
             </Typography>
-          </Alert>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              {orders.length > 0 && (
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportToExcel}
+                  sx={{
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    '&:hover': {
+                      backgroundColor: '#218838'
+                    }
+                  }}
+                >
+                  ייצא לאקסל
+                </Button>
+              )}
+              <Chip
+                label={`${orders.length} הזמנות`}
+                color="primary"
+                sx={{ fontWeight: 600, fontSize: '0.9rem', px: 2, py: 2.5 }}
+              />
+            </Box>
+          </Box>
 
-          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-            Total Orders: {orders.length}
-          </Typography>
-
-          <Grid container spacing={3}>
-            {orders.map((order) => (
-              <Grid item xs={12} md={6} lg={4} key={order.id}>
-                <Card sx={{
-                  height: '100%',
-                  border: '1px solid #e0e0e0',
-                  '&:hover': {
-                    boxShadow: 3,
-                    borderColor: '#667eea'
-                  },
-                  transition: 'all 0.3s'
-                }}>
-                  <CardContent>
-                    {/* Order Status */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Chip
-                        label={order.status}
-                        color={order.status === 'completed' ? 'success' : 'warning'}
-                        size="small"
-                        sx={{ fontWeight: 600 }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        #{order.id}
-                      </Typography>
-                    </Box>
-
-                    {/* Customer Info */}
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                      {order.customer_name}
-                    </Typography>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                      📧 {order.customer_email}
-                    </Typography>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                      📱 {order.customer_phone || 'N/A'}
-                    </Typography>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      📍 {order.customer_street} {order.customer_house_number}, {order.customer_city}
-                    </Typography>
-
-                    {/* Order Details */}
-                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-                      💰 {order.amount} {order.currency}
-                    </Typography>
-
-                    {/* Items */}
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      📦 Items: {Array.isArray(order.items) ? order.items.length : 0}
-                    </Typography>
-
-                    {/* Date */}
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                      🗓️ {new Date(order.created_at).toLocaleString('he-IL')}
-                    </Typography>
-
-                    {/* Actions */}
-                    <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setIsOrderDialogOpen(true);
-                        }}
-                        sx={{ flex: 1 }}
-                      >
-                        View Details
-                      </Button>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={async () => {
-                          if (window.confirm('Are you sure you want to delete this order?')) {
-                            try {
-                              await deleteOrder(order.id);
-                              fetchOrdersData();
-                              alert('Order deleted successfully!');
-                            } catch (error) {
-                              alert('Error deleting order');
-                            }
-                          }
-                        }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-
-          {orders.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
+          {orders.length === 0 ? (
+            <Paper sx={{ p: 8, textAlign: 'center', backgroundColor: '#f9f9f9' }}>
               <Typography variant="h6" color="text.secondary">
                 No orders yet. Orders will appear here after successful payments.
               </Typography>
-            </Box>
+            </Paper>
+          ) : (
+            <TableContainer component={Paper} sx={{
+              boxShadow: 2,
+              borderRadius: 2,
+              overflow: 'auto',
+              direction: 'rtl',
+              maxWidth: '100%',
+              '&::-webkit-scrollbar': {
+                height: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: '#f1f1f1',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#888',
+                borderRadius: '4px',
+                '&:hover': {
+                  backgroundColor: '#555',
+                }
+              }
+            }}>
+              <Table sx={{ minWidth: 650 }}>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#667eea' }}>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>מזהה הזמנה</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>לקוח</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>אימייל</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>טלפון</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>כתובת</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>סכום</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>פריטים</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>תאריך</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>סטטוס</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>פעולות</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {orders
+                    .slice(orderPage * orderRowsPerPage, orderPage * orderRowsPerPage + orderRowsPerPage)
+                    .map((order) => (
+                      <TableRow
+                        key={order.id}
+                        sx={{
+                          '&:hover': { backgroundColor: '#f5f5f5' },
+                          '&:nth-of-type(even)': { backgroundColor: '#fafafa' }
+                        }}
+                      >
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            #{order.id}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {order.customer_name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {order.customer_email}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {order.customer_phone || 'לא זמין'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ maxWidth: 150, fontSize: '0.85rem' }}>
+                            {order.customer_street} {order.customer_house_number}
+                            {order.customer_city && `, ${order.customer_city}`}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            ₪{order.amount}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {Array.isArray(order.items) ? order.items.length : 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {order.purchase_timestamp
+                              ? new Date(order.purchase_timestamp).toLocaleDateString('he-IL')
+                              : new Date(order.created_at).toLocaleDateString('he-IL')}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {order.purchase_timestamp
+                              ? new Date(order.purchase_timestamp).toLocaleTimeString('he-IL')
+                              : new Date(order.created_at).toLocaleTimeString('he-IL')}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Chip
+                            label={order.status === 'completed' ? 'הושלם' : 'ממתין'}
+                            color={order.status === 'completed' ? 'success' : 'warning'}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setIsOrderDialogOpen(true);
+                              }}
+                              sx={{
+                                fontSize: '0.75rem',
+                                px: 1.5,
+                                py: 0.5
+                              }}
+                            >
+                              פרטים
+                            </Button>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={async () => {
+                                if (window.confirm('האם אתה בטוח שברצונך למחוק הזמנה זו?')) {
+                                  try {
+                                    await deleteOrder(order.id);
+                                    fetchOrdersData();
+                                    alert('ההזמנה נמחקה בהצלחה!');
+                                  } catch (error) {
+                                    alert('שגיאה במחיקת ההזמנה');
+                                  }
+                                }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                component="div"
+                count={orders.length}
+                rowsPerPage={orderRowsPerPage}
+                page={orderPage}
+                onPageChange={(event, newPage) => setOrderPage(newPage)}
+                onRowsPerPageChange={(event) => {
+                  setOrderRowsPerPage(parseInt(event.target.value, 10));
+                  setOrderPage(0);
+                }}
+              />
+            </TableContainer>
           )}
         </>
       )}
@@ -1561,7 +1778,7 @@ export default function AdminPanel() {
           </Typography>
         </DialogTitle>
 
-        <DialogContent sx={{ px: 4, py: 3 }}>
+        <DialogContent sx={{ px: 4, py: 3, mt: 4 }}>
           {selectedOrder && (
             <Grid container spacing={3}>
               {/* Customer Information */}
