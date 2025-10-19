@@ -14,10 +14,94 @@ const ADMIN_USERS = [
     }
 ];
 
+// Login attempt tracking - stores failed login attempts per username
+// Format: { username: { count: number, lockedUntil: Date } }
+const loginAttempts = new Map();
+
+// Configuration
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+/**
+ * Check if an account is currently locked
+ * @param {string} username 
+ * @returns {Object} { isLocked: boolean, lockedUntil: Date|null, remainingTime: string|null }
+ */
+function checkAccountLock(username) {
+    const attempt = loginAttempts.get(username);
+
+    if (!attempt || !attempt.lockedUntil) {
+        return { isLocked: false, lockedUntil: null, remainingTime: null };
+    }
+
+    const now = new Date();
+
+    if (now < attempt.lockedUntil) {
+        // Account is still locked
+        const remainingMs = attempt.lockedUntil - now;
+        const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+        let remainingTime;
+        if (remainingHours > 1) {
+            remainingTime = `${remainingHours} hours`;
+        } else {
+            remainingTime = `${remainingMinutes} minutes`;
+        }
+
+        return {
+            isLocked: true,
+            lockedUntil: attempt.lockedUntil,
+            remainingTime
+        };
+    } else {
+        // Lock has expired - reset attempts
+        loginAttempts.delete(username);
+        return { isLocked: false, lockedUntil: null, remainingTime: null };
+    }
+}
+
+/**
+ * Record a failed login attempt
+ * @param {string} username 
+ * @returns {Object} { shouldLock: boolean, attemptsRemaining: number }
+ */
+function recordFailedAttempt(username) {
+    const attempt = loginAttempts.get(username) || { count: 0, lockedUntil: null };
+
+    attempt.count += 1;
+
+    if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
+        // Lock the account
+        attempt.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
+        loginAttempts.set(username, attempt);
+
+        console.warn(`🔒 Account locked: ${username} - Too many failed login attempts (${attempt.count})`);
+
+        return { shouldLock: true, attemptsRemaining: 0 };
+    } else {
+        loginAttempts.set(username, attempt);
+        const attemptsRemaining = MAX_LOGIN_ATTEMPTS - attempt.count;
+
+        console.warn(`⚠️  Failed login attempt for ${username} - ${attemptsRemaining} attempts remaining`);
+
+        return { shouldLock: false, attemptsRemaining };
+    }
+}
+
+/**
+ * Clear login attempts for a user (called on successful login)
+ * @param {string} username 
+ */
+function clearLoginAttempts(username) {
+    loginAttempts.delete(username);
+}
+
 /**
  * Admin login endpoint
  * Sets HttpOnly + Secure + SameSite=Strict cookie
  * Password is hashed and compared securely
+ * Includes account lockout after 5 failed attempts for 24 hours
  */
 router.post('/login', async (req, res) => {
     try {
@@ -31,14 +115,32 @@ router.post('/login', async (req, res) => {
             });
         }
 
+        // Check if account is locked
+        const lockStatus = checkAccountLock(username);
+        if (lockStatus.isLocked) {
+            return res.status(423).json({ // 423 = Locked
+                success: false,
+                message: `Account is locked due to too many failed login attempts. Try again in ${lockStatus.remainingTime}.`,
+                locked: true,
+                lockedUntil: lockStatus.lockedUntil,
+                remainingTime: lockStatus.remainingTime
+            });
+        }
+
         // Find admin user
         const admin = ADMIN_USERS.find(u => u.username === username);
 
         if (!admin) {
-            // Don't reveal if username exists (security)
+            // Record failed attempt (even for non-existent users to prevent enumeration)
+            const result = recordFailedAttempt(username);
+
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials'
+                message: result.shouldLock
+                    ? 'Account locked due to too many failed attempts. Try again in 24 hours.'
+                    : `Invalid credentials. ${result.attemptsRemaining} attempts remaining.`,
+                locked: result.shouldLock,
+                attemptsRemaining: result.attemptsRemaining
             });
         }
 
@@ -55,11 +157,21 @@ router.post('/login', async (req, res) => {
         }
 
         if (!isValidPassword) {
+            // Record failed attempt
+            const result = recordFailedAttempt(username);
+
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials'
+                message: result.shouldLock
+                    ? 'Account locked due to too many failed attempts. Try again in 24 hours.'
+                    : `Invalid credentials. ${result.attemptsRemaining} attempts remaining.`,
+                locked: result.shouldLock,
+                attemptsRemaining: result.attemptsRemaining
             });
         }
+
+        // Successful login - clear any failed attempts
+        clearLoginAttempts(username);
 
         // Generate JWT token
         const token = generateToken({
