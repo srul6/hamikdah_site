@@ -794,7 +794,7 @@ export default function ProductDetail({ onAddToCart }) {
                 transition: 'font-size 0.3s ease, max-width 0.3s ease'
               }}
             >
-              {productName + ' | ' + "₪" + (product.price || 0).toFixed(2)}
+              {productName + ' | ' + "₪" + Number(product.price || 0).toFixed(2)}
             </Typography>
           </Box>
         </Box>
@@ -908,7 +908,7 @@ export default function ProductDetail({ onAddToCart }) {
                       {isHebrew ? relatedProduct.name_he : relatedProduct.name_en}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      ₪{(relatedProduct.price || 0).toFixed(2)}
+                      ₪{Number(relatedProduct.price || 0).toFixed(2)}
                     </Typography>
                   </CardContent>
                 </Card>

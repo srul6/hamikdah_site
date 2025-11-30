@@ -45,8 +45,12 @@ exports.getAllProducts = async (req, res) => {
                 }
             }
 
+            // Ensure price is a number (PostgreSQL DECIMAL returns as string)
+            const price = product.price ? parseFloat(product.price) : 0;
+
             return {
                 ...product,
+                price: price, // Ensure price is always a number
                 homepageImage: getStorageUrl(product.homepageimage),
                 extraImages: getStorageUrls(product.extraimages),
                 // Map children playing media - handle both full URLs and filenames
@@ -75,17 +79,51 @@ exports.getProductById = async (req, res) => {
     try {
         const product = await databaseController.getProductById(req.params.id);
         if (product) {
+            // Handle children_playing - could be string, array, or JSON string
+            let childrenPlaying = [];
+            if (product.children_playing) {
+                if (Array.isArray(product.children_playing)) {
+                    childrenPlaying = product.children_playing;
+                } else if (typeof product.children_playing === 'string') {
+                    try {
+                        const parsed = JSON.parse(product.children_playing);
+                        childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        childrenPlaying = [product.children_playing];
+                    }
+                }
+            }
+
+            // Handle desktop_hero_images - could be string, array, or JSON string
+            let desktopHeroImages = [];
+            if (product.desktop_hero_images) {
+                if (Array.isArray(product.desktop_hero_images)) {
+                    desktopHeroImages = product.desktop_hero_images;
+                } else if (typeof product.desktop_hero_images === 'string') {
+                    try {
+                        const parsed = JSON.parse(product.desktop_hero_images);
+                        desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        desktopHeroImages = [product.desktop_hero_images];
+                    }
+                }
+            }
+
+            // Ensure price is a number (PostgreSQL DECIMAL returns as string)
+            const price = product.price ? parseFloat(product.price) : 0;
+
             // Add Supabase Storage URL to image paths
             const productWithImageUrls = {
                 ...product,
+                price: price, // Ensure price is always a number
                 homepageImage: getStorageUrl(product.homepageimage),
                 extraImages: getStorageUrls(product.extraimages),
                 // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: (product.children_playing || []).map(media =>
-                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
+                childrenPlaying: childrenPlaying.map(media =>
+                    typeof media === 'string' && media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
                 ),
-                desktopHeroImages: (product.desktop_hero_images || []).map(url =>
-                    url.startsWith('http') ? url : getStorageUrl(url)
+                desktopHeroImages: desktopHeroImages.map(url =>
+                    typeof url === 'string' && url.startsWith('http') ? url : getStorageUrl(url)
                 )
             };
             res.json(productWithImageUrls);

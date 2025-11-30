@@ -208,7 +208,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
     };
 
     const calculateCartTotal = () => {
-        return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+        return cart.reduce((total, item) => total + (Number(item.price || 0) * item.quantity), 0);
     };
 
     const calculateDiscountedTotal = () => {
@@ -742,7 +742,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                                     </Typography>
 
                                                     <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
-                                                        ₪{item.price.toFixed(2)}
+                                                        ₪{Number(item.price || 0).toFixed(2)}
                                                     </Typography>
 
                                                     {/* Quantity Controls */}

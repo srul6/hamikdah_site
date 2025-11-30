@@ -38,7 +38,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     }, []);
 
     // Calculate totals
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum, item) => sum + (Number(item.price || 0) * item.quantity), 0);
     const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
     const total = subtotal - discount;
 
@@ -233,7 +233,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         fontWeight: '500',
                                                         fontSize: { xs: '1.1rem', sm: '1.5rem' }
                                                     }}>
-                                                        ₪{item.price.toFixed(2)}
+                                                        ₪{Number(item.price || 0).toFixed(2)}
                                                     </Typography>
 
                                                     {/* Product Name - Right side */}
@@ -316,7 +316,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         <Typography variant="h6" color="#d8472a" fontWeight="bold" sx={{
                                                             fontSize: { xs: '1.1rem', sm: '1.5rem' }
                                                         }}>
-                                                            ₪{(item.price * item.quantity).toFixed(2)}
+                                                            ₪{(Number(item.price || 0) * item.quantity).toFixed(2)}
                                                         </Typography>
                                                     </Box>
 

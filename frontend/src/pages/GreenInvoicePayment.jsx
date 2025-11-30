@@ -962,7 +962,7 @@ export default function GreenInvoicePayment() {
                                     {isHebrew ? item.name_he : item.name_en} x {item.quantity}
                                 </Typography>
                                 <Typography sx={{ fontWeight: 600 }}>
-                                    ₪{(item.price * item.quantity).toFixed(2)}
+                                    ₪{(Number(item.price || 0) * item.quantity).toFixed(2)}
                                 </Typography>
                             </Box>
                         ))}
