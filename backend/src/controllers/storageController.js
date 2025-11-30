@@ -2,12 +2,20 @@ const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = re
 
 // Initialize S3 client for Cloudflare R2
 // R2 is S3-compatible, so we use AWS SDK
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+
+if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    console.warn('⚠️  R2 credentials not fully configured. File uploads may fail.');
+}
+
 const s3Client = new S3Client({
     region: 'auto', // R2 uses 'auto' region
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    endpoint: R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined,
     credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        accessKeyId: R2_ACCESS_KEY_ID || '',
+        secretAccessKey: R2_SECRET_ACCESS_KEY || '',
     },
 });
 
@@ -42,9 +50,14 @@ class StorageController {
             await s3Client.send(command);
 
             // Construct public URL
-            const publicUrl = PUBLIC_URL
-                ? `${PUBLIC_URL}/${fileName}`
-                : `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${BUCKET_NAME}/${fileName}`;
+            let publicUrl;
+            if (PUBLIC_URL) {
+                publicUrl = `${PUBLIC_URL}/${fileName}`;
+            } else if (R2_ACCOUNT_ID) {
+                publicUrl = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${BUCKET_NAME}/${fileName}`;
+            } else {
+                throw new Error('R2_ACCOUNT_ID or R2_PUBLIC_URL must be configured');
+            }
 
             console.log('✅ File uploaded successfully');
             console.log('   File path:', fileName);

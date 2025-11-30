@@ -39,19 +39,48 @@ class DatabaseController {
 
     async getProductById(id) {
         try {
+            // Validate ID - handle string IDs from URL params
+            if (!id) {
+                throw new Error('Product ID is required');
+            }
+
+            // Convert to number (handles both string "1" and number 1)
+            const numericId = parseInt(id, 10);
+            if (isNaN(numericId) || numericId <= 0) {
+                throw new Error(`Invalid product ID: ${id}`);
+            }
+
             const result = await pool.query(
                 'SELECT * FROM products WHERE id = $1',
-                [id]
+                [numericId]
             );
             return result.rows[0] || null;
         } catch (error) {
-            console.error('Error fetching product:', error);
-            return null;
+            console.error('❌ Error fetching product:', error);
+            console.error('   Product ID:', id);
+            console.error('   Error message:', error.message);
+            throw error;
         }
     }
 
     async createProduct(productData) {
         try {
+            // Handle array fields - convert to JSON string if needed
+            let childrenPlaying = productData.children_playing;
+            if (Array.isArray(childrenPlaying)) {
+                childrenPlaying = JSON.stringify(childrenPlaying);
+            }
+
+            let desktopHeroImages = productData.desktop_hero_images;
+            if (Array.isArray(desktopHeroImages)) {
+                desktopHeroImages = JSON.stringify(desktopHeroImages);
+            }
+
+            let extraImages = productData.extraimages;
+            if (Array.isArray(extraImages)) {
+                extraImages = JSON.stringify(extraImages);
+            }
+
             const result = await pool.query(
                 `INSERT INTO products (
                     name_he, name_en, description_he, description_en, 
@@ -61,22 +90,22 @@ class DatabaseController {
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
                 RETURNING *`,
                 [
-                    productData.name_he,
-                    productData.name_en,
-                    productData.description_he,
-                    productData.description_en,
-                    productData.price,
-                    productData.quantity,
-                    productData.homepageimage,
-                    productData.extraimages,
-                    productData.buildingtime,
-                    productData.pieces,
-                    productData.height,
-                    productData.length,
-                    productData.width,
-                    productData.recommendedage,
-                    productData.children_playing,
-                    productData.desktop_hero_images,
+                    productData.name_he || null,
+                    productData.name_en || null,
+                    productData.description_he || null,
+                    productData.description_en || null,
+                    productData.price || null,
+                    productData.quantity || 0,
+                    productData.homepageimage || null,
+                    extraImages || null,
+                    productData.buildingtime || null,
+                    productData.pieces || null,
+                    productData.height || null,
+                    productData.length || null,
+                    productData.width || null,
+                    productData.recommendedage || null,
+                    childrenPlaying || null,
+                    desktopHeroImages || null,
                     JSON.stringify(productData.colors || [])
                 ]
             );
@@ -99,8 +128,10 @@ class DatabaseController {
             Object.keys(updateData).forEach(key => {
                 if (updateData[key] !== undefined) {
                     fields.push(`${key} = $${paramIndex}`);
-                    // Handle JSON fields
+                    // Handle JSON/array fields
                     if (key === 'colors' && Array.isArray(updateData[key])) {
+                        values.push(JSON.stringify(updateData[key]));
+                    } else if ((key === 'children_playing' || key === 'desktop_hero_images' || key === 'extraimages') && Array.isArray(updateData[key])) {
                         values.push(JSON.stringify(updateData[key]));
                     } else {
                         values.push(updateData[key]);
@@ -150,10 +181,15 @@ class DatabaseController {
 
     async saveCart(cartItems) {
         try {
+            // Validate input
+            if (!Array.isArray(cartItems)) {
+                throw new Error('cartItems must be an array');
+            }
+
             // Clear existing cart
             await pool.query('DELETE FROM cart');
 
-            // Insert new cart items
+            // Insert new cart items (only if there are items)
             if (cartItems.length > 0) {
                 const values = cartItems.map((item, index) => {
                     const base = index * 3;
@@ -161,9 +197,9 @@ class DatabaseController {
                 }).join(', ');
 
                 const params = cartItems.flatMap(item => [
-                    item.product_id,
-                    item.quantity,
-                    item.price
+                    item.product_id || null,
+                    item.quantity || 1,
+                    item.price || null
                 ]);
 
                 await pool.query(
@@ -370,6 +406,14 @@ class DatabaseController {
                 }
             }
 
+            // Validate required fields
+            if (!orderData.customerInfo) {
+                throw new Error('customerInfo is required');
+            }
+            if (!orderData.items || !Array.isArray(orderData.items)) {
+                throw new Error('items must be an array');
+            }
+
             const result = await pool.query(
                 `INSERT INTO orders (
                     form_id, document_id, payment_id, status, amount, currency,
@@ -380,23 +424,23 @@ class DatabaseController {
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                 RETURNING *`,
                 [
-                    orderData.formId,
-                    orderData.documentId,
-                    orderData.paymentId,
+                    orderData.formId || null,
+                    orderData.documentId || null,
+                    orderData.paymentId || null,
                     orderData.status || 'pending',
-                    orderData.amount,
+                    orderData.amount || null,
                     orderData.currency || 'ILS',
-                    orderData.customerInfo.name,
-                    orderData.customerInfo.email,
-                    orderData.customerInfo.phone,
-                    orderData.customerInfo.street,
-                    orderData.customerInfo.houseNumber,
-                    orderData.customerInfo.apartmentNumber,
-                    orderData.customerInfo.floor,
-                    orderData.customerInfo.city,
-                    orderData.customerInfo.country,
-                    JSON.stringify(orderData.items),
-                    orderData.dedication,
+                    orderData.customerInfo.name || null,
+                    orderData.customerInfo.email || null,
+                    orderData.customerInfo.phone || null,
+                    orderData.customerInfo.street || null,
+                    orderData.customerInfo.houseNumber || null,
+                    orderData.customerInfo.apartmentNumber || null,
+                    orderData.customerInfo.floor || null,
+                    orderData.customerInfo.city || null,
+                    orderData.customerInfo.country || null,
+                    JSON.stringify(orderData.items || []),
+                    orderData.dedication || null,
                     parsedTimestamp
                 ]
             );

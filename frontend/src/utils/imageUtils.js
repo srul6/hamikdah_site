@@ -22,6 +22,11 @@ export const getImageUrl = (imagePath) => {
         return cleanPath;
     }
 
+    // If it contains cloudflarestorage.com (R2), it's already a full URL
+    if (cleanPath.includes('cloudflarestorage.com') || cleanPath.includes('r2.cloudflarestorage.com')) {
+        return cleanPath;
+    }
+
     // Skip old/invalid filenames that don't look like valid image files
     // Valid images should have extensions like .jpg, .png, etc.
     if (!cleanPath.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i) && !cleanPath.includes('youtube.com/embed')) {

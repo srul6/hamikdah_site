@@ -13,7 +13,7 @@ exports.getAllProducts = async (req, res) => {
             return res.json([]);
         }
 
-        // Add Supabase Storage URL to image paths
+        // Add storage URL to image paths (R2 or Supabase)
         const productsWithImageUrls = products.map(product => {
             // Handle children_playing - could be string, array, or JSON string
             let childrenPlaying = [];
@@ -48,19 +48,45 @@ exports.getAllProducts = async (req, res) => {
             // Ensure price is a number (PostgreSQL DECIMAL returns as string)
             const price = product.price ? parseFloat(product.price) : 0;
 
+            // Handle extraImages - could be string, array, or JSON string
+            let extraImagesArray = [];
+            if (product.extraimages) {
+                if (Array.isArray(product.extraimages)) {
+                    extraImagesArray = product.extraimages;
+                } else if (typeof product.extraimages === 'string') {
+                    try {
+                        const parsed = JSON.parse(product.extraimages);
+                        extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If not JSON, treat as comma-separated string or single value
+                        extraImagesArray = product.extraimages.includes(',')
+                            ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
+                            : [product.extraimages];
+                    }
+                }
+            }
+
             return {
                 ...product,
                 price: price, // Ensure price is always a number
                 homepageImage: getStorageUrl(product.homepageimage),
-                extraImages: getStorageUrls(product.extraimages),
+                // Keep both camelCase and lowercase for compatibility
+                extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
+                extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
                 // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: childrenPlaying.map(media =>
-                    typeof media === 'string' && media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
-                ),
+                childrenPlaying: childrenPlaying.map(media => {
+                    if (!media) return null;
+                    return typeof media === 'string' && media.startsWith('http')
+                        ? media
+                        : getStorageUrl(`mikdash_child_playing/${media}`);
+                }).filter(Boolean),
                 // Map desktop hero images (handle both filenames and full URLs)
-                desktopHeroImages: desktopHeroImages.map(url =>
-                    typeof url === 'string' && url.startsWith('http') ? url : getStorageUrl(url)
-                )
+                desktopHeroImages: desktopHeroImages.map(url => {
+                    if (!url) return null;
+                    return typeof url === 'string' && url.startsWith('http')
+                        ? url
+                        : getStorageUrl(url);
+                }).filter(Boolean)
             };
         });
 
@@ -112,27 +138,59 @@ exports.getProductById = async (req, res) => {
             // Ensure price is a number (PostgreSQL DECIMAL returns as string)
             const price = product.price ? parseFloat(product.price) : 0;
 
-            // Add Supabase Storage URL to image paths
+            // Handle extraImages - could be string, array, or JSON string
+            let extraImagesArray = [];
+            if (product.extraimages) {
+                if (Array.isArray(product.extraimages)) {
+                    extraImagesArray = product.extraimages;
+                } else if (typeof product.extraimages === 'string') {
+                    try {
+                        const parsed = JSON.parse(product.extraimages);
+                        extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If not JSON, treat as comma-separated string or single value
+                        extraImagesArray = product.extraimages.includes(',')
+                            ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
+                            : [product.extraimages];
+                    }
+                }
+            }
+
+            // Add storage URL to image paths (R2 or Supabase)
             const productWithImageUrls = {
                 ...product,
                 price: price, // Ensure price is always a number
                 homepageImage: getStorageUrl(product.homepageimage),
-                extraImages: getStorageUrls(product.extraimages),
+                // Keep both camelCase and lowercase for compatibility
+                extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
+                extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
                 // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: childrenPlaying.map(media =>
-                    typeof media === 'string' && media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
-                ),
-                desktopHeroImages: desktopHeroImages.map(url =>
-                    typeof url === 'string' && url.startsWith('http') ? url : getStorageUrl(url)
-                )
+                childrenPlaying: childrenPlaying.map(media => {
+                    if (!media) return null;
+                    return typeof media === 'string' && media.startsWith('http')
+                        ? media
+                        : getStorageUrl(`mikdash_child_playing/${media}`);
+                }).filter(Boolean),
+                desktopHeroImages: desktopHeroImages.map(url => {
+                    if (!url) return null;
+                    return typeof url === 'string' && url.startsWith('http')
+                        ? url
+                        : getStorageUrl(url);
+                }).filter(Boolean)
             };
             res.json(productWithImageUrls);
         } else {
             res.status(404).json({ error: 'Product not found' });
         }
     } catch (error) {
-        console.error('Error getting product:', error);
-        res.status(500).json({ error: 'Failed to get product' });
+        console.error('❌ Error getting product:', error);
+        console.error('   Product ID:', req.params.id);
+        console.error('   Error message:', error.message);
+        console.error('   Error stack:', error.stack);
+        res.status(500).json({
+            error: 'Failed to get product',
+            message: error.message
+        });
     }
 };
 
@@ -155,7 +213,82 @@ exports.updateProduct = async (req, res) => {
         console.log('Updating product with data:', req.body);
         const updatedProduct = await databaseController.updateProduct(req.params.id, req.body);
         if (updatedProduct) {
-            res.json(updatedProduct);
+            // Process the updated product to add image URLs (same as getProductById)
+            // Handle children_playing - could be string, array, or JSON string
+            let childrenPlaying = [];
+            if (updatedProduct.children_playing) {
+                if (Array.isArray(updatedProduct.children_playing)) {
+                    childrenPlaying = updatedProduct.children_playing;
+                } else if (typeof updatedProduct.children_playing === 'string') {
+                    try {
+                        const parsed = JSON.parse(updatedProduct.children_playing);
+                        childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        childrenPlaying = [updatedProduct.children_playing];
+                    }
+                }
+            }
+
+            // Handle desktop_hero_images - could be string, array, or JSON string
+            let desktopHeroImages = [];
+            if (updatedProduct.desktop_hero_images) {
+                if (Array.isArray(updatedProduct.desktop_hero_images)) {
+                    desktopHeroImages = updatedProduct.desktop_hero_images;
+                } else if (typeof updatedProduct.desktop_hero_images === 'string') {
+                    try {
+                        const parsed = JSON.parse(updatedProduct.desktop_hero_images);
+                        desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        desktopHeroImages = [updatedProduct.desktop_hero_images];
+                    }
+                }
+            }
+
+            // Handle extraImages - could be string, array, or JSON string
+            let extraImagesArray = [];
+            if (updatedProduct.extraimages) {
+                if (Array.isArray(updatedProduct.extraimages)) {
+                    extraImagesArray = updatedProduct.extraimages;
+                } else if (typeof updatedProduct.extraimages === 'string') {
+                    try {
+                        const parsed = JSON.parse(updatedProduct.extraimages);
+                        extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If not JSON, treat as comma-separated string or single value
+                        extraImagesArray = updatedProduct.extraimages.includes(',')
+                            ? updatedProduct.extraimages.split(',').map(s => s.trim()).filter(Boolean)
+                            : [updatedProduct.extraimages];
+                    }
+                }
+            }
+
+            // Ensure price is a number (PostgreSQL DECIMAL returns as string)
+            const price = updatedProduct.price ? parseFloat(updatedProduct.price) : 0;
+
+            // Add storage URL to image paths (R2 or Supabase)
+            const productWithImageUrls = {
+                ...updatedProduct,
+                price: price, // Ensure price is always a number
+                homepageImage: getStorageUrl(updatedProduct.homepageimage),
+                // Keep both camelCase and lowercase for compatibility
+                extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
+                extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
+                // Map children playing media - handle both full URLs and filenames
+                childrenPlaying: childrenPlaying.map(media => {
+                    if (!media) return null;
+                    return typeof media === 'string' && media.startsWith('http')
+                        ? media
+                        : getStorageUrl(`mikdash_child_playing/${media}`);
+                }).filter(Boolean),
+                desktopHeroImages: desktopHeroImages.map(url => {
+                    if (!url) return null;
+                    return typeof url === 'string' && url.startsWith('http')
+                        ? url
+                        : getStorageUrl(url);
+                }).filter(Boolean)
+            };
+
+            res.json(productWithImageUrls);
         } else {
             res.status(404).json({ error: 'Product not found' });
         }

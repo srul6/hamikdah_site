@@ -21,9 +21,11 @@ function getStorageUrl(filename) {
         // Fallback to R2 default URL format
         const accountId = process.env.R2_ACCOUNT_ID;
         const bucketName = process.env.R2_BUCKET_NAME || 'product-images';
-        if (accountId) {
+        if (accountId && bucketName) {
             return `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${filename}?t=${timestamp}`;
         }
+        // If R2 not configured, return filename as-is (will likely be a broken link, but won't crash)
+        console.warn('⚠️  R2 not fully configured. Image URL may be incorrect.');
     } else {
         // Using Supabase Storage
         const supabaseUrl = process.env.SUPABASE_URL;
