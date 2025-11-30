@@ -15,19 +15,33 @@ app.use(cookieParser()); // Parse cookies
 const allowedOrigins = [
     'https://bmikdash.com',
     'http://localhost:3000',
-    'http://localhost:3001'
-];
+    'http://localhost:3001',
+    // Add Render frontend URL if different from backend
+    process.env.FRONTEND_URL,
+    // Allow same origin (if frontend and backend on same domain)
+    process.env.BACKEND_URL?.replace('/api', ''),
+    // Allow Render frontend domains
+    'https://hamikdash.onrender.com',
+    'https://hamikdash-frontend.onrender.com',
+    'https://hamikdah-site.onrender.com'
+].filter(Boolean); // Remove undefined values
 
 app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
+        // Check if origin is in allowed list
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            return callback(null, true);
         }
-        return callback(null, true);
+
+        // Log the blocked origin for debugging
+        console.log('⚠️  CORS blocked origin:', origin);
+        console.log('   Allowed origins:', allowedOrigins);
+
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
     },
     credentials: true // Allow cookies to be sent
 }));

@@ -28,8 +28,12 @@ class DatabaseController {
             );
             return result.rows || [];
         } catch (error) {
-            console.error('Error fetching products:', error);
-            return [];
+            console.error('❌ Error fetching products from Neon:', error);
+            console.error('   Error message:', error.message);
+            console.error('   Error code:', error.code);
+            console.error('   Error detail:', error.detail);
+            // Re-throw so productController can handle it properly
+            throw error;
         }
     }
 

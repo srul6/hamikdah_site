@@ -253,19 +253,104 @@ This will:
 
 ---
 
-## Step 6: Test Everything
+## Step 6: Test Locally First! ✅
 
-1. **Start backend**:
+**Important**: Test everything locally before deploying to production!
+
+### Quick Local Test:
+
+1. **Update `backend/.env`**:
+   ```env
+   USE_NEON=true
+   NEON_DATABASE_URL=postgresql://...
+   R2_ACCOUNT_ID=...
+   R2_ACCESS_KEY_ID=...
+   R2_SECRET_ACCESS_KEY=...
+   R2_BUCKET_NAME=product-images
+   R2_PUBLIC_URL=...
+   ```
+
+2. **Start backend**:
    ```bash
    cd backend
    npm start
    ```
 
+3. **Test in browser**:
+   - http://localhost:5001/api/products
+   - http://localhost:5001/api/comments
+   - http://localhost:5001/api/orders
+   
+   Should return JSON data (or empty arrays if no data yet)
+
+4. **Start frontend**:
+   ```bash
+   cd frontend
+   npm start
+   ```
+
+5. **Test frontend**:
+   - http://localhost:3000
+   - Products should load
+   - No console errors
+
+**See `TEST_LOCALLY.md` for detailed testing guide!**
+
+---
+
+## Step 7: Test Everything (Production)
+
 2. **Test endpoints**:
-   - GET `/api/products` - Should return products
-   - GET `/api/comments` - Should return comments
-   - GET `/api/orders` - Should return orders
-   - POST `/api/upload/image` - Test file upload
+
+   **Method 1: Using Browser (Easiest)**
+   
+   Open these URLs in your browser:
+   - `http://localhost:5001/api/products` - Should show JSON with products
+   - `http://localhost:5001/api/comments` - Should show JSON with comments
+   - `http://localhost:5001/api/orders` - Should show JSON with orders
+   
+   **Method 2: Using curl (Terminal)**
+   
+   ```bash
+   # Test products endpoint
+   curl http://localhost:5001/api/products
+   
+   # Test comments endpoint
+   curl http://localhost:5001/api/comments
+   
+   # Test orders endpoint
+   curl http://localhost:5001/api/orders
+   ```
+   
+   **Method 3: Using Postman or Insomnia**
+   
+   - Create GET requests to:
+     - `http://localhost:5001/api/products`
+     - `http://localhost:5001/api/comments`
+     - `http://localhost:5001/api/orders`
+   
+   **Method 4: Test File Upload (using curl)**
+   
+   ```bash
+   # Test file upload endpoint
+   curl -X POST http://localhost:5001/api/upload/image \
+     -F "image=@/path/to/your/test-image.jpg" \
+     -F "folder=products"
+   ```
+   
+   Replace `/path/to/your/test-image.jpg` with an actual image file path.
+   
+   **Expected Results:**
+   - ✅ Products endpoint: Returns array of products with all fields
+   - ✅ Comments endpoint: Returns array of comments
+   - ✅ Orders endpoint: Returns object with `{ success: true, orders: [...] }`
+   - ✅ Upload endpoint: Returns `{ success: true, url: "...", path: "..." }`
+   
+   **If you see errors:**
+   - Check backend console for error messages
+   - Verify `.env` has correct credentials
+   - Make sure database connection is working
+   - Check that tables exist in Neon database
 
 3. **Test frontend**:
    - Products should load
@@ -274,14 +359,74 @@ This will:
 
 ---
 
-## Step 7: Switch Over
+## Step 8: Switch Over
 
-Once everything works:
+Once everything works locally:
 
-1. **Set `USE_NEON=true`** in production `.env`
-2. **Deploy updated backend**
-3. **Monitor for issues**
-4. **Once stable, remove Supabase credentials**
+### Important: Update Render Environment Variables
+
+**⚠️ Render uses its own environment variables, NOT your local `.env` file!**
+
+You need to update environment variables in **Render Dashboard**:
+
+1. **Go to Render Dashboard**:
+   - https://dashboard.render.com
+   - Sign in to your account
+
+2. **Select your backend service**:
+   - Click on your backend service (e.g., "hamikdash-backend")
+
+3. **Go to Environment**:
+   - Click on **"Environment"** tab in the left sidebar
+   - Or look for **"Environment Variables"** section
+
+4. **Add/Update these variables**:
+   
+   **Add new variables:**
+   ```
+   USE_NEON=true
+   NEON_DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+   R2_ACCOUNT_ID=your_account_id
+   R2_ACCESS_KEY_ID=your_access_key
+   R2_SECRET_ACCESS_KEY=your_secret_key
+   R2_BUCKET_NAME=product-images
+   R2_PUBLIC_URL=https://your-account-id.r2.cloudflarestorage.com/product-images
+   ```
+   
+   **Keep existing variables** (for now, as backup):
+   ```
+   SUPABASE_URL=... (keep for rollback)
+   SUPABASE_ANON_KEY=... (keep for rollback)
+   ```
+
+5. **Save changes**:
+   - Click **"Save Changes"** button
+   - Render will automatically redeploy your service
+
+6. **Wait for deployment**:
+   - Render will rebuild and redeploy
+   - Check deployment logs for errors
+   - Usually takes 2-5 minutes
+
+7. **Test production**:
+   - Test your production API endpoints
+   - Check that data loads correctly
+   - Verify file uploads work
+
+8. **Monitor for issues**:
+   - Check Render logs for errors
+   - Test all functionality
+   - If something breaks, you can quickly switch back by setting `USE_NEON=false` in Render
+
+9. **Once stable** (after a few days):
+   - Remove Supabase credentials from Render environment variables
+   - Keep them in local `.env` for reference if needed
+
+### Local vs Production
+
+- **Local development**: Uses `backend/.env` file
+- **Render production**: Uses environment variables set in Render Dashboard
+- **Both need to be updated separately!**
 
 ---
 

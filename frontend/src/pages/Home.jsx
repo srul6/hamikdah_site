@@ -24,7 +24,15 @@ export default function Home({ onAddToCart }) {
   const secondDescRef = useRef(null);
 
   useEffect(() => {
-    fetchProducts().then(setProducts);
+    fetchProducts()
+      .then(data => {
+        // Ensure products is always an array
+        setProducts(Array.isArray(data) ? data : []);
+      })
+      .catch(error => {
+        console.error('Error loading products:', error);
+        setProducts([]); // Set empty array on error
+      });
   }, []);
 
   // Animation effect - slide from left to right
