@@ -494,6 +494,26 @@ class SupabaseController {
             throw error;
         }
     }
+
+    async updateOrderShippedStatus(id, isShipped) {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .update({ is_shipped: isShipped })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log(`📦 Order ${id} shipping status updated to: ${isShipped ? 'Shipped ✅' : 'Not Shipped'}`);
+
+            return data;
+        } catch (error) {
+            console.error('❌ Error updating order shipped status:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new SupabaseController();

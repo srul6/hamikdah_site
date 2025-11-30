@@ -85,20 +85,20 @@ const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, r
                 mb: 3,
                 px: { xs: 4, md: '9%' },
             }}>
-                <Typography
-                    variant="h2"
-                    sx={{
-                        color: '#f5f0e3',
-                        fontWeight: 400,
-                        fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
-                        lineHeight: 1.6,
-                        maxWidth: '80%',
-                        textAlign: isHebrew ? 'right' : 'left',
-                        direction: isHebrew ? 'rtl' : 'ltr',
-                    }}
-                >
+            <Typography
+                variant="h2"
+                sx={{
+                    color: '#f5f0e3',
+                    fontWeight: 400,
+                    fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
+                    lineHeight: 1.6,
+                    maxWidth: '80%',
+                    textAlign: isHebrew ? 'right' : 'left',
+                    direction: isHebrew ? 'rtl' : 'ltr',
+                }}
+            >
                     {isHebrew ? 'סרטוני עזר לבנייה' : 'Building Assistance Videos'}
-                </Typography>
+            </Typography>
             </Box>
 
             {/* Horizontal Scrolling Gallery */}
@@ -1712,14 +1712,14 @@ export default function MikdashProductPage({ onAddToCart }) {
                             >
                                 {isHebrew ? 'בכל בית צריך להיות בית המקדש!' : 'Every home needs the Beit Hamikdash!'}
                             </Typography>
-                            <Typography
-                                ref={subtitleRef}
-                                variant="h5"
-                                sx={{
+            <Typography
+                ref={subtitleRef}
+                variant="h5"
+                sx={{
                                     maxWidth: '90%',
                                     ml: 'auto',
-                                    color: '#f5f0e3',
-                                    fontWeight: 400,
+                    color: '#f5f0e3',
+                    fontWeight: 400,
                                     fontSize: { md: '1.5rem', lg: '1.6rem' },
                                     lineHeight: 1.5,
                                     direction: isHebrew ? 'rtl' : 'ltr',
@@ -1765,22 +1765,22 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 color: '#f5f0e3',
                                 fontWeight: 400,
                                 fontSize: { xs: '1.1rem', sm: '1.3rem' },
-                                lineHeight: 1.6,
-                                maxWidth: '80%',
-                                mx: 'auto',
-                                direction: isHebrew ? 'rtl' : 'ltr',
-                                textAlign: isHebrew ? 'right' : 'left',
-                            }}
-                        >
-                            {isHebrew ?
-                                'במו עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו. ' +
-                                'במלחמה הזאת ירושלים נמצאת במרכז העולם. ' +
+                    lineHeight: 1.6,
+                    maxWidth: '80%',
+                    mx: 'auto',
+                    direction: isHebrew ? 'rtl' : 'ltr',
+                    textAlign: isHebrew ? 'right' : 'left',
+                }}
+            >
+                {isHebrew ?
+                    'במו עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו. ' +
+                    'במלחמה הזאת ירושלים נמצאת במרכז העולם. ' +
                                 'ובבית שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה! ' +
-                                'בית המקדש הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה. ' +
-                                'בשנות הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע. ' +
+                    'בית המקדש הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה. ' +
+                    'בשנות הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע. ' +
                                 'ועכשיו, עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!'
-                                : 'The Second Temple'}
-                        </Typography>
+                    : 'The Second Temple'}
+            </Typography>
                     </Box>
                 </Container>
             </Box>
@@ -1856,7 +1856,7 @@ export default function MikdashProductPage({ onAddToCart }) {
             {product && Array.isArray(product.childrenPlaying) && product.childrenPlaying.length > 0 && (
                 <Box
                     ref={childrenPlayingRef}
-                    sx={{
+                                sx={{
                         backgroundColor: 'rgb(5, 38, 51)',
                         minHeight: '100vh',
                         display: 'flex',
@@ -1874,7 +1874,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                             variant="h2"
                             sx={{
                                 color: '#f5f0e3',
-                                fontWeight: 400,
+                                    fontWeight: 400,
                                 fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
                                 lineHeight: 1.6,
                                 maxWidth: '80%',
@@ -2020,7 +2020,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 borderRadius: '4px',
                                 transition: 'width 0.1s ease-out'
                             }} />
-                        </Box>
+                            </Box>
                     </Box>
                 </Box>
             )}
@@ -2035,13 +2035,13 @@ export default function MikdashProductPage({ onAddToCart }) {
                 py: 6
             }}>
                 {/* Horizontal Scrolling Video Gallery */}
-                <GallerySection
+                            <GallerySection
                     ref={videoGalleryRef}
-                    product={product}
-                    selectedColor={selectedColor}
-                    isHebrew={isHebrew}
-                />
-            </Box>
+                                product={product}
+                                selectedColor={selectedColor}
+                                isHebrew={isHebrew}
+                            />
+                    </Box>
 
             {/* Product Features Section */}
             <ProductFeaturesSection ref={productFeaturesRef} product={product} isHebrew={isHebrew} />
@@ -2483,46 +2483,46 @@ export default function MikdashProductPage({ onAddToCart }) {
                 py: 6
             }}>
                 <Container maxWidth="lg" sx={{ textAlign: 'center' }}>
-                    <Box ref={buttonTargetRef} sx={{ display: 'flex', justifyContent: 'center' }}>
-                        {!isSticky && (
-                            <Button
-                                variant="contained"
-                                onClick={handleAddToCart}
-                                disabled={!product || product.quantity <= 0}
-                                sx={{
-                                    backgroundColor: '#f5f0e3',
-                                    color: '#002144',
-                                    width: '80%',
-                                    maxWidth: '600px',
-                                    padding: { xs: '16px 32px', sm: '20px 40px', md: '24px 48px' },
-                                    fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' },
-                                    fontWeight: 700,
-                                    borderRadius: 2,
-                                    boxShadow: '0 4px 16px rgba(241, 241, 238, 0.6)',
-                                    transition: 'all 0.3s ease',
-                                    border: '2px solid #f5f0e3',
-                                    '&:hover': {
+                <Box ref={buttonTargetRef} sx={{ display: 'flex', justifyContent: 'center' }}>
+                    {!isSticky && (
+                        <Button
+                            variant="contained"
+                            onClick={handleAddToCart}
+                            disabled={!product || product.quantity <= 0}
+                            sx={{
+                                backgroundColor: '#f5f0e3',
+                                color: '#002144',
+                                width: '80%',
+                                maxWidth: '600px',
+                                padding: { xs: '16px 32px', sm: '20px 40px', md: '24px 48px' },
+                                fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' },
+                                fontWeight: 700,
+                                borderRadius: 2,
+                                boxShadow: '0 4px 16px rgba(241, 241, 238, 0.6)',
+                                transition: 'all 0.3s ease',
+                                border: '2px solid #f5f0e3',
+                                '&:hover': {
                                         backgroundColor: '#f5f0e3',
                                         color: 'rgba(229, 90, 61, 1)',
-                                        transform: 'translateY(-4px)',
+                                    transform: 'translateY(-4px)',
                                         borderColor: 'rgba(229, 90, 61, 1)'
-                                    },
-                                    '&:disabled': {
-                                        backgroundColor: '#666',
-                                        color: '#999',
-                                        boxShadow: 'none',
-                                        borderColor: '#666'
-                                    }
-                                }}
-                            >
-                                {product && product.quantity > 0 ?
-                                    (isHebrew ? 'הוסף לסל' : 'Add to Cart') :
-                                    (isHebrew ? 'בקרוב' : 'Coming Soon')
+                                },
+                                '&:disabled': {
+                                    backgroundColor: '#666',
+                                    color: '#999',
+                                    boxShadow: 'none',
+                                    borderColor: '#666'
                                 }
-                            </Button>
-                        )}
-                    </Box>
-                </Container>
+                            }}
+                        >
+                            {product && product.quantity > 0 ?
+                                (isHebrew ? 'הוסף לסל' : 'Add to Cart') :
+                                    (isHebrew ? 'בקרוב' : 'Coming Soon')
+                            }
+                        </Button>
+                    )}
+                </Box>
+            </Container>
             </Box>
 
 

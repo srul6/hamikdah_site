@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const supabaseController = require('../controllers/supabaseController');
+const { databaseController } = require('../config/database');
 
 // GET endpoint to retrieve all orders
 router.get('/', async (req, res) => {
     try {
         console.log('📋 Retrieving all orders from database...');
-        const orders = await supabaseController.getAllOrders();
+        const orders = await databaseController.getAllOrders();
 
         res.json({
             success: true,
@@ -30,7 +30,7 @@ router.get('/:id', async (req, res) => {
         const { id } = req.params;
         console.log(`🔍 Retrieving order with ID: ${id}`);
 
-        const order = await supabaseController.getOrderById(id);
+        const order = await databaseController.getOrderById(id);
 
         if (!order) {
             return res.status(404).json({
@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
         console.log('📝 Creating new order...');
         const orderData = req.body;
 
-        const newOrder = await supabaseController.createOrder(orderData);
+        const newOrder = await databaseController.createOrder(orderData);
 
         res.json({
             success: true,
@@ -85,7 +85,7 @@ router.put('/:id', async (req, res) => {
         const { id } = req.params;
         console.log(`📝 Updating order ${id}...`);
 
-        const updatedOrder = await supabaseController.updateOrder(id, req.body);
+        const updatedOrder = await databaseController.updateOrder(id, req.body);
 
         res.json({
             success: true,
@@ -109,7 +109,7 @@ router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         console.log(`🗑️  Deleting order ${id}...`);
 
-        await supabaseController.deleteOrder(id);
+        await databaseController.deleteOrder(id);
 
         res.json({
             success: true,
@@ -121,6 +121,32 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to delete order',
+            message: error.message
+        });
+    }
+});
+
+// PATCH endpoint to update shipped status
+router.patch('/:id/shipped', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isShipped } = req.body;
+
+        console.log(`📦 Updating shipped status for order ${id} to: ${isShipped}`);
+
+        const updatedOrder = await databaseController.updateOrderShippedStatus(id, isShipped);
+
+        res.json({
+            success: true,
+            message: `Order ${isShipped ? 'marked as shipped' : 'marked as not shipped'}`,
+            order: updatedOrder
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating shipped status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update shipped status',
             message: error.message
         });
     }

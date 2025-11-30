@@ -1,13 +1,13 @@
 const GreenInvoiceService = require('../services/greenInvoiceService');
 const EmailService = require('../services/emailService');
-const supabaseController = require('./supabaseController'); // Import instance directly
+const { databaseController } = require('../config/database');
 const axios = require('axios'); // Added for testing document types
 
 class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
         this.emailService = new EmailService();
-        this.supabaseController = supabaseController; // Use the existing instance
+        this.databaseController = databaseController; // Use the database controller from config
         this.processedWebhooks = new Set(); // Track processed webhooks to prevent duplicates
         console.log('GreenInvoice Controller initialized');
     }
@@ -280,7 +280,7 @@ class GreenInvoiceController {
                             // New format: items array with quantities and prices
                             try {
                                 // Fetch products from Supabase
-                                const productsData = await this.supabaseController.getAllProducts();
+                                const productsData = await this.databaseController.getAllProducts();
                                 console.log('✅ Fetched products from Supabase:', productsData.length);
 
                                 items = await Promise.all(itemData.map(async item => {
@@ -320,7 +320,7 @@ class GreenInvoiceController {
                             const itemIds = itemData.split(',').filter(id => id.trim());
                             try {
                                 // Fetch products from Supabase
-                                const productsData = await this.supabaseController.getAllProducts();
+                                const productsData = await this.databaseController.getAllProducts();
                                 items = itemIds.map(itemId => {
                                     const product = productsData.find(p => p.id.toString() === itemId.trim());
                                     if (product) {
@@ -417,19 +417,19 @@ class GreenInvoiceController {
                 // Check if order already exists (to prevent duplicates)
                 let existingOrder = null;
                 try {
-                    existingOrder = await this.supabaseController.getOrderByFormId(formId);
+                    existingOrder = await this.databaseController.getOrderByFormId(formId);
                 } catch (err) {
                     // Order doesn't exist, which is fine
                 }
 
                 if (!existingOrder) {
-                    await this.supabaseController.createOrder(orderData);
+                    await this.databaseController.createOrder(orderData);
                     console.log('✅ Order saved to database successfully');
                 } else {
                     console.log('ℹ️  Order already exists in database, skipping creation');
                     // Update the existing order status if needed
                     if (existingOrder.status !== orderData.status) {
-                        await this.supabaseController.updateOrderByFormId(formId, orderData);
+                        await this.databaseController.updateOrderByFormId(formId, orderData);
                         console.log('✅ Order status updated in database');
                     }
                 }
@@ -465,7 +465,7 @@ class GreenInvoiceController {
                                 try {
                                     const quantityToReduce = item.quantity || 1;
                                     console.log(`📉 Reducing quantity for product ID ${item.id} by ${quantityToReduce}`);
-                                    await this.supabaseController.reduceProductQuantity(item.id, quantityToReduce);
+                                    await this.databaseController.reduceProductQuantity(item.id, quantityToReduce);
                                     console.log(`✅ Successfully reduced quantity for product ID ${item.id}`);
                                 } catch (error) {
                                     console.error(`❌ Failed to reduce quantity for product ID ${item.id}:`, error);

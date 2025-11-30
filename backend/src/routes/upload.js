@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const supabaseController = require('../controllers/supabaseController');
+const { storageController } = require('../config/database');
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -43,7 +43,7 @@ router.post('/image', upload.single('image'), async (req, res) => {
             folder: folder
         });
 
-        const result = await supabaseController.uploadImage(req.file, folder);
+        const result = await storageController.uploadImage(req.file, folder);
 
         res.json({
             success: true,
@@ -76,7 +76,7 @@ router.post('/images', upload.array('images', 10), async (req, res) => {
         console.log(`📤 Multiple images upload request: ${req.files.length} files`);
 
         const uploadPromises = req.files.map(file =>
-            supabaseController.uploadImage(file, folder)
+            storageController.uploadImage(file, folder)
         );
 
         const results = await Promise.all(uploadPromises);
@@ -108,7 +108,7 @@ router.delete('/image', async (req, res) => {
             });
         }
 
-        await supabaseController.deleteImage(path);
+        await storageController.deleteImage(path);
 
         res.json({
             success: true,

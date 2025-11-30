@@ -11,5 +11,7 @@ export const API_ENDPOINTS = {
     cart: `${API_BASE_URL}/api/cart`,
     admin: `${API_BASE_URL}/api/admin`,
     coupons: `${API_BASE_URL}/api/coupons`,
-    upload: `${API_BASE_URL}/api/upload`
+    upload: `${API_BASE_URL}/api/upload`,
+    orders: `${API_BASE_URL}/api/orders`,
+    comments: `${API_BASE_URL}/api/comments`
 };

@@ -110,13 +110,15 @@ if (process.env.NODE_ENV === 'production') {
     // Production: minimal logging, use process.env.PORT
     app.listen(process.env.PORT, () => {
         console.log('🚀 Hamikdash backend deployed successfully');
-        console.log('✅ Using Supabase cloud database');
+        const dbType = process.env.USE_NEON === 'true' ? 'Neon PostgreSQL + Cloudflare R2' : 'Supabase';
+        console.log(`✅ Using ${dbType}`);
     });
 } else {
     // Development: detailed logging, local port
     app.listen(PORT, () => {
         console.log(`🔧 Backend running on port ${PORT}`);
         console.log('🔄 Development mode - detailed logging enabled');
-        console.log('✅ Using Supabase cloud database - always accessible!');
+        const dbType = process.env.USE_NEON === 'true' ? 'Neon PostgreSQL + Cloudflare R2' : 'Supabase';
+        console.log(`✅ Using ${dbType} - always accessible!`);
     });
 }

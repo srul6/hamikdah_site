@@ -82,8 +82,8 @@ export default function AdminPanel() {
       const data = await response.json();
 
       if (data.authenticated) {
-        setIsAuthenticated(true);
-      }
+      setIsAuthenticated(true);
+    }
     } catch (error) {
       console.error('Session check failed:', error);
     }
@@ -139,6 +139,39 @@ export default function AdminPanel() {
       setOrders(ordersData);
     } catch (error) {
       console.error('Error fetching orders:', error);
+    }
+  };
+
+  const handleToggleShipped = async (orderId, currentShippedStatus) => {
+    try {
+      const newShippedStatus = !currentShippedStatus;
+
+      const response = await fetch(`${API_ENDPOINTS.orders}/${orderId}/shipped`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ isShipped: newShippedStatus })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        setOrders(prevOrders =>
+          prevOrders.map(order =>
+            order.id === orderId
+              ? { ...order, is_shipped: newShippedStatus }
+              : order
+          )
+        );
+      } else {
+        alert('Failed to update shipping status');
+      }
+    } catch (error) {
+      console.error('Error updating shipped status:', error);
+      alert('Error updating shipping status');
     }
   };
 
@@ -585,17 +618,17 @@ export default function AdminPanel() {
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
           {activeTab === 0 && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAdd}
-              sx={{
-                backgroundColor: '#0071e3',
-                '&:hover': { backgroundColor: '#0077ed' }
-              }}
-            >
-              Add Product
-            </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAdd}
+            sx={{
+              backgroundColor: '#0071e3',
+              '&:hover': { backgroundColor: '#0077ed' }
+            }}
+          >
+            Add Product
+          </Button>
           )}
           {activeTab === 1 && (
             <Button
@@ -686,9 +719,9 @@ export default function AdminPanel() {
               Products Management
             </Typography>
           </Box>
-          <Grid container spacing={3}>
-            {products.map((product) => (
-              <Grid item xs={12} md={6} lg={4} key={product.id}>
+      <Grid container spacing={3}>
+        {products.map((product) => (
+          <Grid item xs={12} md={6} lg={4} key={product.id}>
                 <Card sx={{
                   height: '100%',
                   maxHeight: '450px',
@@ -701,8 +734,8 @@ export default function AdminPanel() {
                     flexDirection: 'column',
                     overflow: 'hidden'
                   }}>
-                    {/* Product Image */}
-                    {product.homepageimage && (
+                {/* Product Image */}
+                {product.homepageimage && (
                       <Box sx={{
                         mb: 2,
                         textAlign: 'center',
@@ -714,71 +747,71 @@ export default function AdminPanel() {
                         justifyContent: 'center',
                         overflow: 'hidden'
                       }}>
-                        <img
-                          src={product.homepageimage}
-                          alt={product.name_he || product.name_en}
-                          style={{
+                    <img
+                      src={product.homepageimage}
+                      alt={product.name_he || product.name_en}
+                      style={{
                             maxWidth: '100%',
                             maxHeight: '100%',
                             objectFit: 'contain',
-                            borderRadius: '8px'
-                          }}
-                        />
-                      </Box>
-                    )}
+                        borderRadius: '8px'
+                      }}
+                    />
+                  </Box>
+                )}
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                       <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                          {product.name_he || product.name_en}
-                        </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {product.name_he || product.name_en}
+                  </Typography>
                         {product.colors && product.colors.length > 0 && (
                           <Typography variant="caption" sx={{ color: '#0071e3', fontWeight: 500 }}>
                             {product.colors.length} color{product.colors.length > 1 ? 's' : ''} available
                           </Typography>
                         )}
                       </Box>
-                      <Box>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit(product)}
-                          sx={{ color: '#0071e3' }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(product.id)}
-                          sx={{ color: '#ff3b30' }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    </Box>
+                  <Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleEdit(product)}
+                      sx={{ color: '#0071e3' }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDelete(product.id)}
+                      sx={{ color: '#ff3b30' }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#0071e3' }}>
-                        ₪{product.price}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: (product.quantity || 0) > 0 ? '#28a745' : '#dc3545',
-                          fontWeight: 600
-                        }}
-                      >
-                        Quantity: {product.quantity || 0}
-                      </Typography>
-                    </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#0071e3' }}>
+                    ₪{product.price}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: (product.quantity || 0) > 0 ? '#28a745' : '#dc3545',
+                      fontWeight: 600
+                    }}
+                  >
+                    Quantity: {product.quantity || 0}
+                  </Typography>
+                </Box>
 
-                    <Typography variant="caption" color="text.secondary">
-                      ID: {product.id}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                <Typography variant="caption" color="text.secondary">
+                  ID: {product.id}
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
+        ))}
+      </Grid>
         </>
       )}
 
@@ -971,7 +1004,13 @@ export default function AdminPanel() {
               <Table sx={{ minWidth: 650 }}>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: '#667eea' }}>
-                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>מזהה הזמנה</TableCell>
+                    <TableCell align="right" sx={{
+                      color: 'white',
+                      fontWeight: 600,
+                      backgroundColor: '#5568d3',
+                      borderRight: '2px solid #4a5bc4'
+                    }}>משלוח</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>ID</TableCell>
                     <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>לקוח</TableCell>
                     <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>אימייל</TableCell>
                     <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>טלפון</TableCell>
@@ -990,10 +1029,39 @@ export default function AdminPanel() {
                       <TableRow
                         key={order.id}
                         sx={{
-                          '&:hover': { backgroundColor: '#f5f5f5' },
-                          '&:nth-of-type(even)': { backgroundColor: '#fafafa' }
+                          backgroundColor: order.is_shipped ? 'rgba(0, 0, 0, 0.34)' : 'transparent',
+                          '&:hover': {
+                            backgroundColor: order.is_shipped ? '#d0d0d0' : '#f5f5f5'
+                          },
+                          '&:nth-of-type(even)': {
+                            backgroundColor: order.is_shipped ? '#e0e0e0' : '#fafafa'
+                          },
+                          transition: 'background-color 0.3s ease'
                         }}
                       >
+                        <TableCell align="right" sx={{
+                          backgroundColor: order.is_shipped ? '#90caf9' : '#e3f2fd',
+                          borderRight: '2px solid #90caf9',
+                          '&:hover': {
+                            backgroundColor: order.is_shipped ? '#a5d6a7' : '#bbdefb'
+                          }
+                        }}>
+                          <Button
+                            size="small"
+                            variant={order.is_shipped ? 'contained' : 'outlined'}
+                            color={order.is_shipped ? 'success' : 'primary'}
+                            onClick={() => handleToggleShipped(order.id, order.is_shipped)}
+                            sx={{
+                              fontSize: '0.75rem',
+                              px: 1.5,
+                              py: 0.5,
+                              fontWeight: 600,
+                              minWidth: '100px'
+                            }}
+                          >
+                            {order.is_shipped ? '✓ נשלח' : 'סמן כנשלח'}
+                          </Button>
+                        </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             #{order.id}
@@ -1051,7 +1119,7 @@ export default function AdminPanel() {
                           />
                         </TableCell>
                         <TableCell align="right">
-                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                             <Button
                               size="small"
                               variant="outlined"
@@ -1068,6 +1136,7 @@ export default function AdminPanel() {
                               פרטים
                             </Button>
                             <IconButton
+
                               size="small"
                               color="error"
                               onClick={async () => {
@@ -1130,7 +1199,7 @@ export default function AdminPanel() {
           py: 3
         }}>
           <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            {editingProduct ? 'Edit Product' : 'Add New Product'}
+          {editingProduct ? 'Edit Product' : 'Add New Product'}
           </Typography>
           <Typography variant="body1" sx={{ opacity: 0.9 }}>
             {editingProduct ? 'Update product information and settings' : 'Create a new product with all details'}
@@ -1182,14 +1251,14 @@ export default function AdminPanel() {
                 📝 Basic Information
               </Typography>
               <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Product Name (Hebrew)"
-                    value={formData.name_he}
-                    onChange={(e) => handleInputChange('name_he', e.target.value)}
-                    required
-                    dir="rtl"
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name (Hebrew)"
+                  value={formData.name_he}
+                  onChange={(e) => handleInputChange('name_he', e.target.value)}
+                  required
+                  dir="rtl"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: '8px',
@@ -1202,61 +1271,61 @@ export default function AdminPanel() {
                         }
                       }
                     }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Product Name (English)"
-                    value={formData.name_en}
-                    onChange={(e) => handleInputChange('name_en', e.target.value)}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Description (Hebrew)"
-                    multiline
-                    rows={3}
-                    value={formData.description_he}
-                    onChange={(e) => handleInputChange('description_he', e.target.value)}
-                    required
-                    dir="rtl"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Description (English)"
-                    multiline
-                    rows={3}
-                    value={formData.description_en}
-                    onChange={(e) => handleInputChange('description_en', e.target.value)}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Price"
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange('price', e.target.value)}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Quantity Available"
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) => handleInputChange('quantity', e.target.value)}
-                    required
-                    helperText="Number of items in stock"
-                  />
-                </Grid>
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name (English)"
+                  value={formData.name_en}
+                  onChange={(e) => handleInputChange('name_en', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Description (Hebrew)"
+                  multiline
+                  rows={3}
+                  value={formData.description_he}
+                  onChange={(e) => handleInputChange('description_he', e.target.value)}
+                  required
+                  dir="rtl"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Description (English)"
+                  multiline
+                  rows={3}
+                  value={formData.description_en}
+                  onChange={(e) => handleInputChange('description_en', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Price"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => handleInputChange('price', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Quantity Available"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => handleInputChange('quantity', e.target.value)}
+                  required
+                  helperText="Number of items in stock"
+                />
+              </Grid>
                 <Grid item xs={12}>
                   <ImageUploader
                     label="Homepage Image *"
@@ -1390,9 +1459,9 @@ export default function AdminPanel() {
                         </Box>
 
                         <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
                               label="Color Name (Hebrew)"
                               value={color.name_he || ''}
                               onChange={(e) => updateColor(index, 'name_he', e.target.value)}
@@ -1415,9 +1484,9 @@ export default function AdminPanel() {
                               onChange={(e) => updateColor(index, 'colorValues', e.target.value.split(',').map(c => c.trim()).filter(Boolean))}
                               helperText="e.g., #ff0000, #00ff00 for multiple colors"
                               placeholder="#ff0000"
-                            />
-                          </Grid>
-                          <Grid item xs={12}>
+                />
+              </Grid>
+              <Grid item xs={12}>
                             <ImageUploader
                               label="Main Image for this Color"
                               value={color.mainImage || ''}
@@ -1473,16 +1542,16 @@ export default function AdminPanel() {
               </Typography>
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
+                <TextField
+                  fullWidth
                     label="Building Time (hours)"
                     type="number"
                     value={formData.buildingTime}
                     onChange={(e) => handleInputChange('buildingTime', e.target.value)}
                     placeholder="e.g., 2"
                     helperText="Estimated building time in hours"
-                  />
-                </Grid>
+                />
+              </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
@@ -1492,7 +1561,7 @@ export default function AdminPanel() {
                     placeholder="e.g., 800+"
                     helperText="Number of pieces in the kit"
                   />
-                </Grid>
+            </Grid>
                 <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth

@@ -1,11 +1,11 @@
 // backend/src/controllers/productController.js
-const supabaseController = require('./supabaseController');
+const { databaseController } = require('../config/database');
 const { getStorageUrl, getStorageUrls } = require('../utils/storageUtils');
 
 // Get all products
 exports.getAllProducts = async (req, res) => {
     try {
-        const products = await supabaseController.getAllProducts();
+        const products = await databaseController.getAllProducts();
         // Add Supabase Storage URL to image paths
         const productsWithImageUrls = products.map(product => ({
             ...product,
@@ -30,7 +30,7 @@ exports.getAllProducts = async (req, res) => {
 // Get product by ID
 exports.getProductById = async (req, res) => {
     try {
-        const product = await supabaseController.getProductById(req.params.id);
+        const product = await databaseController.getProductById(req.params.id);
         if (product) {
             // Add Supabase Storage URL to image paths
             const productWithImageUrls = {
@@ -59,7 +59,7 @@ exports.getProductById = async (req, res) => {
 exports.createProduct = async (req, res) => {
     try {
         console.log('Creating product with data:', req.body);
-        const newProduct = await supabaseController.createProduct(req.body);
+        const newProduct = await databaseController.createProduct(req.body);
         res.status(201).json(newProduct);
     } catch (error) {
         console.error('Error creating product:', error);
@@ -72,7 +72,7 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         console.log('Updating product with data:', req.body);
-        const updatedProduct = await supabaseController.updateProduct(req.params.id, req.body);
+        const updatedProduct = await databaseController.updateProduct(req.params.id, req.body);
         if (updatedProduct) {
             res.json(updatedProduct);
         } else {
@@ -88,7 +88,7 @@ exports.updateProduct = async (req, res) => {
 // Delete product
 exports.deleteProduct = async (req, res) => {
     try {
-        const success = await supabaseController.deleteProduct(req.params.id);
+        const success = await databaseController.deleteProduct(req.params.id);
         if (success) {
             res.json({ message: 'Product deleted successfully' });
         } else {

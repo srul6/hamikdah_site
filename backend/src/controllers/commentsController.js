@@ -1,10 +1,10 @@
 // backend/src/controllers/commentsController.js
-const supabaseController = require('./supabaseController');
+const { databaseController } = require('../config/database');
 
 // Get all comments
 exports.getAllComments = async (req, res) => {
     try {
-        const comments = await supabaseController.getAllComments();
+        const comments = await databaseController.getAllComments();
         res.json(comments);
     } catch (error) {
         console.error('Error fetching comments:', error);
@@ -16,7 +16,7 @@ exports.getAllComments = async (req, res) => {
 exports.getCommentById = async (req, res) => {
     try {
         const { id } = req.params;
-        const comment = await supabaseController.getCommentById(id);
+        const comment = await databaseController.getCommentById(id);
         if (!comment) {
             return res.status(404).json({ error: 'Comment not found' });
         }
@@ -31,7 +31,7 @@ exports.getCommentById = async (req, res) => {
 exports.createComment = async (req, res) => {
     try {
         const commentData = req.body;
-        const newComment = await supabaseController.createComment(commentData);
+        const newComment = await databaseController.createComment(commentData);
         res.status(201).json(newComment);
     } catch (error) {
         console.error('Error creating comment:', error);
@@ -44,7 +44,7 @@ exports.updateComment = async (req, res) => {
     try {
         const { id } = req.params;
         const commentData = req.body;
-        const updatedComment = await supabaseController.updateComment(id, commentData);
+        const updatedComment = await databaseController.updateComment(id, commentData);
         if (!updatedComment) {
             return res.status(404).json({ error: 'Comment not found' });
         }
@@ -59,7 +59,7 @@ exports.updateComment = async (req, res) => {
 exports.deleteComment = async (req, res) => {
     try {
         const { id } = req.params;
-        const success = await supabaseController.deleteComment(id);
+        const success = await databaseController.deleteComment(id);
         if (!success) {
             return res.status(404).json({ error: 'Comment not found' });
         }

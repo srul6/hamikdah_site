@@ -14,6 +14,7 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { Link as RouterLink } from 'react-router-dom';
@@ -117,6 +118,34 @@ export default function Footer() {
                                 }}
                             >
                                 053-2405276
+                            </Button>
+                            <Button
+                                component="a"
+                                href="https://wa.me/972532405276"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<WhatsAppIcon />}
+                                sx={{
+                                    color: 'rgb(245, 240, 227)',
+                                    textTransform: 'none',
+                                    fontSize: '0.875rem',
+                                    minWidth: 'auto',
+                                    width: 'auto',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid transparent',
+                                    justifyContent: 'flex-start',
+                                    '& .MuiButton-startIcon': {
+                                        marginLeft: isHebrew ? '8px' : '0px',
+                                        marginRight: isHebrew ? '0px' : '8px'
+                                    },
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(37, 211, 102, 0.1)',
+                                        border: '1px solid #25D366',
+                                        color: '#25D366'
+                                    }
+                                }}
+                            >
+                                {isHebrew ? 'WhatsApp' : 'WhatsApp'}
                             </Button>
                             <Button
                                 component="a"
