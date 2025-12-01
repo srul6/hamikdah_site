@@ -67,6 +67,42 @@ export default function HeroSection() {
                 }}
             />
 
+            {/* Miluim Image - Centered on mobile, left with rotation on desktop */}
+            <Box
+                sx={{
+                    position: 'absolute',
+                    top: { xs: '9%', md: '8%' },
+                    left: { xs: '50%', md: '5%' },
+                    transform: {
+                        xs: 'translateX(-50%) rotate(0deg)',
+                        md: 'translateX(0) rotate(-12deg)'
+                    },
+                    zIndex: 10,
+                    backgroundColor: 'rgba(229, 90, 61, 1)',
+                    border: '1px solid rgba(245, 240, 227, 1)',
+                    borderRadius: 1,
+                    boxShadow: '0 8px 32px rgba(229, 90, 61, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.3s ease',
+                    transformOrigin: 'center center',
+                }}
+            >
+                <Box
+                    component="img"
+                    src="/miluim.jpeg"
+                    alt="Miluim"
+                    sx={{
+                        width: { xs: '180px', sm: '220px', md: '400px', lg: '400px' },
+                        height: 'auto',
+                        borderRadius: 0,
+                        display: 'block',
+                        objectFit: 'contain'
+                    }}
+                />
+            </Box>
+
             {/* Button Overlay - Positioned in lower quarter */}
             <Box
                 sx={{

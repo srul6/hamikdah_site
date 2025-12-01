@@ -103,36 +103,49 @@ exports.getAllProducts = async (req, res) => {
 // Get product by ID
 exports.getProductById = async (req, res) => {
     try {
+        console.log('🔍 Fetching product ID:', req.params.id);
         const product = await databaseController.getProductById(req.params.id);
+        console.log('✅ Product fetched from database:', product ? `ID ${product.id}` : 'null');
+
         if (product) {
             // Handle children_playing - could be string, array, or JSON string
             let childrenPlaying = [];
-            if (product.children_playing) {
-                if (Array.isArray(product.children_playing)) {
-                    childrenPlaying = product.children_playing;
-                } else if (typeof product.children_playing === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.children_playing);
-                        childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        childrenPlaying = [product.children_playing];
+            try {
+                if (product.children_playing) {
+                    if (Array.isArray(product.children_playing)) {
+                        childrenPlaying = product.children_playing;
+                    } else if (typeof product.children_playing === 'string') {
+                        try {
+                            const parsed = JSON.parse(product.children_playing);
+                            childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
+                        } catch {
+                            childrenPlaying = [product.children_playing];
+                        }
                     }
                 }
+            } catch (error) {
+                console.error('⚠️  Error processing children_playing:', error);
+                childrenPlaying = [];
             }
 
             // Handle desktop_hero_images - could be string, array, or JSON string
             let desktopHeroImages = [];
-            if (product.desktop_hero_images) {
-                if (Array.isArray(product.desktop_hero_images)) {
-                    desktopHeroImages = product.desktop_hero_images;
-                } else if (typeof product.desktop_hero_images === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.desktop_hero_images);
-                        desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        desktopHeroImages = [product.desktop_hero_images];
+            try {
+                if (product.desktop_hero_images) {
+                    if (Array.isArray(product.desktop_hero_images)) {
+                        desktopHeroImages = product.desktop_hero_images;
+                    } else if (typeof product.desktop_hero_images === 'string') {
+                        try {
+                            const parsed = JSON.parse(product.desktop_hero_images);
+                            desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
+                        } catch {
+                            desktopHeroImages = [product.desktop_hero_images];
+                        }
                     }
                 }
+            } catch (error) {
+                console.error('⚠️  Error processing desktop_hero_images:', error);
+                desktopHeroImages = [];
             }
 
             // Ensure price is a number (PostgreSQL DECIMAL returns as string)
@@ -140,20 +153,36 @@ exports.getProductById = async (req, res) => {
 
             // Handle extraImages - could be string, array, or JSON string
             let extraImagesArray = [];
-            if (product.extraimages) {
-                if (Array.isArray(product.extraimages)) {
-                    extraImagesArray = product.extraimages;
-                } else if (typeof product.extraimages === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.extraimages);
-                        extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        // If not JSON, treat as comma-separated string or single value
-                        extraImagesArray = product.extraimages.includes(',')
-                            ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                            : [product.extraimages];
+            try {
+                if (product.extraimages) {
+                    if (Array.isArray(product.extraimages)) {
+                        extraImagesArray = product.extraimages;
+                    } else if (typeof product.extraimages === 'string') {
+                        try {
+                            const parsed = JSON.parse(product.extraimages);
+                            extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
+                        } catch {
+                            // If not JSON, treat as comma-separated string or single value
+                            extraImagesArray = product.extraimages.includes(',')
+                                ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
+                                : [product.extraimages];
+                        }
                     }
                 }
+            } catch (error) {
+                console.error('⚠️  Error processing extraimages:', error);
+                extraImagesArray = [];
+            }
+
+            // Ensure all arrays are arrays before processing
+            if (!Array.isArray(extraImagesArray)) {
+                extraImagesArray = [];
+            }
+            if (!Array.isArray(childrenPlaying)) {
+                childrenPlaying = [];
+            }
+            if (!Array.isArray(desktopHeroImages)) {
+                desktopHeroImages = [];
             }
 
             // Add storage URL to image paths (R2 or Supabase)
@@ -167,15 +196,25 @@ exports.getProductById = async (req, res) => {
                 // Map children playing media - handle both full URLs and filenames
                 childrenPlaying: childrenPlaying.map(media => {
                     if (!media) return null;
-                    return typeof media === 'string' && media.startsWith('http')
-                        ? media
-                        : getStorageUrl(`mikdash_child_playing/${media}`);
+                    try {
+                        return typeof media === 'string' && media.startsWith('http')
+                            ? media
+                            : getStorageUrl(`mikdash_child_playing/${media}`);
+                    } catch (error) {
+                        console.error('⚠️  Error processing children playing media:', media, error);
+                        return null;
+                    }
                 }).filter(Boolean),
                 desktopHeroImages: desktopHeroImages.map(url => {
                     if (!url) return null;
-                    return typeof url === 'string' && url.startsWith('http')
-                        ? url
-                        : getStorageUrl(url);
+                    try {
+                        return typeof url === 'string' && url.startsWith('http')
+                            ? url
+                            : getStorageUrl(url);
+                    } catch (error) {
+                        console.error('⚠️  Error processing desktop hero image:', url, error);
+                        return null;
+                    }
                 }).filter(Boolean)
             };
             res.json(productWithImageUrls);
@@ -274,18 +313,28 @@ exports.updateProduct = async (req, res) => {
                 extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
                 extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
                 // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: childrenPlaying.map(media => {
+                childrenPlaying: Array.isArray(childrenPlaying) ? childrenPlaying.map(media => {
                     if (!media) return null;
-                    return typeof media === 'string' && media.startsWith('http')
-                        ? media
-                        : getStorageUrl(`mikdash_child_playing/${media}`);
-                }).filter(Boolean),
-                desktopHeroImages: desktopHeroImages.map(url => {
+                    try {
+                        return typeof media === 'string' && media.startsWith('http')
+                            ? media
+                            : getStorageUrl(`mikdash_child_playing/${media}`);
+                    } catch (error) {
+                        console.error('⚠️  Error processing children playing media:', media, error);
+                        return null;
+                    }
+                }).filter(Boolean) : [],
+                desktopHeroImages: Array.isArray(desktopHeroImages) ? desktopHeroImages.map(url => {
                     if (!url) return null;
-                    return typeof url === 'string' && url.startsWith('http')
-                        ? url
-                        : getStorageUrl(url);
-                }).filter(Boolean)
+                    try {
+                        return typeof url === 'string' && url.startsWith('http')
+                            ? url
+                            : getStorageUrl(url);
+                    } catch (error) {
+                        console.error('⚠️  Error processing desktop hero image:', url, error);
+                        return null;
+                    }
+                }).filter(Boolean) : []
             };
 
             res.json(productWithImageUrls);

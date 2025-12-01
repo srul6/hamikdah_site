@@ -162,9 +162,9 @@ export default function CommentsSection() {
                         <Card
                             key={comment.id}
                             sx={{
-                                minWidth: { xs: 320, sm: 340, md: 340, lg: 340, xl: 340 }, // Increased width
-                                maxWidth: { xs: 320, sm: 340, md: 340, lg: 340, xl: 340 }, // Increased width
-                                height: 390, // Increased height
+                                minWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 }, // Increased width
+                                maxWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 }, // Increased width
+                                height: { xs: 390, sm: 390, md: 390, lg: 420, xl: 490 }, // Increased height
                                 flexShrink: 0,
                                 borderRadius: 3, // Increased from 3 to 4 for more rounded corners
                                 border: '2px solid #d8472a', // Black border
@@ -172,10 +172,12 @@ export default function CommentsSection() {
                                 boxShadow: 'none',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'center',
+                                justifyContent: 'flex-start',
                                 alignItems: 'center',
-                                p: comment.type === 'text' ? 4 : 0, // Conditional padding - only for text frames
+                                p: comment.type === 'text' ? 3 : 0, // Conditional padding - only for text frames
+                                pt: comment.type === 'text' ? 3 : 0, // Top padding for text comments
                                 textAlign: 'center',
+                                overflow: 'hidden', // Prevent content from overflowing the card
                                 transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                                 cursor: 'pointer',
                                 position: 'relative',
@@ -189,27 +191,55 @@ export default function CommentsSection() {
                             {comment.type === 'text' ? (
                                 // Text Comment
                                 <>
-                                    <Typography
-                                        variant="body1"
+                                    <Box
                                         sx={{
-                                            color: '#1d1d1f',
-                                            fontSize: '1.1rem',
-                                            lineHeight: 1.6,
-                                            mb: 3,
-                                            fontWeight: 400,
-                                            direction: isHebrew ? 'rtl' : 'ltr'
+                                            flex: 1,
+                                            overflowY: 'auto',
+                                            overflowX: 'hidden',
+                                            width: '100%',
+                                            mb: 2,
+                                            px: 1,
+                                            // Custom scrollbar styling
+                                            '&::-webkit-scrollbar': {
+                                                width: '6px',
+                                            },
+                                            '&::-webkit-scrollbar-track': {
+                                                background: 'transparent',
+                                            },
+                                            '&::-webkit-scrollbar-thumb': {
+                                                background: '#d8472a',
+                                                borderRadius: '3px',
+                                                '&:hover': {
+                                                    background: '#b8381f',
+                                                },
+                                            },
+                                            scrollbarWidth: 'thin',
+                                            scrollbarColor: '#d8472a transparent',
                                         }}
                                     >
-                                        "{isHebrew ? comment.text_he : comment.text_en}"
-                                    </Typography>
+                                        <Typography
+                                            variant="body1"
+                                            sx={{
+                                                color: '#1d1d1f',
+                                                fontSize: '1.1rem',
+                                                lineHeight: 1.6,
+                                                fontWeight: 400,
+                                                direction: isHebrew ? 'rtl' : 'ltr',
+                                                wordBreak: 'break-word',
+                                            }}
+                                        >
+                                            "{isHebrew ? comment.text_he : comment.text_en}"
+                                        </Typography>
+                                    </Box>
 
                                     <Typography
                                         variant="h6"
                                         sx={{
-                                            color: '#0071e3',
+                                            color: '#d8472a',
                                             fontWeight: 600,
                                             mb: 1,
-                                            direction: isHebrew ? 'rtl' : 'ltr'
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            flexShrink: 0,
                                         }}
                                     >
                                         {isHebrew ? comment.name_he : comment.name_en}
