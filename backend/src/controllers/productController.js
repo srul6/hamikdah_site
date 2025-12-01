@@ -13,7 +13,7 @@ exports.getAllProducts = async (req, res) => {
             return res.json([]);
         }
 
-        // Add storage URL to image paths (R2 or Supabase)
+        // Add storage URL to image paths (R2)
         const productsWithImageUrls = products.map(product => {
             // Handle children_playing - could be string, array, or JSON string
             let childrenPlaying = [];
@@ -185,7 +185,7 @@ exports.getProductById = async (req, res) => {
                 desktopHeroImages = [];
             }
 
-            // Add storage URL to image paths (R2 or Supabase)
+            // Add storage URL to image paths (R2)
             const productWithImageUrls = {
                 ...product,
                 price: price, // Ensure price is always a number
@@ -304,7 +304,7 @@ exports.updateProduct = async (req, res) => {
             // Ensure price is a number (PostgreSQL DECIMAL returns as string)
             const price = updatedProduct.price ? parseFloat(updatedProduct.price) : 0;
 
-            // Add storage URL to image paths (R2 or Supabase)
+            // Add storage URL to image paths (R2)
             const productWithImageUrls = {
                 ...updatedProduct,
                 price: price, // Ensure price is always a number

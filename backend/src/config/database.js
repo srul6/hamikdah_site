@@ -1,27 +1,9 @@
 // backend/src/config/database.js
-// Configuration file to dynamically switch between Supabase and Neon/R2 based on USE_NEON environment variable
+// Configuration file for Neon PostgreSQL + Cloudflare R2
 
-let databaseController;
-let storageController;
+const databaseController = require('../controllers/databaseController');
+const storageController = require('../controllers/storageController');
 
-if (process.env.USE_NEON === 'true') {
-    console.log('✅ Using Neon PostgreSQL + Cloudflare R2');
-    databaseController = require('../controllers/databaseController');
-    storageController = require('../controllers/storageController');
-} else {
-    console.log('✅ Using Supabase (legacy)');
-    databaseController = require('../controllers/supabaseController');
-    // For storage, we'll use a wrapper that uses Supabase storage
-    storageController = {
-        uploadImage: async (file, folder) => {
-            const supabaseController = require('../controllers/supabaseController');
-            return await supabaseController.uploadImage(file, folder);
-        },
-        deleteImage: async (filePath) => {
-            const supabaseController = require('../controllers/supabaseController');
-            return await supabaseController.deleteImage(filePath);
-        }
-    };
-}
+console.log('✅ Using Neon PostgreSQL + Cloudflare R2');
 
 module.exports = { databaseController, storageController };

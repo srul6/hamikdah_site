@@ -11,8 +11,8 @@ export const getImageUrl = (imagePath) => {
         return cleanPath;
     }
 
-    // If it contains supabase.co anywhere in the string, it's a Supabase URL
-    // This handles cases where the URL might be embedded in other text
+    // Legacy: If it contains supabase.co (for backward compatibility with old URLs)
+    // This handles cases where old Supabase URLs might still exist in the database
     if (cleanPath.includes('supabase.co')) {
         // Extract just the Supabase URL part
         const match = cleanPath.match(/(https?:\/\/[^\s]+supabase\.co[^\s]*)/);

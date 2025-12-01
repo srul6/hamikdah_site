@@ -279,9 +279,9 @@ class GreenInvoiceController {
                         if (Array.isArray(itemData)) {
                             // New format: items array with quantities and prices
                             try {
-                                // Fetch products from Supabase
+                                // Fetch products from database
                                 const productsData = await this.databaseController.getAllProducts();
-                                console.log('✅ Fetched products from Supabase:', productsData.length);
+                                console.log('✅ Fetched products from database:', productsData.length);
 
                                 items = await Promise.all(itemData.map(async item => {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
@@ -306,7 +306,7 @@ class GreenInvoiceController {
                                     }
                                 }));
                             } catch (error) {
-                                console.error('❌ Failed to load products from Supabase:', error);
+                                console.error('❌ Failed to load products from database:', error);
                                 items = itemData.map(item => ({
                                     id: item.id,
                                     name_he: 'פריט',
@@ -319,7 +319,7 @@ class GreenInvoiceController {
                             // Old format: comma-separated string (fallback)
                             const itemIds = itemData.split(',').filter(id => id.trim());
                             try {
-                                // Fetch products from Supabase
+                                // Fetch products from database
                                 const productsData = await this.databaseController.getAllProducts();
                                 items = itemIds.map(itemId => {
                                     const product = productsData.find(p => p.id.toString() === itemId.trim());
@@ -342,7 +342,7 @@ class GreenInvoiceController {
                                     }
                                 });
                             } catch (error) {
-                                console.error('❌ Failed to load products from Supabase:', error);
+                                console.error('❌ Failed to load products from database:', error);
                                 items = itemIds.map(itemId => ({
                                     id: itemId.trim(),
                                     name_he: 'פריט',
