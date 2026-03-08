@@ -1,7 +1,88 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { storageController } = require('../config/database');
+const rateLimit = require('express-rate-limit');
+const { storageController, databaseController } = require('../config/database');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// --- Constants (security) ---
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;  // 10MB
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+const ALLOWED_MIMES = storageController.getAllowedMimeTypes();
+
+// Rate limiting: prevent mass generation of signed URLs
+const presignLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    message: { success: false, error: 'Too many upload requests. Try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+/**
+ * Validate presign body: contentType (allow list), contentLength (images 10MB, videos 100MB).
+ * Client must NOT send object key; backend generates it.
+ */
+function validatePresignBody(body) {
+    const { contentType, contentLength } = body || {};
+    if (!contentType || typeof contentLength !== 'number') {
+        return { ok: false, error: 'contentType and contentLength are required' };
+    }
+    if (!ALLOWED_MIMES.includes(contentType)) {
+        return { ok: false, error: 'File type not allowed. Allowed: images (jpeg, png, gif, webp) and videos (mp4, mov, avi, webm).' };
+    }
+    const isVideo = VIDEO_MIMES.includes(contentType);
+    const maxSize = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+    if (contentLength < 0 || contentLength > maxSize) {
+        return { ok: false, error: isVideo ? 'Video size must be at most 100MB' : 'Image size must be at most 10MB' };
+    }
+    return { ok: true };
+}
+
+// Presigned upload: authenticated only; short-lived PUT URL; backend generates key; type/size validated.
+// R2 CORS must allow only your app origin and methods PUT, GET (no wildcard in production).
+router.post('/presign', requireAuth, presignLimiter, async (req, res) => {
+    try {
+        const validation = validatePresignBody(req.body);
+        if (!validation.ok) {
+            return res.status(400).json({ success: false, error: validation.error });
+        }
+        const { contentType } = req.body;
+        const userId = req.admin?.username || 'admin';
+        const { uploadUrl, publicUrl, key } = await storageController.getPresignedPutUrlSecure(userId, contentType);
+        // Return only presigned URL and public URL; never expose R2 credentials or key to untrusted client (key is returned for confirm only).
+        res.json({ success: true, uploadUrl, publicUrl, key });
+    } catch (error) {
+        console.error('❌ Presign error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to get upload URL'
+        });
+    }
+});
+
+// Post-upload: record metadata (userId, key, mimeType, size) after client uploads to R2
+router.post('/confirm', requireAuth, async (req, res) => {
+    try {
+        const { key, size, mimeType } = req.body || {};
+        if (!key || typeof size !== 'number' || !mimeType) {
+            return res.status(400).json({ success: false, error: 'key, size, and mimeType are required' });
+        }
+        const userId = req.admin?.username || 'admin';
+        const sanitizedUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+        const expectedPrefix = `uploads/${sanitizedUserId}/`;
+        if (!key.startsWith(expectedPrefix)) {
+            return res.status(403).json({ success: false, error: 'Key does not belong to your uploads' });
+        }
+        await databaseController.recordUpload({ userId, key, mimeType, size });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Confirm upload error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to record upload' });
+    }
+});
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -96,19 +177,31 @@ router.post('/images', upload.array('images', 10), async (req, res) => {
     }
 });
 
-// Delete image
-router.delete('/image', async (req, res) => {
-    try {
-        const { path } = req.body;
+// Normalize path: if full URL, extract object key (e.g. uploads/userId/uuid.ext)
+function pathToKey(path) {
+    if (!path || typeof path !== 'string') return null;
+    const s = path.trim();
+    if (s.startsWith('http://') || s.startsWith('https://')) {
+        try {
+            const u = new URL(s);
+            const p = u.pathname.replace(/^\/+/, '');
+            return p || null;
+        } catch (_) { return null; }
+    }
+    return s;
+}
 
-        if (!path) {
+// Delete image (authenticated only; path = object key or full public URL)
+router.delete('/image', requireAuth, async (req, res) => {
+    try {
+        const key = pathToKey(req.body?.path);
+        if (!key) {
             return res.status(400).json({
                 success: false,
-                error: 'Image path is required'
+                error: 'Image path (or URL) is required'
             });
         }
-
-        await storageController.deleteImage(path);
+        await storageController.deleteImage(key);
 
         res.json({
             success: true,

@@ -639,6 +639,21 @@ class DatabaseController {
             throw error;
         }
     }
+
+    // ===== FILE UPLOADS (presigned upload metadata) =====
+
+    async recordUpload({ userId, key, mimeType, size }) {
+        try {
+            await pool.query(
+                `INSERT INTO file_uploads (user_id, object_key, mime_type, size_bytes) VALUES ($1, $2, $3, $4)`,
+                [userId, key, mimeType, size]
+            );
+            return true;
+        } catch (error) {
+            console.error('❌ Error recording upload:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new DatabaseController();
