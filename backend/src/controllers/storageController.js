@@ -1,4 +1,6 @@
+const https = require('https');
 const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { NodeHttpHandler } = require('@smithy/node-http-handler');
 
 // Initialize S3 client for Cloudflare R2
 // R2 is S3-compatible, so we use AWS SDK
@@ -10,6 +12,13 @@ if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
     console.warn('⚠️  R2 credentials not fully configured. File uploads may fail.');
 }
 
+// Custom HTTPS agent to avoid EPROTO SSL handshake failure with Cloudflare R2
+// (Node vs server TLS/cipher mismatch - enforcing TLS 1.2 fixes it)
+const httpsAgent = new https.Agent({
+    minVersion: 'TLSv1.2',
+    maxVersion: 'TLSv1.3',
+});
+
 const s3Client = new S3Client({
     region: 'auto', // R2 uses 'auto' region
     endpoint: R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined,
@@ -17,6 +26,9 @@ const s3Client = new S3Client({
         accessKeyId: R2_ACCESS_KEY_ID || '',
         secretAccessKey: R2_SECRET_ACCESS_KEY || '',
     },
+    requestHandler: new NodeHttpHandler({
+        httpsAgent,
+    }),
 });
 
 const BUCKET_NAME = process.env.R2_BUCKET_NAME || 'product-images';

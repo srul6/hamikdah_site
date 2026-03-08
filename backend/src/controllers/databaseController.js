@@ -347,9 +347,13 @@ class DatabaseController {
             const result = await pool.query(
                 'SELECT * FROM orders ORDER BY created_at DESC'
             );
+            console.log(`✅ Fetched ${result.rows.length} orders from database`);
             return result.rows || [];
         } catch (error) {
             console.error('❌ Error fetching orders:', error);
+            console.error('   Error message:', error.message);
+            console.error('   Error code:', error.code);
+            console.error('   Error detail:', error.detail);
             throw error;
         }
     }
@@ -414,6 +418,64 @@ class DatabaseController {
                 throw new Error('items must be an array');
             }
 
+            // First, check if order with this form_id already exists
+            const existingOrder = await pool.query(
+                'SELECT id FROM orders WHERE form_id = $1',
+                [orderData.formId]
+            );
+
+            if (existingOrder.rows.length > 0) {
+                // Order exists, update it
+                console.log('ℹ️  Order with form_id already exists, updating...');
+                const updateResult = await pool.query(
+                    `UPDATE orders SET
+                        document_id = $1,
+                        payment_id = $2,
+                        status = $3,
+                        amount = $4,
+                        currency = $5,
+                        customer_name = $6,
+                        customer_email = $7,
+                        customer_phone = $8,
+                        customer_street = $9,
+                        customer_house_number = $10,
+                        customer_apartment_number = $11,
+                        customer_floor = $12,
+                        customer_city = $13,
+                        customer_country = $14,
+                        items = $15,
+                        dedication = $16,
+                        purchase_timestamp = $17,
+                        updated_at = NOW()
+                    WHERE form_id = $18
+                    RETURNING *`,
+                    [
+                        orderData.documentId || null,
+                        orderData.paymentId || null,
+                        orderData.status || 'pending',
+                        orderData.amount || null,
+                        orderData.currency || 'ILS',
+                        orderData.customerInfo.name || null,
+                        orderData.customerInfo.email || null,
+                        orderData.customerInfo.phone || null,
+                        orderData.customerInfo.street || null,
+                        orderData.customerInfo.houseNumber || null,
+                        orderData.customerInfo.apartmentNumber || null,
+                        orderData.customerInfo.floor || null,
+                        orderData.customerInfo.city || null,
+                        orderData.customerInfo.country || null,
+                        JSON.stringify(orderData.items || []),
+                        orderData.dedication || null,
+                        parsedTimestamp,
+                        orderData.formId
+                    ]
+                );
+                console.log('✅ Order updated successfully. Order ID:', updateResult.rows[0].id);
+                return updateResult.rows[0];
+            }
+
+            // Order doesn't exist, create new one
+            // Use ON CONFLICT to handle duplicate form_id gracefully (in case of race condition)
             const result = await pool.query(
                 `INSERT INTO orders (
                     form_id, document_id, payment_id, status, amount, currency,
@@ -422,6 +484,26 @@ class DatabaseController {
                     customer_floor, customer_city, customer_country,
                     items, dedication, purchase_timestamp
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                ON CONFLICT (form_id) 
+                DO UPDATE SET
+                    document_id = EXCLUDED.document_id,
+                    payment_id = EXCLUDED.payment_id,
+                    status = EXCLUDED.status,
+                    amount = EXCLUDED.amount,
+                    currency = EXCLUDED.currency,
+                    customer_name = EXCLUDED.customer_name,
+                    customer_email = EXCLUDED.customer_email,
+                    customer_phone = EXCLUDED.customer_phone,
+                    customer_street = EXCLUDED.customer_street,
+                    customer_house_number = EXCLUDED.customer_house_number,
+                    customer_apartment_number = EXCLUDED.customer_apartment_number,
+                    customer_floor = EXCLUDED.customer_floor,
+                    customer_city = EXCLUDED.customer_city,
+                    customer_country = EXCLUDED.customer_country,
+                    items = EXCLUDED.items,
+                    dedication = EXCLUDED.dedication,
+                    purchase_timestamp = EXCLUDED.purchase_timestamp,
+                    updated_at = NOW()
                 RETURNING *`,
                 [
                     orderData.formId || null,
@@ -445,9 +527,15 @@ class DatabaseController {
                 ]
             );
 
+            console.log('✅ Order created successfully. Order ID:', result.rows[0].id);
             return result.rows[0];
         } catch (error) {
             console.error('❌ Error creating order:', error);
+            console.error('   Error message:', error.message);
+            console.error('   Error code:', error.code);
+            console.error('   Error detail:', error.detail);
+            console.error('   Error hint:', error.hint);
+            console.error('   Order data that failed:', JSON.stringify(orderData, null, 2));
             throw error;
         }
     }

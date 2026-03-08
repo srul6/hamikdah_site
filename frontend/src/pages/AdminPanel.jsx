@@ -135,10 +135,15 @@ export default function AdminPanel() {
 
   const fetchOrdersData = async () => {
     try {
+      console.log('📋 Fetching orders from API...');
       const ordersData = await fetchOrders();
+      console.log('✅ Fetched orders:', ordersData.length, 'orders');
+      console.log('📦 Orders data:', ordersData);
       setOrders(ordersData);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('❌ Error fetching orders:', error);
+      console.error('   Error message:', error.message);
+      setOrders([]); // Set empty array on error
     }
   };
 

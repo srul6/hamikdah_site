@@ -413,29 +413,20 @@ class GreenInvoiceController {
 
             // Save order to database (this happens for ALL webhooks, regardless of status)
             console.log('💾 Saving order to database...');
+            console.log('📦 Order data:', JSON.stringify(orderData, null, 2));
             try {
-                // Check if order already exists (to prevent duplicates)
-                let existingOrder = null;
-                try {
-                    existingOrder = await this.databaseController.getOrderByFormId(formId);
-                } catch (err) {
-                    // Order doesn't exist, which is fine
-                }
-
-                if (!existingOrder) {
-                    await this.databaseController.createOrder(orderData);
-                    console.log('✅ Order saved to database successfully');
-                } else {
-                    console.log('ℹ️  Order already exists in database, skipping creation');
-                    // Update the existing order status if needed
-                    if (existingOrder.status !== orderData.status) {
-                        await this.databaseController.updateOrderByFormId(formId, orderData);
-                        console.log('✅ Order status updated in database');
-                    }
-                }
+                // Use createOrder which now handles duplicates with ON CONFLICT
+                // This will insert new order or update existing one based on form_id
+                console.log('📝 Creating/updating order in database...');
+                const createdOrder = await this.databaseController.createOrder(orderData);
+                console.log('✅ Order saved/updated in database successfully. Order ID:', createdOrder.id, 'Status:', createdOrder.status);
             } catch (error) {
                 console.error('❌ Failed to save order to database:', error);
-                // Continue processing even if database save fails
+                console.error('   Error message:', error.message);
+                console.error('   Error code:', error.code);
+                console.error('   Error detail:', error.detail);
+                console.error('   Error stack:', error.stack);
+                // Continue processing even if database save fails, but log the error
             }
 
             // ALWAYS send email notification to admin regardless of status

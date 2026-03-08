@@ -10,7 +10,7 @@ const ADMIN_USERS = [
         username: process.env.ADMIN_USERNAME || 'admin',
         // This is a hashed version of 'hamikdash2024'
         // In production, set ADMIN_PASSWORD_HASH in .env with your own bcrypt hash
-        passwordHash: process.env.ADMIN_PASSWORD_HASH || '$2b$10$kPW3rWbN8zHnbNwaLrVaIu6LhA3TkzghS7cNWvyPKWEatO/VZ1x2a'
+        passwordHash: process.env.ADMIN_PASSWORD_HASH ?? null
     }
 ];
 
