@@ -24,8 +24,10 @@ export default function Footer() {
     const { language, isHebrew } = useLanguage();
     const t = translations[language]; // Use current language translations
 
-    // Hebrew text for Terms and Returns
+    // Footer link labels
     const termsText = isHebrew ? 'תנאי שימוש' : t.termsOfService;
+    const siteTermsText = isHebrew ? 'תקנון האתר' : t.siteTerms;
+    const privacyText = isHebrew ? 'מדיניות פרטיות' : t.privacyPolicy;
     const returnsText = isHebrew ? 'החזרות' : t.returns;
 
     return (
@@ -284,12 +286,34 @@ export default function Footer() {
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
                                 fontSize: '0.875rem',
-                                '&:hover': {
-                                    color: '#0071e3'
-                                }
+                                '&:hover': { color: '#0071e3' }
                             }}
                         >
                             {termsText}
+                        </Link>
+                        <Link
+                            component={RouterLink}
+                            to="/site-terms"
+                            sx={{
+                                color: 'rgb(245, 240, 227)',
+                                textDecoration: 'none',
+                                fontSize: '0.875rem',
+                                '&:hover': { color: '#0071e3' }
+                            }}
+                        >
+                            {siteTermsText}
+                        </Link>
+                        <Link
+                            component={RouterLink}
+                            to="/privacy"
+                            sx={{
+                                color: 'rgb(245, 240, 227)',
+                                textDecoration: 'none',
+                                fontSize: '0.875rem',
+                                '&:hover': { color: '#0071e3' }
+                            }}
+                        >
+                            {privacyText}
                         </Link>
                         <Link
                             component={RouterLink}
@@ -298,9 +322,7 @@ export default function Footer() {
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
                                 fontSize: '0.875rem',
-                                '&:hover': {
-                                    color: '#0071e3'
-                                }
+                                '&:hover': { color: '#0071e3' }
                             }}
                         >
                             {returnsText}

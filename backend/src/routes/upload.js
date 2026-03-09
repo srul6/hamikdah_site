@@ -83,19 +83,18 @@ router.post('/confirm', requireAuth, async (req, res) => {
     }
 });
 
-// --- Server-side upload disabled on purpose ---
-// These routes would upload from Render → R2 and fail with EPROTO (SSL handshake) on Render.
-// All uploads must use POST /presign then browser PUT to R2. If you see 410, your client must use /presign.
+// Only presign is supported for uploads (no server→R2 = no TLS/EPROTO on Render).
+// POST /image and /images are not used; frontend must use POST /presign then PUT to the returned URL.
 router.post('/image', (req, res) => {
     res.status(410).json({
         success: false,
-        error: 'Use POST /api/upload/presign and then PUT the file to the returned URL. Server-side upload is disabled.'
+        error: 'Uploads use the presign flow. Please refresh the page (and clear cache) so the latest upload form is loaded, then try again.'
     });
 });
 router.post('/images', (req, res) => {
     res.status(410).json({
         success: false,
-        error: 'Use POST /api/upload/presign (per file) and PUT each file to the returned URL. Server-side upload is disabled.'
+        error: 'Uploads use the presign flow. Please refresh the page (and clear cache) so the latest upload form is loaded, then try again.'
     });
 });
 

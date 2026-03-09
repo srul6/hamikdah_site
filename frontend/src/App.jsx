@@ -10,6 +10,8 @@ import CartPage from './pages/CartPage';
 import AdminPanel from './pages/AdminPanel';
 import AboutUs from './pages/AboutUs';
 import TermsOfService from './pages/TermsOfService';
+import SiteTerms from './pages/SiteTerms';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import Returns from './pages/Returns';
 import GreenInvoicePayment from './pages/GreenInvoicePayment';
 import PaymentSuccess from './pages/PaymentSuccess';
@@ -78,6 +80,8 @@ function AppContent() {
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/site-terms" element={<SiteTerms />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/returns" element={<Returns />} />
                 <Route path="/payment" element={<GreenInvoicePayment />} />
                 <Route path="/payment/success" element={<PaymentSuccess />} />

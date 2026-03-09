@@ -80,60 +80,57 @@ export default function ImageUploader({
         setUploadProgress(0);
 
         try {
-            if (multiple) {
-                // Upload multiple images/videos
-                const formData = new FormData();
-                validFiles.forEach(file => {
-                    formData.append('images', file);
-                });
-                formData.append('folder', folder);
-
-                const response = await fetch(`${API_ENDPOINTS.upload}/images`, {
+            // Presigned upload: auth required; backend generates key and enforces type/size
+            const uploadOne = async (file) => {
+                const contentType = file.type || 'application/octet-stream';
+                const presignRes = await fetch(`${API_ENDPOINTS.upload}/presign`, {
                     method: 'POST',
-                    body: formData
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contentType,
+                        contentLength: file.size
+                    })
                 });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    const newUrls = data.images.map(img => img.url);
-                    // APPEND to existing URLs instead of replacing
-                    const allUrls = [...existingUrls, ...newUrls];
-                    onChange(allUrls.join(', '));
-                } else {
-                    setError(data.error || 'Upload failed');
+                const presignData = await presignRes.json();
+                if (!presignData.success) {
+                    const msg = presignData.error || presignData.message || 'Failed to get upload URL';
+                    throw new Error(msg);
                 }
-            } else {
-                // Upload single image/video
-                const formData = new FormData();
-                formData.append('image', validFiles[0]);
-                formData.append('folder', folder);
 
-                const response = await fetch(`${API_ENDPOINTS.upload}/image`, {
-                    method: 'POST',
-                    body: formData
+                const putRes = await fetch(presignData.uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': contentType }
                 });
+                if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
 
-                const data = await response.json();
+                fetch(`${API_ENDPOINTS.upload}/confirm`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: presignData.key, size: file.size, mimeType: contentType })
+                }).catch(() => { /* optional metadata recording */ });
+                return presignData.publicUrl;
+            };
 
-                if (data.success) {
-                    if (multiple) {
-                        // For multiple mode, append even if single file uploaded
-                        const allUrls = [...existingUrls, data.url];
-                        onChange(allUrls.join(', '));
-                    } else {
-                        // For single mode, replace
-                        onChange(data.url);
-                    }
+            if (multiple) {
+                const newUrls = await Promise.all(validFiles.map(uploadOne));
+                const allUrls = [...existingUrls, ...newUrls];
+                onChange(allUrls.join(', '));
+            } else {
+                const publicUrl = await uploadOne(validFiles[0]);
+                if (multiple) {
+                    onChange([...existingUrls, publicUrl].join(', '));
                 } else {
-                    setError(data.error || 'Upload failed');
+                    onChange(publicUrl);
                 }
             }
 
             setUploadProgress(100);
         } catch (error) {
             console.error('Upload error:', error);
-            setError('Failed to upload image. Please try again.');
+            setError(error.message || 'Failed to upload image. Please try again.');
         } finally {
             setTimeout(() => {
                 setIsUploading(false);

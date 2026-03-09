@@ -13,26 +13,41 @@ export default function VideoUploader({ label, value, onChange, helperText }) {
         setUploading(true);
         setError('');
 
-        const formData = new FormData();
-        formData.append('image', file); // Backend expects 'image' field name
-        formData.append('folder', 'comments');
-
         try {
-            const response = await fetch(`${API_ENDPOINTS.upload}/image`, {
+            const contentType = file.type || 'video/mp4';
+            const presignRes = await fetch(`${API_ENDPOINTS.upload}/presign`, {
                 method: 'POST',
-                body: formData,
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contentType,
+                    contentLength: file.size
+                })
             });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                onChange(data.url);
-                setPreviewUrl(data.url);
-            } else {
-                setError(data.error || 'Failed to upload video');
+            const presignData = await presignRes.json();
+            if (!presignData.success) {
+                const msg = presignData.error || presignData.message || 'Failed to get upload URL';
+                throw new Error(msg);
             }
+
+            const putRes = await fetch(presignData.uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': contentType }
+            });
+            if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+
+            fetch(`${API_ENDPOINTS.upload}/confirm`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: presignData.key, size: file.size, mimeType: contentType })
+            }).catch(() => { /* optional metadata recording */ });
+
+            onChange(presignData.publicUrl);
+            setPreviewUrl(presignData.publicUrl);
         } catch (err) {
-            setError('Network error or server unreachable.');
+            setError(err.message || 'Network error or server unreachable.');
             console.error('Upload error:', err);
         } finally {
             setUploading(false);
