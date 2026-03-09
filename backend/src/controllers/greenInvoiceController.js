@@ -616,7 +616,7 @@ class GreenInvoiceController {
     // Send order data to your server
     async sendOrderToServer(orderData) {
         try {
-            const serverUrl = 'https://hamikdah-site.onrender.com/api/orders';
+            const serverUrl = `${process.env.BACKEND_URL || 'https://hamikdah-site.onrender.com'}/api/orders`;
 
             console.log('Sending order data to server:', serverUrl);
 

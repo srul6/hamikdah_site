@@ -11,20 +11,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Parse cookies
 
-// CORS configuration - allow both production and local development
+// CORS configuration - set FRONTEND_URL / BACKEND_URL in env; optional hardcoded origins below
 const allowedOrigins = [
     'https://bmikdash.com',
     'http://localhost:3000',
     'http://localhost:3001',
-    // Add Render frontend URL if different from backend
     process.env.FRONTEND_URL,
-    // Allow same origin (if frontend and backend on same domain)
-    process.env.BACKEND_URL?.replace('/api', ''),
-    // Allow Render frontend domains
+    process.env.BACKEND_URL?.replace(/\/api\/?$/, ''),
     'https://hamikdash.onrender.com',
     'https://hamikdash-frontend.onrender.com',
     'https://hamikdah-site.onrender.com'
-].filter(Boolean); // Remove undefined values
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {

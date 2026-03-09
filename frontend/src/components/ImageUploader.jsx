@@ -83,26 +83,38 @@ export default function ImageUploader({
             // Presigned upload: auth required; backend generates key and enforces type/size
             const uploadOne = async (file) => {
                 const contentType = file.type || 'application/octet-stream';
-                const presignRes = await fetch(`${API_ENDPOINTS.upload}/presign`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contentType,
-                        contentLength: file.size
-                    })
-                });
-                const presignData = await presignRes.json();
+                let presignRes;
+                try {
+                    presignRes = await fetch(`${API_ENDPOINTS.upload}/presign`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contentType,
+                            contentLength: file.size
+                        })
+                    });
+                } catch (e) {
+                    const isNetwork = !e.response && (e.message === 'Failed to fetch' || e.name === 'TypeError');
+                    throw new Error(isNetwork ? 'Cannot reach the server. Check your connection and that you are logged in.' : e.message);
+                }
+                const presignData = await presignRes.json().catch(() => ({}));
                 if (!presignData.success) {
                     const msg = presignData.error || presignData.message || 'Failed to get upload URL';
                     throw new Error(msg);
                 }
 
-                const putRes = await fetch(presignData.uploadUrl, {
-                    method: 'PUT',
-                    body: file,
-                    headers: { 'Content-Type': contentType }
-                });
+                let putRes;
+                try {
+                    putRes = await fetch(presignData.uploadUrl, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': contentType }
+                    });
+                } catch (e) {
+                    const isNetwork = e.message === 'Failed to fetch' || e.name === 'TypeError';
+                    throw new Error(isNetwork ? 'Upload to storage failed (often due to R2 CORS). Add your site origin and method PUT in the R2 bucket CORS settings.' : e.message);
+                }
                 if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
 
                 fetch(`${API_ENDPOINTS.upload}/confirm`, {
@@ -130,8 +142,10 @@ export default function ImageUploader({
             setUploadProgress(100);
         } catch (error) {
             console.error('Upload error:', error);
-            const msg = error.message || 'Failed to upload image. Please try again.';
-            setError(msg.includes('Authentication') ? 'Please log in to the admin panel and try again.' : msg);
+            let msg = error.message || 'Failed to upload image. Please try again.';
+            if (msg === 'Failed to fetch') msg = 'Network error: could not reach the server or storage. Check connection, login, and R2 CORS if you use Cloudflare R2.';
+            if (msg.includes('Authentication')) msg = 'Please log in to the admin panel and try again.';
+            setError(msg);
         } finally {
             setTimeout(() => {
                 setIsUploading(false);

@@ -15,26 +15,38 @@ export default function VideoUploader({ label, value, onChange, helperText }) {
 
         try {
             const contentType = file.type || 'video/mp4';
-            const presignRes = await fetch(`${API_ENDPOINTS.upload}/presign`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contentType,
-                    contentLength: file.size
-                })
-            });
-            const presignData = await presignRes.json();
+            let presignRes;
+            try {
+                presignRes = await fetch(`${API_ENDPOINTS.upload}/presign`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contentType,
+                        contentLength: file.size
+                    })
+                });
+            } catch (e) {
+                const isNetwork = !e.response && (e.message === 'Failed to fetch' || e.name === 'TypeError');
+                throw new Error(isNetwork ? 'Cannot reach the server. Check your connection and that you are logged in.' : e.message);
+            }
+            const presignData = await presignRes.json().catch(() => ({}));
             if (!presignData.success) {
                 const msg = presignData.error || presignData.message || 'Failed to get upload URL';
                 throw new Error(msg);
             }
 
-            const putRes = await fetch(presignData.uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': contentType }
-            });
+            let putRes;
+            try {
+                putRes = await fetch(presignData.uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': contentType }
+                });
+            } catch (e) {
+                const isNetwork = e.message === 'Failed to fetch' || e.name === 'TypeError';
+                throw new Error(isNetwork ? 'Upload to storage failed (often due to R2 CORS). Add your site origin and method PUT in the R2 bucket CORS settings.' : e.message);
+            }
             if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
 
             fetch(`${API_ENDPOINTS.upload}/confirm`, {
@@ -47,8 +59,10 @@ export default function VideoUploader({ label, value, onChange, helperText }) {
             onChange(presignData.publicUrl);
             setPreviewUrl(presignData.publicUrl);
         } catch (err) {
-            const msg = err.message || 'Network error or server unreachable.';
-            setError(msg.includes('Authentication') ? 'Please log in to the admin panel and try again.' : msg);
+            let msg = err.message || 'Network error or server unreachable.';
+            if (msg === 'Failed to fetch') msg = 'Network error: could not reach the server or storage. Check connection, login, and R2 CORS if you use Cloudflare R2.';
+            if (msg.includes('Authentication')) msg = 'Please log in to the admin panel and try again.';
+            setError(msg);
             console.error('Upload error:', err);
         } finally {
             setUploading(false);

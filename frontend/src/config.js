@@ -1,9 +1,9 @@
 // Configuration for API URLs
 const isDevelopment = process.env.NODE_ENV === 'development';
-
+// In production, set REACT_APP_API_URL in your build env (e.g. Render) or it falls back to the value below
 export const API_BASE_URL = isDevelopment
     ? 'http://localhost:5001'
-    : 'https://hamikdah-site.onrender.com'; // Use the backend service URL
+    : (process.env.REACT_APP_API_URL || 'https://hamikdah-site.onrender.com');
 
 export const API_ENDPOINTS = {
     products: `${API_BASE_URL}/api/products`,
