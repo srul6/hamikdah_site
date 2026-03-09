@@ -83,12 +83,12 @@ function requireAuth(req, res, next) {
  */
 function setAuthCookie(res, token) {
     const isProduction = process.env.NODE_ENV === 'production';
-
+    // SameSite=None so cookie is sent when admin panel is on a different origin (e.g. bmikdash.com → backend on Render)
     res.cookie('admin_session', token, {
-        httpOnly: true,           // ✅ Not accessible from JavaScript
-        secure: isProduction,     // ✅ HTTPS only in production
-        sameSite: 'strict',       // ✅ Maximum CSRF protection
-        maxAge: SESSION_DURATION, // ✅ 24 hours
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',  // 'none' allows cookie on cross-origin requests (required for presign from different domain)
+        maxAge: SESSION_DURATION,
         path: '/',
         domain: isProduction ? process.env.COOKIE_DOMAIN : undefined
     });
@@ -99,10 +99,11 @@ function setAuthCookie(res, token) {
  * @param {object} res - Express response object
  */
 function clearAuthCookie(res) {
+    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie('admin_session', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         path: '/'
     });
 }

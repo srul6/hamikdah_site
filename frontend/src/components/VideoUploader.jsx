@@ -47,7 +47,8 @@ export default function VideoUploader({ label, value, onChange, helperText }) {
             onChange(presignData.publicUrl);
             setPreviewUrl(presignData.publicUrl);
         } catch (err) {
-            setError(err.message || 'Network error or server unreachable.');
+            const msg = err.message || 'Network error or server unreachable.';
+            setError(msg.includes('Authentication') ? 'Please log in to the admin panel and try again.' : msg);
             console.error('Upload error:', err);
         } finally {
             setUploading(false);

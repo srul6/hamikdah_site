@@ -130,7 +130,8 @@ export default function ImageUploader({
             setUploadProgress(100);
         } catch (error) {
             console.error('Upload error:', error);
-            setError(error.message || 'Failed to upload image. Please try again.');
+            const msg = error.message || 'Failed to upload image. Please try again.';
+            setError(msg.includes('Authentication') ? 'Please log in to the admin panel and try again.' : msg);
         } finally {
             setTimeout(() => {
                 setIsUploading(false);
