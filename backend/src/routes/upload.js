@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { storageController, databaseController } = require('../config/database');
+const multer = require('multer');
+const { storageController } = require('../config/database');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // --- Constants (security) ---
@@ -10,6 +11,17 @@ const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
 const ALLOWED_MIMES = storageController.getAllowedMimeTypes();
+
+const proxyUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_VIDEO_SIZE_BYTES },
+    fileFilter: (req, file, cb) => {
+        if (!ALLOWED_MIMES.includes(file.mimetype)) {
+            return cb(new Error('File type not allowed. Allowed: images (jpeg, png, gif, webp) and videos (mp4, mov, avi, webm).'));
+        }
+        cb(null, true);
+    },
+}).single('file');
 
 // Rate limiting: prevent mass generation of signed URLs
 const presignLimiter = rateLimit({
@@ -51,7 +63,6 @@ router.post('/presign', requireAuth, presignLimiter, async (req, res) => {
         const { contentType } = req.body;
         const userId = req.admin?.username || 'admin';
         const { uploadUrl, publicUrl, key } = await storageController.getPresignedPutUrlSecure(userId, contentType);
-        // Return only presigned URL and public URL; never expose R2 credentials or key to untrusted client (key is returned for confirm only).
         res.json({ success: true, uploadUrl, publicUrl, key });
     } catch (error) {
         console.error('❌ Presign error:', error);
@@ -62,7 +73,32 @@ router.post('/presign', requireAuth, presignLimiter, async (req, res) => {
     }
 });
 
-// Post-upload: record metadata (userId, key, mimeType, size) after client uploads to R2
+// Proxy upload: browser sends file to backend, backend uploads to R2. Avoids browser→R2 SSL/CORS issues.
+router.post('/proxy', requireAuth, presignLimiter, (req, res, next) => {
+    proxyUpload(req, res, (err) => {
+        if (err) {
+            if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ success: false, error: 'File too large. Max 10MB for images, 100MB for videos.' });
+            return res.status(400).json({ success: false, error: err.message || 'Invalid file' });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+        const { buffer, mimetype, size } = req.file;
+        const isVideo = VIDEO_MIMES.includes(mimetype);
+        const maxSize = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+        if (size > maxSize) return res.status(400).json({ success: false, error: isVideo ? 'Video size must be at most 100MB' : 'Image size must be at most 10MB' });
+        const userId = req.admin?.username || 'admin';
+        const { publicUrl, key } = await storageController.uploadFromBuffer(userId, buffer, mimetype);
+        res.json({ success: true, publicUrl, key });
+    } catch (error) {
+        console.error('❌ Proxy upload error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Upload failed' });
+    }
+});
+
+// Confirm after client uploads to R2 (validates key only).
 router.post('/confirm', requireAuth, async (req, res) => {
     try {
         const { key, size, mimeType } = req.body || {};
@@ -75,27 +111,11 @@ router.post('/confirm', requireAuth, async (req, res) => {
         if (!key.startsWith(expectedPrefix)) {
             return res.status(403).json({ success: false, error: 'Key does not belong to your uploads' });
         }
-        await databaseController.recordUpload({ userId, key, mimeType, size });
         res.json({ success: true });
     } catch (error) {
         console.error('❌ Confirm upload error:', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to record upload' });
     }
-});
-
-// Only presign is supported for uploads (no server→R2 = no TLS/EPROTO on Render).
-// POST /image and /images are not used; frontend must use POST /presign then PUT to the returned URL.
-router.post('/image', (req, res) => {
-    res.status(410).json({
-        success: false,
-        error: 'Uploads use the presign flow. Please refresh the page (and clear cache) so the latest upload form is loaded, then try again.'
-    });
-});
-router.post('/images', (req, res) => {
-    res.status(410).json({
-        success: false,
-        error: 'Uploads use the presign flow. Please refresh the page (and clear cache) so the latest upload form is loaded, then try again.'
-    });
 });
 
 // Normalize path: if full URL, extract object key (e.g. uploads/userId/uuid.ext)
@@ -113,7 +133,6 @@ function pathToKey(path) {
 }
 
 // Delete image (authenticated only; path = object key or full public URL).
-// Server→R2 delete can fail with EPROTO on Render; we still return success so the UI can remove the URL.
 router.delete('/image', requireAuth, async (req, res) => {
     try {
         const key = pathToKey(req.body?.path);
@@ -127,7 +146,6 @@ router.delete('/image', requireAuth, async (req, res) => {
             await storageController.deleteImage(key);
         } catch (err) {
             console.error('❌ R2 delete failed (may be EPROTO on Render); URL removed from app anyway:', err.message);
-            // Still return success so the UI can remove the image URL; file may remain in R2
         }
         res.json({
             success: true,

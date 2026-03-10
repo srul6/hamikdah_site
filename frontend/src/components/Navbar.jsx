@@ -687,7 +687,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                             <Box sx={{ textAlign: 'center', py: 4 }}>
                                 <Box
                                     component="img"
-                                    src="/empty_bag.png"
+                                    src="/empty_bag.webp"
                                     alt="Empty cart"
                                     sx={{
                                         width: '80px',

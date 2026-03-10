@@ -2,6 +2,46 @@
 const { databaseController } = require('../config/database');
 const { getStorageUrl, getStorageUrls } = require('../utils/storageUtils');
 
+/** Flatten and normalize to array of non-empty strings (handles malformed/nested JSON from DB). */
+function normalizeToStrings(value) {
+    if (value == null) return [];
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return normalizeToStrings(parsed);
+        } catch {
+            return value.trim() ? [value.trim()] : [];
+        }
+    }
+    if (!Array.isArray(value)) return [];
+    const out = [];
+    for (const item of value) {
+        if (typeof item === 'string' && item.trim()) out.push(item.trim());
+        else if (Array.isArray(item)) out.push(...normalizeToStrings(item));
+    }
+    return out;
+}
+
+/** Ensure extraImages is always an array (DB may have stored comma-separated string). */
+function normalizeColorExtraImages(value) {
+    if (value == null) return [];
+    if (Array.isArray(value)) return value.filter(x => typeof x === 'string' && x.trim()).map(s => s.trim());
+    if (typeof value === 'string') return value.split(',').map(s => s.trim()).filter(Boolean);
+    return [];
+}
+
+/** Normalize product.colors so each color.extraImages is an array for API response. */
+function normalizeProductColors(product) {
+    if (!product || !Array.isArray(product.colors)) return product;
+    return {
+        ...product,
+        colors: product.colors.map(c => ({
+            ...c,
+            extraImages: normalizeColorExtraImages(c && c.extraImages)
+        }))
+    };
+}
+
 // Get all products
 exports.getAllProducts = async (req, res) => {
     try {
@@ -15,79 +55,42 @@ exports.getAllProducts = async (req, res) => {
 
         // Add storage URL to image paths (R2)
         const productsWithImageUrls = products.map(product => {
-            // Handle children_playing - could be string, array, or JSON string
-            let childrenPlaying = [];
-            if (product.children_playing) {
-                if (Array.isArray(product.children_playing)) {
-                    childrenPlaying = product.children_playing;
-                } else if (typeof product.children_playing === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.children_playing);
-                        childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        childrenPlaying = [product.children_playing];
-                    }
-                }
-            }
-
-            // Handle desktop_hero_images - could be string, array, or JSON string
-            let desktopHeroImages = [];
-            if (product.desktop_hero_images) {
-                if (Array.isArray(product.desktop_hero_images)) {
-                    desktopHeroImages = product.desktop_hero_images;
-                } else if (typeof product.desktop_hero_images === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.desktop_hero_images);
-                        desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        desktopHeroImages = [product.desktop_hero_images];
-                    }
-                }
-            }
-
-            // Ensure price is a number (PostgreSQL DECIMAL returns as string)
+            const childrenPlaying = normalizeToStrings(product.children_playing);
+            const desktopHeroImages = normalizeToStrings(product.desktop_hero_images);
             const price = product.price ? parseFloat(product.price) : 0;
 
-            // Handle extraImages - could be string, array, or JSON string
             let extraImagesArray = [];
             if (product.extraimages) {
                 if (Array.isArray(product.extraimages)) {
-                    extraImagesArray = product.extraimages;
+                    extraImagesArray = product.extraimages.filter(x => typeof x === 'string' && x.trim());
                 } else if (typeof product.extraimages === 'string') {
                     try {
                         const parsed = JSON.parse(product.extraimages);
-                        extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
+                        extraImagesArray = Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string' && x.trim()) : [];
                     } catch {
-                        // If not JSON, treat as comma-separated string or single value
                         extraImagesArray = product.extraimages.includes(',')
                             ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                            : [product.extraimages];
+                            : (product.extraimages.trim() ? [product.extraimages.trim()] : []);
                     }
                 }
             }
 
-            return {
+            const productWithUrls = {
                 ...product,
-                price: price, // Ensure price is always a number
+                price: price,
+                buildingTime: product.buildingtime ?? product.buildingTime,
+                recommendedAge: product.recommendedage ?? product.recommendedAge,
                 homepageImage: getStorageUrl(product.homepageimage),
-                // Keep both camelCase and lowercase for compatibility
-                extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
-                extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
-                // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: childrenPlaying.map(media => {
-                    if (!media) return null;
-                    return typeof media === 'string' && media.startsWith('http')
-                        ? media
-                        : getStorageUrl(`mikdash_child_playing/${media}`);
-                }).filter(Boolean),
-                // Map desktop hero images (handle both filenames and full URLs)
-                desktopHeroImages: desktopHeroImages.map(url => {
-                    if (!url) return null;
-                    return typeof url === 'string' && url.startsWith('http')
-                        ? url
-                        : getStorageUrl(url);
-                }).filter(Boolean)
+                extraImages: getStorageUrls(extraImagesArray),
+                extraimages: getStorageUrls(extraImagesArray),
+                childrenPlaying: childrenPlaying.map(media =>
+                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
+                ).filter(Boolean),
+                desktopHeroImages: desktopHeroImages.map(url =>
+                    url.startsWith('http') ? url : getStorageUrl(url)
+                ).filter(Boolean)
             };
+            return normalizeProductColors(productWithUrls);
         });
 
         res.json(productsWithImageUrls);
@@ -108,115 +111,41 @@ exports.getProductById = async (req, res) => {
         console.log('✅ Product fetched from database:', product ? `ID ${product.id}` : 'null');
 
         if (product) {
-            // Handle children_playing - could be string, array, or JSON string
-            let childrenPlaying = [];
-            try {
-                if (product.children_playing) {
-                    if (Array.isArray(product.children_playing)) {
-                        childrenPlaying = product.children_playing;
-                    } else if (typeof product.children_playing === 'string') {
-                        try {
-                            const parsed = JSON.parse(product.children_playing);
-                            childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
-                        } catch {
-                            childrenPlaying = [product.children_playing];
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('⚠️  Error processing children_playing:', error);
-                childrenPlaying = [];
-            }
-
-            // Handle desktop_hero_images - could be string, array, or JSON string
-            let desktopHeroImages = [];
-            try {
-                if (product.desktop_hero_images) {
-                    if (Array.isArray(product.desktop_hero_images)) {
-                        desktopHeroImages = product.desktop_hero_images;
-                    } else if (typeof product.desktop_hero_images === 'string') {
-                        try {
-                            const parsed = JSON.parse(product.desktop_hero_images);
-                            desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
-                        } catch {
-                            desktopHeroImages = [product.desktop_hero_images];
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('⚠️  Error processing desktop_hero_images:', error);
-                desktopHeroImages = [];
-            }
-
-            // Ensure price is a number (PostgreSQL DECIMAL returns as string)
+            const childrenPlaying = normalizeToStrings(product.children_playing);
+            const desktopHeroImages = normalizeToStrings(product.desktop_hero_images);
             const price = product.price ? parseFloat(product.price) : 0;
 
-            // Handle extraImages - could be string, array, or JSON string
             let extraImagesArray = [];
-            try {
-                if (product.extraimages) {
-                    if (Array.isArray(product.extraimages)) {
-                        extraImagesArray = product.extraimages;
-                    } else if (typeof product.extraimages === 'string') {
-                        try {
-                            const parsed = JSON.parse(product.extraimages);
-                            extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
-                        } catch {
-                            // If not JSON, treat as comma-separated string or single value
-                            extraImagesArray = product.extraimages.includes(',')
-                                ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                                : [product.extraimages];
-                        }
+            if (product.extraimages) {
+                if (Array.isArray(product.extraimages)) {
+                    extraImagesArray = product.extraimages.filter(x => typeof x === 'string' && x.trim());
+                } else if (typeof product.extraimages === 'string') {
+                    try {
+                        const parsed = JSON.parse(product.extraimages);
+                        extraImagesArray = Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string' && x.trim()) : [];
+                    } catch {
+                        extraImagesArray = product.extraimages.includes(',')
+                            ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
+                            : (product.extraimages.trim() ? [product.extraimages.trim()] : []);
                     }
                 }
-            } catch (error) {
-                console.error('⚠️  Error processing extraimages:', error);
-                extraImagesArray = [];
             }
 
-            // Ensure all arrays are arrays before processing
-            if (!Array.isArray(extraImagesArray)) {
-                extraImagesArray = [];
-            }
-            if (!Array.isArray(childrenPlaying)) {
-                childrenPlaying = [];
-            }
-            if (!Array.isArray(desktopHeroImages)) {
-                desktopHeroImages = [];
-            }
-
-            // Add storage URL to image paths (R2)
-            const productWithImageUrls = {
+            const productWithImageUrls = normalizeProductColors({
                 ...product,
-                price: price, // Ensure price is always a number
+                price: price,
                 homepageImage: getStorageUrl(product.homepageimage),
-                // Keep both camelCase and lowercase for compatibility
-                extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
-                extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
-                // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: childrenPlaying.map(media => {
-                    if (!media) return null;
-                    try {
-                        return typeof media === 'string' && media.startsWith('http')
-                            ? media
-                            : getStorageUrl(`mikdash_child_playing/${media}`);
-                    } catch (error) {
-                        console.error('⚠️  Error processing children playing media:', media, error);
-                        return null;
-                    }
-                }).filter(Boolean),
-                desktopHeroImages: desktopHeroImages.map(url => {
-                    if (!url) return null;
-                    try {
-                        return typeof url === 'string' && url.startsWith('http')
-                            ? url
-                            : getStorageUrl(url);
-                    } catch (error) {
-                        console.error('⚠️  Error processing desktop hero image:', url, error);
-                        return null;
-                    }
-                }).filter(Boolean)
-            };
+                buildingTime: product.buildingtime ?? product.buildingTime,
+                recommendedAge: product.recommendedage ?? product.recommendedAge,
+                extraImages: getStorageUrls(extraImagesArray),
+                extraimages: getStorageUrls(extraImagesArray),
+                childrenPlaying: childrenPlaying.map(media =>
+                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
+                ).filter(Boolean),
+                desktopHeroImages: desktopHeroImages.map(url =>
+                    url.startsWith('http') ? url : getStorageUrl(url)
+                ).filter(Boolean)
+            });
             res.json(productWithImageUrls);
         } else {
             res.status(404).json({ error: 'Product not found' });
@@ -252,90 +181,41 @@ exports.updateProduct = async (req, res) => {
         console.log('Updating product with data:', req.body);
         const updatedProduct = await databaseController.updateProduct(req.params.id, req.body);
         if (updatedProduct) {
-            // Process the updated product to add image URLs (same as getProductById)
-            // Handle children_playing - could be string, array, or JSON string
-            let childrenPlaying = [];
-            if (updatedProduct.children_playing) {
-                if (Array.isArray(updatedProduct.children_playing)) {
-                    childrenPlaying = updatedProduct.children_playing;
-                } else if (typeof updatedProduct.children_playing === 'string') {
-                    try {
-                        const parsed = JSON.parse(updatedProduct.children_playing);
-                        childrenPlaying = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        childrenPlaying = [updatedProduct.children_playing];
-                    }
-                }
-            }
+            const childrenPlaying = normalizeToStrings(updatedProduct.children_playing);
+            const desktopHeroImages = normalizeToStrings(updatedProduct.desktop_hero_images);
+            const price = updatedProduct.price ? parseFloat(updatedProduct.price) : 0;
 
-            // Handle desktop_hero_images - could be string, array, or JSON string
-            let desktopHeroImages = [];
-            if (updatedProduct.desktop_hero_images) {
-                if (Array.isArray(updatedProduct.desktop_hero_images)) {
-                    desktopHeroImages = updatedProduct.desktop_hero_images;
-                } else if (typeof updatedProduct.desktop_hero_images === 'string') {
-                    try {
-                        const parsed = JSON.parse(updatedProduct.desktop_hero_images);
-                        desktopHeroImages = Array.isArray(parsed) ? parsed : [parsed];
-                    } catch {
-                        desktopHeroImages = [updatedProduct.desktop_hero_images];
-                    }
-                }
-            }
-
-            // Handle extraImages - could be string, array, or JSON string
             let extraImagesArray = [];
             if (updatedProduct.extraimages) {
                 if (Array.isArray(updatedProduct.extraimages)) {
-                    extraImagesArray = updatedProduct.extraimages;
+                    extraImagesArray = updatedProduct.extraimages.filter(x => typeof x === 'string' && x.trim());
                 } else if (typeof updatedProduct.extraimages === 'string') {
                     try {
                         const parsed = JSON.parse(updatedProduct.extraimages);
-                        extraImagesArray = Array.isArray(parsed) ? parsed : [parsed];
+                        extraImagesArray = Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string' && x.trim()) : [];
                     } catch {
-                        // If not JSON, treat as comma-separated string or single value
                         extraImagesArray = updatedProduct.extraimages.includes(',')
                             ? updatedProduct.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                            : [updatedProduct.extraimages];
+                            : (updatedProduct.extraimages.trim() ? [updatedProduct.extraimages.trim()] : []);
                     }
                 }
             }
 
-            // Ensure price is a number (PostgreSQL DECIMAL returns as string)
-            const price = updatedProduct.price ? parseFloat(updatedProduct.price) : 0;
-
-            // Add storage URL to image paths (R2)
-            const productWithImageUrls = {
+            const productWithImageUrls = normalizeProductColors({
                 ...updatedProduct,
-                price: price, // Ensure price is always a number
+                price: price,
+                buildingTime: updatedProduct.buildingtime ?? updatedProduct.buildingTime,
+                recommendedAge: updatedProduct.recommendedage ?? updatedProduct.recommendedAge,
                 homepageImage: getStorageUrl(updatedProduct.homepageimage),
-                // Keep both camelCase and lowercase for compatibility
-                extraImages: getStorageUrls(extraImagesArray), // camelCase (for some components)
-                extraimages: getStorageUrls(extraImagesArray), // lowercase (for MikdashProductPage)
-                // Map children playing media - handle both full URLs and filenames
-                childrenPlaying: Array.isArray(childrenPlaying) ? childrenPlaying.map(media => {
-                    if (!media) return null;
-                    try {
-                        return typeof media === 'string' && media.startsWith('http')
-                            ? media
-                            : getStorageUrl(`mikdash_child_playing/${media}`);
-                    } catch (error) {
-                        console.error('⚠️  Error processing children playing media:', media, error);
-                        return null;
-                    }
-                }).filter(Boolean) : [],
-                desktopHeroImages: Array.isArray(desktopHeroImages) ? desktopHeroImages.map(url => {
-                    if (!url) return null;
-                    try {
-                        return typeof url === 'string' && url.startsWith('http')
-                            ? url
-                            : getStorageUrl(url);
-                    } catch (error) {
-                        console.error('⚠️  Error processing desktop hero image:', url, error);
-                        return null;
-                    }
-                }).filter(Boolean) : []
-            };
+                extraImages: getStorageUrls(extraImagesArray),
+                extraimages: getStorageUrls(extraImagesArray),
+                childrenPlaying: childrenPlaying.map(media =>
+                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
+                ).filter(Boolean),
+                desktopHeroImages: desktopHeroImages.map(url =>
+                    url.startsWith('http') ? url : getStorageUrl(url)
+                ).filter(Boolean)
+            });
 
             res.json(productWithImageUrls);
         } else {

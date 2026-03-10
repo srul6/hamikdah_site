@@ -5,8 +5,11 @@
 
 const jwt = require('jsonwebtoken');
 
-// Secret key for JWT - should be in .env
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️  JWT_SECRET not set. Set JWT_SECRET in .env for production.');
+}
+const JWT_SECRET_OR_FALLBACK = JWT_SECRET || 'your-super-secret-key-change-in-production';
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 /**
@@ -15,7 +18,7 @@ const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
  * @returns {string} JWT token
  */
 function generateToken(payload) {
-    return jwt.sign(payload, JWT_SECRET, {
+    return jwt.sign(payload, JWT_SECRET_OR_FALLBACK, {
         expiresIn: '24h',
         issuer: 'hamikdash-admin',
         audience: 'hamikdash-panel'
@@ -29,7 +32,7 @@ function generateToken(payload) {
  */
 function verifyToken(token) {
     try {
-        return jwt.verify(token, JWT_SECRET, {
+        return jwt.verify(token, JWT_SECRET_OR_FALLBACK, {
             issuer: 'hamikdash-admin',
             audience: 'hamikdash-panel'
         });

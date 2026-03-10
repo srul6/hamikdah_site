@@ -104,6 +104,20 @@ export default function ImageUploader({
                     throw new Error(msg);
                 }
 
+                // Try presigned PUT first; on SSL/network error, fall back to proxy (backend uploads to R2).
+                const tryProxyUpload = async () => {
+                    const form = new FormData();
+                    form.append('file', file);
+                    const res = await fetch(`${API_ENDPOINTS.upload}/proxy`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: form,
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!data.success) throw new Error(data.error || 'Proxy upload failed');
+                    return data.publicUrl;
+                };
+
                 let putRes;
                 try {
                     putRes = await fetch(presignData.uploadUrl, {
@@ -113,9 +127,21 @@ export default function ImageUploader({
                     });
                 } catch (e) {
                     const isNetwork = e.message === 'Failed to fetch' || e.name === 'TypeError';
-                    throw new Error(isNetwork ? 'Upload to storage failed (often due to R2 CORS). Add your site origin and method PUT in the R2 bucket CORS settings.' : e.message);
+                    if (isNetwork) {
+                        try { return await tryProxyUpload(); } catch (proxyErr) {
+                            throw new Error(proxyErr.message || 'Upload failed (direct and proxy). Check connection and that you are logged in.');
+                        }
+                    }
+                    throw new Error(e.message);
                 }
-                if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+                if (!putRes.ok) {
+                    // e.g. 403 or SSL/cipher error surfaced as non-2xx — try proxy
+                    try { return await tryProxyUpload(); } catch (proxyErr) {
+                        let detail = '';
+                        try { const t = await putRes.text(); if (t) detail = ` — ${t.slice(0, 150)}`; } catch (_) { /* ignore */ }
+                        throw new Error(`Upload failed: ${putRes.status}${detail}`);
+                    }
+                }
 
                 fetch(`${API_ENDPOINTS.upload}/confirm`, {
                     method: 'POST',
@@ -143,7 +169,7 @@ export default function ImageUploader({
         } catch (error) {
             console.error('Upload error:', error);
             let msg = error.message || 'Failed to upload image. Please try again.';
-            if (msg === 'Failed to fetch') msg = 'Network error: could not reach the server or storage. Check connection, login, and R2 CORS if you use Cloudflare R2.';
+            if (msg === 'Failed to fetch') msg = 'Network error: could not reach the server or storage. Check connection and login. If the error happened when uploading to storage, open DevTools → Network and retry to see the real failure (e.g. CORS, 403, or expired link).';
             if (msg.includes('Authentication')) msg = 'Please log in to the admin panel and try again.';
             setError(msg);
         } finally {

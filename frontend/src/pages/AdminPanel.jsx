@@ -25,6 +25,8 @@ export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [lockUntil, setLockUntil] = useState(null);
+  const [lockCountdown, setLockCountdown] = useState('');
   const [products, setProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -70,9 +72,33 @@ export default function AdminPanel() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Check if user is already authenticated (server-side session check)
     checkSession();
   }, []);
+
+  // Live countdown while account is locked
+  useEffect(() => {
+    if (!lockUntil) {
+      setLockCountdown('');
+      return;
+    }
+    const update = () => {
+      const end = new Date(lockUntil).getTime();
+      const now = Date.now();
+      const ms = Math.max(0, end - now);
+      if (ms <= 0) {
+        setLockUntil(null);
+        setLockCountdown('');
+        return;
+      }
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      setLockCountdown(min > 0 ? `${min} min ${sec} sec` : `${sec} sec`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [lockUntil]);
 
   const checkSession = async () => {
     try {
@@ -135,10 +161,7 @@ export default function AdminPanel() {
 
   const fetchOrdersData = async () => {
     try {
-      console.log('📋 Fetching orders from API...');
       const ordersData = await fetchOrders();
-      console.log('✅ Fetched orders:', ordersData.length, 'orders');
-      console.log('📦 Orders data:', ordersData);
       setOrders(ordersData);
     } catch (error) {
       console.error('❌ Error fetching orders:', error);
@@ -197,12 +220,18 @@ export default function AdminPanel() {
       const data = await response.json();
 
       if (data.success) {
-        // Server sets HttpOnly cookie automatically
-        // No need to store token in JavaScript
         setIsAuthenticated(true);
         setLoginError('');
+        setLockUntil(null);
       } else {
-        setLoginError(data.message || 'Invalid credentials');
+        if (data.locked && data.lockedUntil) {
+          setLockUntil(data.lockedUntil);
+          if (data.remainingTime) setLockCountdown(data.remainingTime);
+          setLoginError('');
+        } else {
+          setLockUntil(null);
+          setLoginError(data.message || 'Invalid credentials');
+        }
       }
     } catch (error) {
       setLoginError('Network error. Please try again.');
@@ -548,7 +577,6 @@ export default function AdminPanel() {
       // Download file
       XLSX.writeFile(wb, filename);
 
-      console.log(`✅ Exported ${completedOrders.length} completed orders to ${filename}`);
       alert(`${completedOrders.length} הזמנות שהושלמו יוצאו בהצלחה!`);
     } catch (error) {
       console.error('❌ Error exporting to Excel:', error);
@@ -590,7 +618,20 @@ export default function AdminPanel() {
               sx={{ mb: 3 }}
             />
 
-            {loginError && (
+            {lockUntil && (
+              <Alert severity="warning" icon={<LockIcon />} sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  Account locked
+                </Typography>
+                <Typography variant="body2">
+                  {lockCountdown
+                    ? `Try again in: ${lockCountdown}`
+                    : 'Checking…'}
+                </Typography>
+              </Alert>
+            )}
+
+            {loginError && !lockUntil && (
               <Alert severity="error" sx={{ mb: 3 }}>
                 {loginError}
               </Alert>
@@ -600,6 +641,7 @@ export default function AdminPanel() {
               type="submit"
               fullWidth
               variant="contained"
+              disabled={!!lockUntil}
               sx={{
                 backgroundColor: '#0071e3',
                 '&:hover': { backgroundColor: '#0077ed' },
@@ -1331,60 +1373,67 @@ export default function AdminPanel() {
                     helperText="Number of items in stock"
                   />
                 </Grid>
-                <Grid item xs={12}>
-                  <ImageUploader
-                    label="Homepage Image *"
-                    value={formData.homepageimage}
-                    onChange={(url) => handleInputChange('homepageimage', url)}
-                    helperText="Main image shown on the product listing page (drag & drop or click to upload)"
-                    folder="homepage"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <ImageUploader
-                    label="Extra Images (Product Gallery)"
-                    value={formData.extraimages}
-                    onChange={(urls) => handleInputChange('extraimages', urls)}
-                    helperText="Additional product images - drag & drop multiple images at once"
-                    folder="gallery"
-                    multiple={true}
-                  />
-                </Grid>
+                {/* Show product images in Basic Information only when there are no color variations */}
+                {(!formData.colors || formData.colors.length === 0) && (
+                  <>
+                    <Grid item xs={12}>
+                      <ImageUploader
+                        label="Homepage Image *"
+                        value={formData.homepageimage}
+                        onChange={(url) => handleInputChange('homepageimage', url)}
+                        helperText="Main image shown on the product listing page (drag & drop or click to upload)"
+                        folder="homepage"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <ImageUploader
+                        label="Extra Images (Product Gallery)"
+                        value={formData.extraimages}
+                        onChange={(urls) => handleInputChange('extraimages', urls)}
+                        helperText="Additional product images - drag & drop multiple images at once"
+                        folder="gallery"
+                        multiple={true}
+                      />
+                    </Grid>
+                  </>
+                )}
               </Grid>
             </Box>
 
-            {/* Desktop Hero Images Section */}
-            <Box sx={{
-              mb: 4,
-              p: 3,
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              border: '1px solid #e0e0e0',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-            }}>
-              <Typography variant="h5" sx={{
-                fontWeight: 600,
-                mb: 3,
-                color: '#2c3e50',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
+            {/* Desktop Hero Images Section - only for product "המקדש" */}
+            {formData.name_he && formData.name_he.trim() === 'המקדש' && (
+              <Box sx={{
+                mb: 4,
+                p: 3,
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                border: '1px solid #e0e0e0',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
               }}>
-                🖥️ Desktop Hero Images
-              </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <ImageUploader
-                    label="Desktop Hero Images (2 images)"
-                    value={formData.desktop_hero_images}
-                    onChange={(urls) => handleInputChange('desktop_hero_images', urls)}
-                    helperText="Upload 2 images for the desktop hero section (left and right squares)"
-                    folder="hero"
-                    multiple={true}
-                  />
+                <Typography variant="h5" sx={{
+                  fontWeight: 600,
+                  mb: 3,
+                  color: '#2c3e50',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  🖥️ Desktop Hero Images
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <ImageUploader
+                      label="Desktop Hero Images (2 images)"
+                      value={formData.desktop_hero_images}
+                      onChange={(urls) => handleInputChange('desktop_hero_images', urls)}
+                      helperText="Upload 2 images for the desktop hero section (left and right squares)"
+                      folder="hero"
+                      multiple={true}
+                    />
+                  </Grid>
                 </Grid>
-              </Grid>
-            </Box>
+              </Box>
+            )}
 
             {/* Children Playing Media Section */}
             <Box sx={{

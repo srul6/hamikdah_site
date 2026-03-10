@@ -36,6 +36,20 @@ export default function VideoUploader({ label, value, onChange, helperText }) {
                 throw new Error(msg);
             }
 
+            const tryProxyUpload = async () => {
+                const form = new FormData();
+                form.append('file', file);
+                const res = await fetch(`${API_ENDPOINTS.upload}/proxy`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: form,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!data.success) throw new Error(data.error || 'Proxy upload failed');
+                return data.publicUrl;
+            };
+
+            let publicUrl;
             let putRes;
             try {
                 putRes = await fetch(presignData.uploadUrl, {
@@ -45,22 +59,41 @@ export default function VideoUploader({ label, value, onChange, helperText }) {
                 });
             } catch (e) {
                 const isNetwork = e.message === 'Failed to fetch' || e.name === 'TypeError';
-                throw new Error(isNetwork ? 'Upload to storage failed (often due to R2 CORS). Add your site origin and method PUT in the R2 bucket CORS settings.' : e.message);
+                if (isNetwork) {
+                    try {
+                        publicUrl = await tryProxyUpload();
+                    } catch (proxyErr) {
+                        throw new Error(proxyErr.message || 'Upload failed (direct and proxy). Check connection and that you are logged in.');
+                    }
+                } else {
+                    throw new Error(e.message);
+                }
             }
-            if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+            if (!publicUrl) {
+                if (!putRes.ok) {
+                    try {
+                        publicUrl = await tryProxyUpload();
+                    } catch (proxyErr) {
+                        let detail = '';
+                        try { const t = await putRes.text(); if (t) detail = ` — ${t.slice(0, 150)}`; } catch (_) { /* ignore */ }
+                        throw new Error(`Upload failed: ${putRes.status}${detail}`);
+                    }
+                } else {
+                    fetch(`${API_ENDPOINTS.upload}/confirm`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: presignData.key, size: file.size, mimeType: contentType })
+                    }).catch(() => { });
+                    publicUrl = presignData.publicUrl;
+                }
+            }
 
-            fetch(`${API_ENDPOINTS.upload}/confirm`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: presignData.key, size: file.size, mimeType: contentType })
-            }).catch(() => { /* optional metadata recording */ });
-
-            onChange(presignData.publicUrl);
-            setPreviewUrl(presignData.publicUrl);
+            onChange(publicUrl);
+            setPreviewUrl(publicUrl);
         } catch (err) {
             let msg = err.message || 'Network error or server unreachable.';
-            if (msg === 'Failed to fetch') msg = 'Network error: could not reach the server or storage. Check connection, login, and R2 CORS if you use Cloudflare R2.';
+            if (msg === 'Failed to fetch') msg = 'Network error: could not reach the server or storage. Check connection and login. If the error happened when uploading to storage, open DevTools → Network and retry to see the real failure (e.g. CORS, 403, or expired link).';
             if (msg.includes('Authentication')) msg = 'Please log in to the admin panel and try again.';
             setError(msg);
             console.error('Upload error:', err);

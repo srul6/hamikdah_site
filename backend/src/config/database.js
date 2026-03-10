@@ -4,6 +4,4 @@
 const databaseController = require('../controllers/databaseController');
 const storageController = require('../controllers/storageController');
 
-console.log('✅ Using Neon PostgreSQL + Cloudflare R2');
-
 module.exports = { databaseController, storageController };

@@ -110,7 +110,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
             <Container maxWidth="md" sx={{ pt: 15, pb: 8, textAlign: 'center' }}>
                 <Box
                     component="img"
-                    src="/empty_bag.png"
+                    src="/empty_bag.webp"
                     alt="Empty cart"
                     sx={{
                         width: { xs: '150px', sm: '200px', md: '250px' },
@@ -479,18 +479,47 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 <Box sx={{ mb: 1.5, mt: 1.5 }}>
                                     {/* Free Delivery Message (when total >= 499) */}
                                     {subtotal >= 499 && (
-                                        <Typography
-                                            variant="body2"
-                                            color="rgba(229, 90, 61, 1)"
-                                            sx={{
-                                                mb: 0.5,
-                                                textAlign: 'center',
-                                                direction: isHebrew ? 'rtl' : 'ltr',
-                                                fontSize: { xs: '1rem', md: '1.2rem' }
-                                            }}
-                                        >
-                                            {isHebrew ? 'יש לך משלוח עד הבית!' : 'You have home delivery!'}
-                                        </Typography>
+                                        <>
+                                            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2.5, mb: 1.5 }}>
+                                                <Box
+                                                    sx={{
+                                                        backgroundColor: 'rgba(229, 90, 61, 1)',
+                                                        borderRadius: 2,
+                                                        px: 2,
+                                                        py: 1,
+                                                        textAlign: 'center',
+                                                        width: 'fit-content'
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            color: 'white',
+                                                            textAlign: 'center',
+                                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                                            fontSize: { xs: '0.9rem', md: '1.1rem' }
+                                                        }}
+                                                    >
+                                                        {isHebrew ? 'יש לך משלוח עד הבית!' : 'You have home delivery!'}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                            <Typography
+                                                variant="body2"
+                                                color="rgba(229, 90, 61, 1)"
+                                                sx={{
+                                                    mt: 2.5,
+                                                    mb: 1.1,
+                                                    textAlign: 'center',
+                                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                                    fontSize: { xs: '0.9rem', md: '1rem' },
+                                                    fontWeight: 'bold',
+
+                                                }}
+                                            >
+                                                {isHebrew ? 'זמן אספקה עד 7 ימי עסקים' : 'Delivery time is 7 business days'}
+                                            </Typography>
+                                        </>
                                     )}
                                     <Typography
                                         variant="body2"
@@ -536,7 +565,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                             >
                                                 {homeDelivery
                                                     ? (isHebrew ? '!יש לך משלוח עד הבית' : 'Home Delivery Selected')
-                                                    : (isHebrew ? '(הוסף משלוח עד הבית +₪30)' : 'Add Home Delivery (+₪30)')
+                                                    : (isHebrew ? 'הוסף משלוח עד הבית (+₪30)' : 'Add Home Delivery (+₪30)')
                                                 }
                                             </Button>
 
@@ -563,6 +592,23 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                 </Button>
                                             )}
                                         </Box>
+                                    )}
+
+                                    {homeDelivery && (
+                                        <Typography
+                                            variant="body2"
+                                            color="rgb(21, 20, 20)"
+                                            sx={{
+                                                mt: 1.5,
+                                                textAlign: 'center',
+                                                direction: isHebrew ? 'rtl' : 'ltr',
+                                                fontSize: { xs: '0.9rem', md: '1rem' },
+                                                fontWeight: 'bold',
+                                                pb: 0.5
+                                            }}
+                                        >
+                                            {isHebrew ? 'זמן אספקה עד 7 ימי עסקים' : 'Delivery time is 7 business days'}
+                                        </Typography>
                                     )}
 
                                     {/* Pickup Text and Free Delivery Info - Only show when no delivery and total < 499 */}

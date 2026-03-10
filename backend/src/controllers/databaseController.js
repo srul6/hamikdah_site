@@ -18,6 +18,23 @@ pool.on('error', (err) => {
     process.exit(-1);
 });
 
+/** Ensure extraImages is always an array of strings (for storage and API). */
+function normalizeExtraImagesList(value) {
+    if (value == null) return [];
+    if (Array.isArray(value)) return value.filter(x => typeof x === 'string' && x.trim()).map(s => s.trim());
+    if (typeof value === 'string') return value.split(',').map(s => s.trim()).filter(Boolean);
+    return [];
+}
+
+/** Ensure each color has extraImages as an array before saving to DB. */
+function normalizeColorsForDb(colors) {
+    if (!Array.isArray(colors)) return [];
+    return colors.map(c => ({
+        ...c,
+        extraImages: normalizeExtraImagesList(c && c.extraImages)
+    }));
+}
+
 class DatabaseController {
     // ===== PRODUCTS =====
 
@@ -98,15 +115,15 @@ class DatabaseController {
                     productData.quantity || 0,
                     productData.homepageimage || null,
                     extraImages || null,
-                    productData.buildingtime || null,
+                    (productData.buildingtime ?? productData.buildingTime) || null,
                     productData.pieces || null,
                     productData.height || null,
                     productData.length || null,
                     productData.width || null,
-                    productData.recommendedage || null,
+                    (productData.recommendedage ?? productData.recommendedAge) || null,
                     childrenPlaying || null,
                     desktopHeroImages || null,
-                    JSON.stringify(productData.colors || [])
+                    JSON.stringify(normalizeColorsForDb(productData.colors || []))
                 ]
             );
             return result.rows[0];
@@ -125,12 +142,18 @@ class DatabaseController {
             const values = [];
             let paramIndex = 1;
 
+            // Map camelCase from frontend to DB column names (lowercase)
+            const dbKey = (key) => {
+                if (key === 'buildingTime') return 'buildingtime';
+                if (key === 'recommendedAge') return 'recommendedage';
+                return key;
+            };
             Object.keys(updateData).forEach(key => {
                 if (updateData[key] !== undefined) {
-                    fields.push(`${key} = $${paramIndex}`);
+                    fields.push(`${dbKey(key)} = $${paramIndex}`);
                     // Handle JSON/array fields
                     if (key === 'colors' && Array.isArray(updateData[key])) {
-                        values.push(JSON.stringify(updateData[key]));
+                        values.push(JSON.stringify(normalizeColorsForDb(updateData[key])));
                     } else if ((key === 'children_playing' || key === 'desktop_hero_images' || key === 'extraimages') && Array.isArray(updateData[key])) {
                         values.push(JSON.stringify(updateData[key]));
                     } else {
@@ -640,18 +663,100 @@ class DatabaseController {
         }
     }
 
-    // ===== FILE UPLOADS (presigned upload metadata) =====
+    // ===== LOGIN ATTEMPTS BY IP (brute-force protection, server-side) =====
 
-    async recordUpload({ userId, key, mimeType, size }) {
+    async getLoginLockStatusByIp(ip) {
+        if (!ip || typeof ip !== 'string') return { isLocked: false, lockedUntil: null, remainingTime: null };
+        const key = String(ip).trim().slice(0, 45);
+        try {
+            const r = await pool.query(
+                'SELECT attempt_count, lock_count, locked_until FROM login_attempts_by_ip WHERE ip = $1',
+                [key]
+            );
+            const row = r.rows[0];
+            if (!row) return { isLocked: false, lockedUntil: null, remainingTime: null };
+            const nowMs = Date.now();
+            const lockedUntilRaw = row.locked_until;
+            const lockedUntil = lockedUntilRaw ? new Date(lockedUntilRaw) : null;
+            const lockedUntilMs = lockedUntil ? lockedUntil.getTime() : 0;
+            if (lockedUntilMs > nowMs) {
+                const remainingMs = lockedUntilMs - nowMs;
+                const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+                return {
+                    isLocked: true,
+                    lockedUntil,
+                    remainingTime: remainingMinutes <= 1 ? '1 minute' : `${remainingMinutes} minutes`
+                };
+            }
+            if (lockedUntilRaw) {
+                await pool.query(
+                    'UPDATE login_attempts_by_ip SET locked_until = NULL, attempt_count = 0, updated_at = NOW() WHERE ip = $1',
+                    [key]
+                );
+            }
+            return { isLocked: false, lockedUntil: null, remainingTime: null };
+        } catch (error) {
+            console.error('❌ getLoginLockStatusByIp:', error.message);
+            return { isLocked: false, lockedUntil: null, remainingTime: null };
+        }
+    }
+
+    async recordLoginFailureByIp(ip, maxAttempts = 15, firstLockoutMinutes = 60, subsequentLockoutMinutes = 1440) {
+        if (!ip || typeof ip !== 'string') return { shouldLock: false, attemptsRemaining: maxAttempts - 1 };
+        const key = String(ip).trim().slice(0, 45);
         try {
             await pool.query(
-                `INSERT INTO file_uploads (user_id, object_key, mime_type, size_bytes) VALUES ($1, $2, $3, $4)`,
-                [userId, key, mimeType, size]
+                `INSERT INTO login_attempts_by_ip (ip, attempt_count, lock_count, locked_until, updated_at)
+                 VALUES ($1, 1, 0, NULL, NOW())
+                 ON CONFLICT (ip) DO UPDATE SET
+                   attempt_count = CASE
+                     WHEN login_attempts_by_ip.locked_until IS NOT NULL AND login_attempts_by_ip.locked_until > NOW() THEN login_attempts_by_ip.attempt_count
+                     WHEN login_attempts_by_ip.locked_until IS NOT NULL THEN 1
+                     ELSE login_attempts_by_ip.attempt_count + 1
+                   END,
+                   lock_count = CASE
+                     WHEN login_attempts_by_ip.locked_until IS NOT NULL AND login_attempts_by_ip.locked_until > NOW() THEN login_attempts_by_ip.lock_count
+                     WHEN login_attempts_by_ip.locked_until IS NOT NULL THEN login_attempts_by_ip.lock_count
+                     WHEN login_attempts_by_ip.attempt_count + 1 >= $2 THEN COALESCE(login_attempts_by_ip.lock_count, 0) + 1
+                     ELSE COALESCE(login_attempts_by_ip.lock_count, 0)
+                   END,
+                   locked_until = CASE
+                     WHEN login_attempts_by_ip.locked_until IS NOT NULL AND login_attempts_by_ip.locked_until > NOW() THEN login_attempts_by_ip.locked_until
+                     WHEN login_attempts_by_ip.locked_until IS NOT NULL THEN NULL
+                     WHEN login_attempts_by_ip.attempt_count + 1 >= $2 THEN NOW() + (
+                       (CASE WHEN COALESCE(login_attempts_by_ip.lock_count, 0) = 0 THEN $3 ELSE $4 END) || ' minutes'
+                     )::INTERVAL
+                     ELSE NULL
+                   END,
+                   updated_at = NOW()`,
+                [key, maxAttempts, firstLockoutMinutes, subsequentLockoutMinutes]
             );
-            return true;
+            const r = await pool.query(
+                'SELECT attempt_count, locked_until FROM login_attempts_by_ip WHERE ip = $1',
+                [key]
+            );
+            const row = r.rows[0];
+            const count = row ? parseInt(row.attempt_count, 10) || 0 : 1;
+            const lockedUntil = row?.locked_until ? new Date(row.locked_until) : null;
+            const isLocked = lockedUntil && new Date() < lockedUntil;
+            return {
+                shouldLock: isLocked,
+                attemptsRemaining: isLocked ? 0 : Math.max(0, maxAttempts - count)
+            };
         } catch (error) {
-            console.error('❌ Error recording upload:', error);
-            throw error;
+            console.error('❌ recordLoginFailureByIp:', error.message);
+            return { shouldLock: false, attemptsRemaining: maxAttempts - 1 };
+        }
+    }
+
+    /** Clear IP login attempts on successful login (optional, resets counter for that IP). */
+    async clearLoginAttemptsByIp(ip) {
+        if (!ip || typeof ip !== 'string') return;
+        const key = String(ip).trim().slice(0, 45);
+        try {
+            await pool.query('DELETE FROM login_attempts_by_ip WHERE ip = $1', [key]);
+        } catch (error) {
+            console.error('❌ clearLoginAttemptsByIp:', error.message);
         }
     }
 }

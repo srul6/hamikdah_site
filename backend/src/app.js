@@ -25,29 +25,23 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-
-        // Check if origin is in allowed list
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('⚠️  CORS blocked origin:', origin);
         }
-
-        // Log the blocked origin for debugging
-        console.log('⚠️  CORS blocked origin:', origin);
-        console.log('   Allowed origins:', allowedOrigins);
-
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-        return callback(new Error(msg), false);
+        return callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'), false);
     },
-    credentials: true // Allow cookies to be sent
+    credentials: true
 }));
 
-// Add request logging middleware
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`);
-    next();
-});
+// Request logging (development only)
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        console.log(`${req.method} ${req.path}`);
+        next();
+    });
+}
 
 // Serve product images statically
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
@@ -67,52 +61,21 @@ app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
 // Handle API routes that weren't matched above
 app.all('/api/*', (req, res) => {
-    console.log(`API route not found: ${req.method} ${req.path}`);
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// Specific routes for React app pages
-app.get('/admin', (req, res) => {
-    console.log('Serving admin page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/terms', (req, res) => {
-    console.log('Serving terms page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/returns', (req, res) => {
-    console.log('Serving returns page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/about', (req, res) => {
-    console.log('Serving about page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-// Payment result routes
-app.get('/payment/success', (req, res) => {
-    console.log('Serving payment success page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/payment/failure', (req, res) => {
-    console.log('Serving payment failure page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-app.get('/payment/cancel', (req, res) => {
-    console.log('Serving payment cancel page');
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
-
-// Catch-all route: serve React app for all non-API routes
-app.get('*', (req, res) => {
-    console.log(`Serving React app for: ${req.path}`);
-    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
+// SPA routes: serve React app
+const sendIndex = (req, res) => res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+app.get('/admin', sendIndex);
+app.get('/terms', sendIndex);
+app.get('/site-terms', sendIndex);
+app.get('/privacy', sendIndex);
+app.get('/returns', sendIndex);
+app.get('/about', sendIndex);
+app.get('/payment/success', sendIndex);
+app.get('/payment/failure', sendIndex);
+app.get('/payment/cancel', sendIndex);
+app.get('*', sendIndex);
 
 const PORT = process.env.PORT || 5001;
 

@@ -21,20 +21,29 @@ if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
     console.warn('⚠️  R2 credentials not fully configured. File uploads may fail.');
 }
 
-// Custom HTTPS agent only for operations that actually call R2 (delete, get). Upload uses presigned URLs (no server→R2).
+// Custom HTTPS agent only for direct server→R2 operations (avoids TLS/EPROTO on Render).
 const httpsAgent = new https.Agent({
     minVersion: 'TLSv1.2',
     maxVersion: 'TLSv1.3',
     ciphers: 'DEFAULT:@SECLEVEL=0',
 });
 
-const s3Client = new S3Client({
+const baseConfig = {
     region: 'auto',
     endpoint: R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined,
     credentials: {
         accessKeyId: R2_ACCESS_KEY_ID || '',
         secretAccessKey: R2_SECRET_ACCESS_KEY || '',
     },
+    forcePathStyle: true, // R2 expects path-style (host = account); virtual-hosted style uses bucket as subdomain and R2 has no cert for that
+};
+
+// Presign only: no requestHandler so URL signing is not affected; browser PUTs to this URL.
+const s3ClientPresign = new S3Client(baseConfig);
+
+// Direct server→R2: custom handler for Delete, Get, Put (server-side uploads).
+const s3ClientDirect = new S3Client({
+    ...baseConfig,
     requestHandler: new NodeHttpHandler({
         httpsAgent,
     }),
@@ -82,10 +91,39 @@ class StorageController {
             Key: key,
             ContentType: contentType,
             CacheControl: 'public, max-age=3600',
+            ChecksumAlgorithm: undefined, // R2 does not support AWS SDK v3 checksum headers
         });
-        const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: PRESIGN_EXPIRY_SECONDS });
+        const uploadUrl = await getSignedUrl(s3ClientPresign, command, {
+            expiresIn: PRESIGN_EXPIRY_SECONDS,
+            unhoistableHeaders: new Set(['x-amz-checksum-crc32']),
+        });
         const publicUrl = buildPublicUrl(key);
         return { uploadUrl, publicUrl, key };
+    }
+
+    /**
+     * Upload from buffer (server→R2). Same key pattern as presign. Use when browser→R2 fails (e.g. SSL/CORS).
+     * @param {string} userId
+     * @param {Buffer} buffer
+     * @param {string} contentType
+     * @returns {Promise<{ publicUrl: string, key: string }>}
+     */
+    async uploadFromBuffer(userId, buffer, contentType) {
+        const ext = ALLOWED_MIME_TO_EXT[contentType] || 'bin';
+        const sanitizedUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'anonymous';
+        const uuid = crypto.randomUUID();
+        const key = `uploads/${sanitizedUserId}/${uuid}.${ext}`;
+        const command = new PutObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            CacheControl: 'public, max-age=3600',
+            ChecksumAlgorithm: undefined,
+        });
+        await s3ClientDirect.send(command);
+        const publicUrl = buildPublicUrl(key);
+        return { publicUrl, key };
     }
 
     /**
@@ -101,8 +139,6 @@ class StorageController {
             const fileExt = file.originalname.split('.').pop();
             const fileName = `${folder}/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-            console.log('📤 Uploading to Cloudflare R2:', fileName);
-
             // Upload to R2
             const command = new PutObjectCommand({
                 Bucket: BUCKET_NAME,
@@ -112,13 +148,9 @@ class StorageController {
                 CacheControl: 'public, max-age=3600',
             });
 
-            await s3Client.send(command);
+            await s3ClientDirect.send(command);
 
             const publicUrl = buildPublicUrl(fileName);
-
-            console.log('✅ File uploaded successfully');
-            console.log('   File path:', fileName);
-            console.log('   Public URL:', publicUrl);
 
             return {
                 success: true,
@@ -138,16 +170,13 @@ class StorageController {
      */
     async deleteImage(filePath) {
         try {
-            console.log('🗑️  Deleting from Cloudflare R2:', filePath);
 
             const command = new DeleteObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: filePath,
             });
 
-            await s3Client.send(command);
-
-            console.log('✅ File deleted successfully:', filePath);
+            await s3ClientDirect.send(command);
             return true;
         } catch (error) {
             console.error('❌ Error deleting file:', error);
@@ -169,7 +198,7 @@ class StorageController {
                 Key: filePath,
             });
 
-            const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
+            const signedUrl = await getSignedUrl(s3ClientPresign, command, { expiresIn });
             return signedUrl;
         } catch (error) {
             console.error('❌ Error generating signed URL:', error);

@@ -1,7 +1,9 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const { generateToken, setAuthCookie, clearAuthCookie, requireAuth } = require('../middleware/authMiddleware');
+const databaseController = require('../controllers/databaseController');
 
 // Admin credentials - MUST be hashed in production
 // To generate a hash: bcrypt.hashSync('your-password', 10)
@@ -14,100 +16,42 @@ const ADMIN_USERS = [
     }
 ];
 
-// Login attempt tracking - stores failed login attempts per username
-// Format: { username: { count: number, lockedUntil: Date } }
-const loginAttempts = new Map();
+// Generic message for all login failures/lockouts (do not reveal if email exists)
+const LOGIN_ERROR_MESSAGE = 'Invalid credentials or account locked.';
 
-// Configuration
+// IP-only lockout (server-side, persists across refresh): 5 attempts → 1h, then 24h if locked again
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const FIRST_LOCKOUT_MINUTES = 60;
+const SUBSEQUENT_LOCKOUT_MINUTES = 24 * 60;
 
-/**
- * Check if an account is currently locked
- * @param {string} username 
- * @returns {Object} { isLocked: boolean, lockedUntil: Date|null, remainingTime: string|null }
- */
-function checkAccountLock(username) {
-    const attempt = loginAttempts.get(username);
+// IP-based rate limit for login: 10 requests per 15 min per IP (blocks brute force before DB)
+const loginRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { success: false, message: LOGIN_ERROR_MESSAGE },
+    standardHeaders: true,
+    legacyHeaders: false
+});
 
-    if (!attempt || !attempt.lockedUntil) {
-        return { isLocked: false, lockedUntil: null, remainingTime: null };
+/** Get client IP (respects proxy X-Forwarded-For). */
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        const first = typeof forwarded === 'string' ? forwarded.split(',')[0] : forwarded[0];
+        return (first || '').trim() || req.ip || req.socket?.remoteAddress || '';
     }
-
-    const now = new Date();
-
-    if (now < attempt.lockedUntil) {
-        // Account is still locked
-        const remainingMs = attempt.lockedUntil - now;
-        const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-
-        let remainingTime;
-        if (remainingHours > 1) {
-            remainingTime = `${remainingHours} hours`;
-        } else {
-            remainingTime = `${remainingMinutes} minutes`;
-        }
-
-        return {
-            isLocked: true,
-            lockedUntil: attempt.lockedUntil,
-            remainingTime
-        };
-    } else {
-        // Lock has expired - reset attempts
-        loginAttempts.delete(username);
-        return { isLocked: false, lockedUntil: null, remainingTime: null };
-    }
-}
-
-/**
- * Record a failed login attempt
- * @param {string} username 
- * @returns {Object} { shouldLock: boolean, attemptsRemaining: number }
- */
-function recordFailedAttempt(username) {
-    const attempt = loginAttempts.get(username) || { count: 0, lockedUntil: null };
-
-    attempt.count += 1;
-
-    if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
-        // Lock the account
-        attempt.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
-        loginAttempts.set(username, attempt);
-
-        console.warn(`🔒 Account locked: ${username} - Too many failed login attempts (${attempt.count})`);
-
-        return { shouldLock: true, attemptsRemaining: 0 };
-    } else {
-        loginAttempts.set(username, attempt);
-        const attemptsRemaining = MAX_LOGIN_ATTEMPTS - attempt.count;
-
-        console.warn(`⚠️  Failed login attempt for ${username} - ${attemptsRemaining} attempts remaining`);
-
-        return { shouldLock: false, attemptsRemaining };
-    }
-}
-
-/**
- * Clear login attempts for a user (called on successful login)
- * @param {string} username 
- */
-function clearLoginAttempts(username) {
-    loginAttempts.delete(username);
+    return req.ip || req.socket?.remoteAddress || '';
 }
 
 /**
  * Admin login endpoint
- * Sets HttpOnly + Secure + SameSite=Strict cookie
- * Password is hashed and compared securely
- * Includes account lockout after 5 failed attempts for 24 hours
+ * IP rate limit → IP-only lockout (DB-backed, survives refresh). No per-username tracking.
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginRateLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
+        const clientIp = getClientIp(req);
 
-        // Validate input
         if (!username || !password) {
             return res.status(400).json({
                 success: false,
@@ -115,75 +59,96 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Check if account is locked
-        const lockStatus = checkAccountLock(username);
-        if (lockStatus.isLocked) {
-            return res.status(423).json({ // 423 = Locked
+        const identifier = String(username).trim();
+        if (!identifier) {
+            return res.status(400).json({
                 success: false,
-                message: `Account is locked due to too many failed login attempts. Try again in ${lockStatus.remainingTime}.`,
-                locked: true,
-                lockedUntil: lockStatus.lockedUntil,
-                remainingTime: lockStatus.remainingTime
+                message: 'Username and password required'
             });
         }
 
-        // Find admin user
-        const admin = ADMIN_USERS.find(u => u.username === username);
+        const ipLockStatus = await databaseController.getLoginLockStatusByIp(clientIp);
+        if (ipLockStatus.isLocked) {
+            return res.status(423).json({
+                success: false,
+                message: LOGIN_ERROR_MESSAGE,
+                locked: true,
+                lockedUntil: ipLockStatus.lockedUntil ? ipLockStatus.lockedUntil.toISOString() : null,
+                remainingTime: ipLockStatus.remainingTime || null
+            });
+        }
+
+        const admin = ADMIN_USERS.find(u => u.username === identifier);
 
         if (!admin) {
-            // Record failed attempt (even for non-existent users to prevent enumeration)
-            const result = recordFailedAttempt(username);
-
+            const ipResult = await databaseController.recordLoginFailureByIp(clientIp, MAX_LOGIN_ATTEMPTS, FIRST_LOCKOUT_MINUTES, SUBSEQUENT_LOCKOUT_MINUTES);
+            if (ipResult.shouldLock) {
+                const ipLock = await databaseController.getLoginLockStatusByIp(clientIp);
+                return res.status(423).json({
+                    success: false,
+                    message: LOGIN_ERROR_MESSAGE,
+                    locked: true,
+                    lockedUntil: ipLock.lockedUntil ? ipLock.lockedUntil.toISOString() : null,
+                    remainingTime: ipLock.remainingTime || null
+                });
+            }
             return res.status(401).json({
                 success: false,
-                message: result.shouldLock
-                    ? 'Account locked due to too many failed attempts. Try again in 24 hours.'
-                    : `Invalid credentials. ${result.attemptsRemaining} attempts remaining.`,
-                locked: result.shouldLock,
-                attemptsRemaining: result.attemptsRemaining
+                message: LOGIN_ERROR_MESSAGE
             });
         }
 
-        // For development/initial setup - allow plain password comparison
-        let isValidPassword = false;
+        if (!admin.passwordHash) {
+            console.warn('⚠️  ADMIN_PASSWORD_HASH not set. Set it in .env (use generate-password-hash.js).');
+            return res.status(503).json({
+                success: false,
+                message: 'Server misconfiguration. Admin login is disabled.'
+            });
+        }
 
+        let isValidPassword = false;
         if (admin.passwordHash.startsWith('$2b$')) {
-            // Hashed password - use bcrypt
             isValidPassword = await bcrypt.compare(password, admin.passwordHash);
         } else {
             // Plain password (development only - NOT secure!)
             isValidPassword = password === admin.passwordHash;
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(503).json({
+                    success: false,
+                    message: 'Server misconfiguration. Use bcrypt hash in production.'
+                });
+            }
             console.warn('⚠️  WARNING: Using plain text password - NOT secure for production!');
         }
 
         if (!isValidPassword) {
-            // Record failed attempt
-            const result = recordFailedAttempt(username);
-
+            const ipResult = await databaseController.recordLoginFailureByIp(clientIp, MAX_LOGIN_ATTEMPTS, FIRST_LOCKOUT_MINUTES, SUBSEQUENT_LOCKOUT_MINUTES);
+            if (ipResult.shouldLock) {
+                const ipLock = await databaseController.getLoginLockStatusByIp(clientIp);
+                return res.status(423).json({
+                    success: false,
+                    message: LOGIN_ERROR_MESSAGE,
+                    locked: true,
+                    lockedUntil: ipLock.lockedUntil ? ipLock.lockedUntil.toISOString() : null,
+                    remainingTime: ipLock.remainingTime || null
+                });
+            }
             return res.status(401).json({
                 success: false,
-                message: result.shouldLock
-                    ? 'Account locked due to too many failed attempts. Try again in 24 hours.'
-                    : `Invalid credentials. ${result.attemptsRemaining} attempts remaining.`,
-                locked: result.shouldLock,
-                attemptsRemaining: result.attemptsRemaining
+                message: LOGIN_ERROR_MESSAGE
             });
         }
 
-        // Successful login - clear any failed attempts
-        clearLoginAttempts(username);
+        await databaseController.clearLoginAttemptsByIp(clientIp);
 
-        // Generate JWT token
         const token = generateToken({
             username: admin.username,
             role: 'admin',
             loginTime: new Date().toISOString()
         });
-
-        // Set HttpOnly cookie with the token
         setAuthCookie(res, token);
 
-        console.log(`✅ Admin logged in: ${username}`);
+        console.log(`✅ Admin logged in: ${identifier}`);
 
         res.json({
             success: true,
