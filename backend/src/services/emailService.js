@@ -2,7 +2,7 @@ const sgMail = require('@sendgrid/mail');
 
 class EmailService {
     constructor() {
-        this.adminEmail = process.env.ADMIN_EMAIL;
+        this.adminEmail = process.env.SENDGRID_FROM_EMAIL;
         this.sendGridApiKey = process.env.SENDGRID_API_KEY;
 
         this.initializeSendGrid();
@@ -28,7 +28,7 @@ class EmailService {
 
     async sendOrderNotification(orderData) {
         if (!this.sendGridApiKey || !this.adminEmail) {
-            console.error('❌ Email service not configured - missing API key or admin email');
+            console.error('❌ Email service not configured - missing SENDGRID_API_KEY or ADMIN_EMAIL (check Render env vars)');
             return false;
         }
 

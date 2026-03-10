@@ -432,8 +432,12 @@ class GreenInvoiceController {
             // ALWAYS send email notification to admin regardless of status
             console.log('📧 Sending admin email notification for status:', status);
             try {
-                await this.emailService.sendOrderNotification(orderData);
-                console.log('✅ Admin email notification sent successfully');
+                const emailSent = await this.emailService.sendOrderNotification(orderData);
+                if (emailSent) {
+                    console.log('✅ Admin email notification sent successfully');
+                } else {
+                    console.error('❌ Admin email not sent (service not configured or SendGrid failed – check SENDGRID_API_KEY, ADMIN_EMAIL and server logs)');
+                }
             } catch (error) {
                 console.error('❌ Failed to send admin email notification:', error);
             }
