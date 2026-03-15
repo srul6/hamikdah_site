@@ -531,7 +531,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                             fontSize: { xs: '0.8rem', md: '0.9rem' },
                                         }}
                                     >
-                                        {isHebrew ? 'קנייה מעל ₪350 מזכה במשלוח חינם' : 'Purchase over ₪350 qualifies for free delivery'}
+                                        {isHebrew ? 'בקנייה מעל 350₪ משלוח חינם' : 'Free delivery for purchases over 350₪'}
                                     </Typography>
 
                                     {/* Delivery Selection Button (when total < 350) */}
