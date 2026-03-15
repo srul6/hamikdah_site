@@ -3,7 +3,7 @@ const sgMail = require('@sendgrid/mail');
 class EmailService {
     constructor() {
         this.adminEmail = process.env.ADMIN_EMAIL;
-        this.sendformEmail = process.env.SENDGRID_FROM_EMAIL;
+        this.sendFromEmail = process.env.SENDGRID_FROM_EMAIL;
         this.sendGridApiKey = process.env.SENDGRID_API_KEY;
 
         this.initializeSendGrid();
@@ -21,10 +21,7 @@ class EmailService {
         }
 
         sgMail.setApiKey(this.sendGridApiKey);
-        console.log('✅ SendGrid email service initialized with:', {
-            adminEmail: this.adminEmail ? '***' + this.adminEmail.slice(-10) : 'NOT SET',
-            apiKeyConfigured: this.sendGridApiKey ? 'YES' : 'NO'
-        });
+
     }
 
     async sendOrderNotification(orderData) {
@@ -54,7 +51,7 @@ class EmailService {
 
             const msg = {
                 to: this.adminEmail,
-                from: this.sendformEmail, // SendGrid requires verified sender
+                from: this.sendFromEmail, // SendGrid requires verified sender
                 subject: subject,
                 text: textContent,
                 html: htmlContent

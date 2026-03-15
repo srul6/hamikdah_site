@@ -100,7 +100,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 total: total,
                 appliedCoupon: appliedCoupon,
                 homeDelivery: homeDelivery,
-                finalTotal: total + (homeDelivery && subtotal < 499 ? 30 : 0)
+                finalTotal: total + (homeDelivery && subtotal < 350 ? 35 : 0)
             }
         });
     };
@@ -477,8 +477,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
                                 {/* Home Delivery Section */}
                                 <Box sx={{ mb: 1.5, mt: 1.5 }}>
-                                    {/* Free Delivery Message (when total >= 499) */}
-                                    {subtotal >= 499 && (
+                                    {/* Free Delivery Message (when total >= 350) */}
+                                    {subtotal >= 350 && (
                                         <>
                                             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2.5, mb: 1.5 }}>
                                                 <Box
@@ -531,11 +531,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                             fontSize: { xs: '0.8rem', md: '0.9rem' },
                                         }}
                                     >
-                                        {isHebrew ? 'קנייה מעל ₪499 מזכה במשלוח חינם' : 'Purchase over ₪499 qualifies for free delivery'}
+                                        {isHebrew ? 'קנייה מעל ₪350 מזכה במשלוח חינם' : 'Purchase over ₪350 qualifies for free delivery'}
                                     </Typography>
 
-                                    {/* Delivery Selection Button (when total < 499) */}
-                                    {subtotal < 499 && (
+                                    {/* Delivery Selection Button (when total < 350) */}
+                                    {subtotal < 350 && (
 
                                         <Box sx={{
                                             display: 'flex',
@@ -565,7 +565,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                             >
                                                 {homeDelivery
                                                     ? (isHebrew ? '!יש לך משלוח עד הבית' : 'Home Delivery Selected')
-                                                    : (isHebrew ? 'הוסף משלוח עד הבית (+₪30)' : 'Add Home Delivery (+₪30)')
+                                                    : (isHebrew ? 'הוסף משלוח עד הבית (+₪35)' : 'Add Home Delivery (+₪35)')
                                                 }
                                             </Button>
 
@@ -611,8 +611,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                         </Typography>
                                     )}
 
-                                    {/* Pickup Text and Free Delivery Info - Only show when no delivery and total < 499 */}
-                                    {!homeDelivery && subtotal < 499 && (
+                                    {/* Pickup Text and Free Delivery Info - Only show when no delivery and total < 350 */}
+                                    {!homeDelivery && subtotal < 350 && (
                                         <>
                                             <Typography
                                                 variant="body2"
@@ -643,7 +643,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 }}>
                                     <Typography variant="h6" fontWeight="bold" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>{t.total}:</Typography>
                                     <Typography variant="h6" fontWeight="bold" color="rgba(229, 90, 61, 1)" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                        ₪{(total + (homeDelivery && subtotal < 499 ? 30 : 0)).toFixed(2)}
+                                        ₪{(total + (homeDelivery && subtotal < 350 ? 35 : 0)).toFixed(2)}
                                     </Typography>
                                 </Box>
                             </Box>
