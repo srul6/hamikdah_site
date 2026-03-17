@@ -16,6 +16,86 @@ function normalizeExtraImagesList(value) {
     return [];
 }
 
+/**
+ * Normalize media fields before saving to DB.
+ * Accepts arrays, JSON-strings, comma-separated strings, or corrupted/nested URL strings.
+ * Returns an array of clean strings, with cache-busting params stripped.
+ */
+function normalizeMediaListForDb(value) {
+    const out = [];
+
+    const stripCacheBuster = (s) => {
+        if (typeof s !== 'string') return '';
+        // remove only our cache-busting param (keep other query params if any)
+        return s.replace(/([?&])t=\d+(?=&|$)/g, '$1').replace(/[?&]$/g, '');
+    };
+
+    const cleanOne = (raw) => {
+        if (raw == null) return [];
+        if (typeof raw !== 'string') return [];
+
+        let s = raw.trim();
+        if (!s) return [];
+
+        // Remove wrapping quotes (handles strings like "\"https://...\"" )
+        if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+            s = s.slice(1, -1).trim();
+        }
+
+        // Try to extract real URLs from corrupted strings like:
+        // https://cdn.../["https://cdn.../file.jpg"?t=... or https://cdn.../"https://cdn.../file.jpg"
+        const urlMatches = s.match(/https?:\/\/[^\s"'\\\]\[]+/g);
+        if (urlMatches && urlMatches.length > 0) {
+            return urlMatches
+                .map(u => stripCacheBuster(u).trim())
+                .map(u => u.replace(/\\+/g, '')) // remove stray escapes
+                .filter(Boolean);
+        }
+
+        // If it's JSON, try to parse repeatedly (handles nested stringification)
+        if (s.startsWith('[') || s.startsWith('{') || s.startsWith('"')) {
+            let cur = s;
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const parsed = JSON.parse(cur);
+                    if (Array.isArray(parsed)) {
+                        return parsed.flatMap(x => cleanOne(String(x)));
+                    }
+                    if (typeof parsed === 'string') {
+                        cur = parsed;
+                        continue;
+                    }
+                    break;
+                } catch (_) {
+                    break;
+                }
+            }
+        }
+
+        // Comma-separated fallback
+        if (s.includes(',')) {
+            return s.split(',').flatMap(part => cleanOne(part));
+        }
+
+        s = stripCacheBuster(s).trim().replace(/\\+/g, '');
+        return s ? [s] : [];
+    };
+
+    if (Array.isArray(value)) {
+        value.forEach(v => out.push(...cleanOne(typeof v === 'string' ? v : JSON.stringify(v))));
+    } else {
+        out.push(...cleanOne(typeof value === 'string' ? value : JSON.stringify(value)));
+    }
+
+    // de-dupe while preserving order
+    const seen = new Set();
+    return out.filter(s => {
+        if (!s || seen.has(s)) return false;
+        seen.add(s);
+        return true;
+    });
+}
+
 /** Ensure each color has extraImages as an array before saving to DB. */
 function normalizeColorsForDb(colors) {
     if (!Array.isArray(colors)) return [];
@@ -73,20 +153,13 @@ class DatabaseController {
     async createProduct(productData) {
         try {
             // Handle array fields - convert to JSON string if needed
-            let childrenPlaying = productData.children_playing;
-            if (Array.isArray(childrenPlaying)) {
-                childrenPlaying = JSON.stringify(childrenPlaying);
-            }
+            const childrenPlayingArr = normalizeMediaListForDb(productData.children_playing);
+            const desktopHeroImagesArr = normalizeMediaListForDb(productData.desktop_hero_images);
+            const extraImagesArr = normalizeMediaListForDb(productData.extraimages);
 
-            let desktopHeroImages = productData.desktop_hero_images;
-            if (Array.isArray(desktopHeroImages)) {
-                desktopHeroImages = JSON.stringify(desktopHeroImages);
-            }
-
-            let extraImages = productData.extraimages;
-            if (Array.isArray(extraImages)) {
-                extraImages = JSON.stringify(extraImages);
-            }
+            const childrenPlaying = childrenPlayingArr.length ? JSON.stringify(childrenPlayingArr) : null;
+            const desktopHeroImages = desktopHeroImagesArr.length ? JSON.stringify(desktopHeroImagesArr) : null;
+            const extraImages = extraImagesArr.length ? JSON.stringify(extraImagesArr) : null;
 
             const result = await pool.query(
                 `INSERT INTO products (
@@ -180,8 +253,9 @@ class DatabaseController {
                     // Handle JSON/array fields
                     if (key === 'colors' && Array.isArray(updateData[key])) {
                         values.push(JSON.stringify(normalizeColorsForDb(updateData[key])));
-                    } else if ((mappedKey === 'children_playing' || mappedKey === 'desktop_hero_images' || mappedKey === 'extraimages') && Array.isArray(updateData[key])) {
-                        values.push(JSON.stringify(updateData[key]));
+                    } else if (mappedKey === 'children_playing' || mappedKey === 'desktop_hero_images' || mappedKey === 'extraimages') {
+                        const cleaned = normalizeMediaListForDb(updateData[key]);
+                        values.push(cleaned.length ? JSON.stringify(cleaned) : null);
                     } else {
                         values.push(updateData[key]);
                     }

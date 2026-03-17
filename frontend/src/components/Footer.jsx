@@ -88,7 +88,6 @@ export default function Footer() {
                                     },
 
                                     '&:hover': {
-                                        backgroundColor: 'rgba(245, 240, 227, 0.1)',
                                         border: '1px solid rgb(245, 240, 227)',
                                         color: 'rgb(245, 240, 227)'
                                     }
@@ -113,7 +112,6 @@ export default function Footer() {
                                         marginRight: isHebrew ? '0px' : '8px'
                                     },
                                     '&:hover': {
-                                        backgroundColor: 'rgba(245, 240, 227, 0.1)',
                                         border: '1px solid rgb(245, 240, 227)',
                                         color: 'rgb(245, 240, 227)'
                                     }
@@ -123,7 +121,7 @@ export default function Footer() {
                             </Button>
                             <Button
                                 component="a"
-                                href="https://wa.me/972532405276"
+                                href="https://wa.me/97253944166"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 startIcon={<WhatsAppIcon />}
@@ -141,7 +139,6 @@ export default function Footer() {
                                         marginRight: isHebrew ? '0px' : '8px'
                                     },
                                     '&:hover': {
-                                        backgroundColor: 'rgba(37, 211, 102, 0.1)',
                                         border: '1px solid #25D366',
                                         color: '#25D366'
                                     }
@@ -220,7 +217,6 @@ export default function Footer() {
                                         color: 'rgb(245, 240, 227)',
                                         '&:hover': {
                                             color: '#1877f2',
-                                            backgroundColor: 'rgba(24, 119, 242, 0.1)'
                                         }
                                     }}
                                 >
@@ -235,7 +231,6 @@ export default function Footer() {
                                         color: 'rgb(245, 240, 227)',
                                         '&:hover': {
                                             color: '#e4405f',
-                                            backgroundColor: 'rgba(228, 64, 95, 0.1)'
                                         }
                                     }}
                                 >
@@ -286,7 +281,7 @@ export default function Footer() {
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
                                 fontSize: '0.875rem',
-                                '&:hover': { color: '#0071e3' }
+                                '&:hover': { color: '#222222' }
                             }}
                         >
                             {termsText}
@@ -298,7 +293,7 @@ export default function Footer() {
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
                                 fontSize: '0.875rem',
-                                '&:hover': { color: '#0071e3' }
+                                '&:hover': { color: '#222222' }
                             }}
                         >
                             {siteTermsText}
@@ -310,7 +305,7 @@ export default function Footer() {
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
                                 fontSize: '0.875rem',
-                                '&:hover': { color: '#0071e3' }
+                                '&:hover': { color: '#222222' }
                             }}
                         >
                             {privacyText}
@@ -322,7 +317,7 @@ export default function Footer() {
                                 color: 'rgb(245, 240, 227)',
                                 textDecoration: 'none',
                                 fontSize: '0.875rem',
-                                '&:hover': { color: '#0071e3' }
+                                '&:hover': { color: '#222222' }
                             }}
                         >
                             {returnsText}
