@@ -54,8 +54,8 @@ export default function AdminPanel() {
     length: '',
     width: '',
     recommendedAge: '',
-    children_playing: '',
-    desktop_hero_images: '',
+    children_playing: [],
+    desktop_hero_images: [],
     colors: []
   });
 
@@ -304,6 +304,7 @@ export default function AdminPanel() {
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -342,8 +343,9 @@ export default function AdminPanel() {
       length: product.length || '',
       width: product.width || '',
       recommendedAge: product.recommendedAge || '',
-      children_playing: Array.isArray(product.children_playing) ? product.children_playing : (product.children_playing || ''),
-      desktop_hero_images: Array.isArray(product.desktop_hero_images) ? product.desktop_hero_images : (product.desktop_hero_images || ''),
+      // API returns `childrenPlaying` / `desktopHeroImages`; older DB fields were `children_playing` / `desktop_hero_images`
+      children_playing: normalizeMediaList(product.childrenPlaying ?? product.children_playing),
+      desktop_hero_images: normalizeMediaList(product.desktopHeroImages ?? product.desktop_hero_images),
       colors: product.colors || []
     });
     setIsDialogOpen(true);
@@ -354,6 +356,7 @@ export default function AdminPanel() {
       try {
         const response = await fetch(`${API_ENDPOINTS.products}/${productId}`, {
           method: 'DELETE',
+          credentials: 'include',
         });
 
         if (response.ok) {
@@ -391,10 +394,27 @@ export default function AdminPanel() {
       length: '',
       width: '',
       recommendedAge: '',
-      children_playing: '',
-      desktop_hero_images: '',
+      children_playing: [],
+      desktop_hero_images: [],
       colors: []
     });
+  };
+
+  const normalizeMediaList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value !== 'string') return [];
+    const s = value.trim();
+    if (!s) return [];
+    if (s.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch (_) {
+        // ignore and fall back
+      }
+    }
+    return s.split(',').map(x => x.trim()).filter(Boolean);
   };
 
   const handleInputChange = (field, value) => {

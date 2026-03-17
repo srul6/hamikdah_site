@@ -45,7 +45,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     // Apply coupon
     const handleApplyCoupon = async () => {
         if (!couponCode.trim()) {
-            setCouponError('Please enter a coupon code');
+            setCouponError(isHebrew ? 'נא להזין קוד קופון' : 'Please enter a coupon code');
             return;
         }
 
@@ -69,13 +69,13 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
             if (data.success) {
                 setAppliedCoupon(data);
-                setCouponSuccess(`Coupon applied! You saved ₪${data.discountAmount.toFixed(2)}`);
+                setCouponSuccess((isHebrew ? `יש! חסכת ₪${data.discountAmount.toFixed(2)}` : `Coupon applied! You saved ₪${data.discountAmount.toFixed(2)}`));
                 setCouponCode('');
             } else {
-                setCouponError(data.message || 'Failed to apply coupon');
+                setCouponError((isHebrew ? data.message_he : data.message_en) || (isHebrew ? 'אממ, נראה שאין קוד קופון כזה :(' : 'Coupon not found or inactive'));
             }
         } catch (error) {
-            setCouponError('Network error. Please try again.');
+            setCouponError(isHebrew ? 'שגיאת רשת. נסו שוב.' : 'Network error. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -434,13 +434,28 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 )}
 
                                 {couponError && (
-                                    <Alert severity="error" sx={{ mt: 1 }}>
+                                    <Alert
+                                        severity="error"
+                                        icon={false}
+                                        sx={{
+                                            mt: 1,
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            textAlign: isHebrew ? 'right' : 'left'
+                                        }}
+                                    >
                                         {couponError}
                                     </Alert>
                                 )}
 
                                 {couponSuccess && (
-                                    <Alert severity="success" sx={{ mt: 1 }}>
+                                    <Alert
+                                        severity="success"
+                                        sx={{
+                                            mt: 1,
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            textAlign: isHebrew ? 'right' : 'left'
+                                        }}
+                                    >
                                         {couponSuccess}
                                     </Alert>
                                 )}
@@ -531,7 +546,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                             fontSize: { xs: '0.8rem', md: '0.9rem' },
                                         }}
                                     >
-                                        {isHebrew ? 'בקנייה מעל 350₪ משלוח חינם' : 'Free delivery for purchases over 350₪'}
+                                        {isHebrew ? 'בקנייה מעל 350 ₪ משלוח חינם' : 'Free delivery for purchases over 350₪'}
                                     </Typography>
 
                                     {/* Delivery Selection Button (when total < 350) */}

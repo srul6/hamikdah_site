@@ -20,10 +20,24 @@ export default function ImageUploader({
     const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
 
-    // Parse existing URLs - handle both strings (comma-separated) and arrays
-    const existingUrls = value ?
-        (Array.isArray(value) ? value : value.split(',').map(url => url.trim()).filter(Boolean))
-        : [];
+    // Parse existing URLs - handle arrays, JSON-stringified arrays, or comma-separated strings
+    const existingUrls = (() => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.filter(Boolean);
+        if (typeof value !== 'string') return [];
+        const s = value.trim();
+        if (!s) return [];
+        // If this is a JSON array string (e.g. '["a","b"]'), parse it instead of splitting by commas
+        if (s.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(s);
+                if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            } catch (_) {
+                // fall back to comma-splitting below
+            }
+        }
+        return s.split(',').map(url => url.trim()).filter(Boolean);
+    })();
 
     const handleDragEnter = (e) => {
         e.preventDefault();
@@ -155,11 +169,11 @@ export default function ImageUploader({
             if (multiple) {
                 const newUrls = await Promise.all(validFiles.map(uploadOne));
                 const allUrls = [...existingUrls, ...newUrls];
-                onChange(allUrls.join(', '));
+                onChange(allUrls);
             } else {
                 const publicUrl = await uploadOne(validFiles[0]);
                 if (multiple) {
-                    onChange([...existingUrls, publicUrl].join(', '));
+                    onChange([...existingUrls, publicUrl]);
                 } else {
                     onChange(publicUrl);
                 }
@@ -184,7 +198,7 @@ export default function ImageUploader({
         if (multiple) {
             // Remove specific URL from the list
             const updatedUrls = existingUrls.filter(url => url !== urlToDelete);
-            onChange(updatedUrls.join(', '));
+            onChange(updatedUrls);
         } else {
             // Clear single image
             onChange('');

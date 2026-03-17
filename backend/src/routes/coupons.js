@@ -1,5 +1,22 @@
 const express = require('express');
 const router = express.Router();
+const { requireAuth } = require('../middleware/authMiddleware');
+
+function requireAdmin(req, res, next) {
+    if (!req.admin) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+    if (req.admin.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'Forbidden: admin access required'
+        });
+    }
+    next();
+}
 
 // In-memory storage for coupons (in production, use a database)
 let coupons = [
@@ -47,7 +64,8 @@ router.get('/:code', (req, res) => {
     if (!coupon) {
         return res.status(404).json({
             success: false,
-            message: 'Coupon not found or inactive'
+            message_en: 'Coupon not found or inactive',
+            message_he: 'אממ, נראה שאין קוד קופון כזה:('
         });
     }
 
@@ -78,7 +96,7 @@ router.get('/:code', (req, res) => {
 });
 
 // Create new coupon (admin only)
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireAdmin, (req, res) => {
     const { code, discount, type, minAmount, maxDiscount, validFrom, validUntil, maxUsage } = req.body;
 
     if (!code || !discount || !type) {
@@ -120,7 +138,7 @@ router.post('/', (req, res) => {
 });
 
 // Update coupon (admin only)
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, (req, res) => {
     const { id } = req.params;
     const couponIndex = coupons.findIndex(c => c.id === parseInt(id));
 
@@ -142,7 +160,7 @@ router.put('/:id', (req, res) => {
 });
 
 // Delete coupon (admin only)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, (req, res) => {
     const { id } = req.params;
     const couponIndex = coupons.findIndex(c => c.id === parseInt(id));
 

@@ -8,16 +8,6 @@ const pool = new Pool({
     }
 });
 
-// Test connection
-pool.on('connect', () => {
-    console.log('✅ Connected to Neon PostgreSQL database');
-});
-
-pool.on('error', (err) => {
-    console.error('❌ Unexpected error on idle client', err);
-    process.exit(-1);
-});
-
 /** Ensure extraImages is always an array of strings (for storage and API). */
 function normalizeExtraImagesList(value) {
     if (value == null) return [];
@@ -146,15 +136,19 @@ class DatabaseController {
             const dbKey = (key) => {
                 if (key === 'buildingTime') return 'buildingtime';
                 if (key === 'recommendedAge') return 'recommendedage';
+                if (key === 'childrenPlaying') return 'children_playing';
+                if (key === 'desktopHeroImages') return 'desktop_hero_images';
+                if (key === 'extraImages') return 'extraimages';
                 return key;
             };
             Object.keys(updateData).forEach(key => {
                 if (updateData[key] !== undefined) {
-                    fields.push(`${dbKey(key)} = $${paramIndex}`);
+                    const mappedKey = dbKey(key);
+                    fields.push(`${mappedKey} = $${paramIndex}`);
                     // Handle JSON/array fields
                     if (key === 'colors' && Array.isArray(updateData[key])) {
                         values.push(JSON.stringify(normalizeColorsForDb(updateData[key])));
-                    } else if ((key === 'children_playing' || key === 'desktop_hero_images' || key === 'extraimages') && Array.isArray(updateData[key])) {
+                    } else if ((mappedKey === 'children_playing' || mappedKey === 'desktop_hero_images' || mappedKey === 'extraimages') && Array.isArray(updateData[key])) {
                         values.push(JSON.stringify(updateData[key]));
                     } else {
                         values.push(updateData[key]);

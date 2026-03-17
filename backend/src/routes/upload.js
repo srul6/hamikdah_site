@@ -132,8 +132,22 @@ function pathToKey(path) {
     return s;
 }
 
-// Delete image (authenticated only; path = object key or full public URL).
-router.delete('/image', requireAuth, async (req, res) => {
+// Delete image (authenticated admin only; path = object key or full public URL).
+router.delete('/image', requireAuth, (req, res, next) => {
+    if (!req.admin) {
+        return res.status(401).json({
+            success: false,
+            error: 'Authentication required'
+        });
+    }
+    if (req.admin.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            error: 'Forbidden: admin access required'
+        });
+    }
+    next();
+}, async (req, res) => {
     try {
         const key = pathToKey(req.body?.path);
         if (!key) {

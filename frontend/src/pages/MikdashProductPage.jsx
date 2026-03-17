@@ -1758,14 +1758,29 @@ export default function MikdashProductPage({ onAddToCart }) {
                                     direction: isHebrew ? 'rtl' : 'ltr',
                                 }}
                             >
-                                {isHebrew ?
-                                    'במו עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו. ' +
-                                    'במלחמה הזאת ירושלים נמצאת במרכז העולם. ' +
-                                    'ובבית שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה! ' +
-                                    'בית המקדש הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה. ' +
-                                    'בשנות הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע. ' +
-                                    'ועכשיו, עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!'
-                                    : 'The Second Temple'}
+                                {isHebrew ? (
+                                    <>
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ובבית</span> שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
+                                        <br />
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
+                                        <br />
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
+                                    </>
+                                ) : (
+                                    <>
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{' '}
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{' '}
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{' '}
+                                        <br />
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{' '}
+                                        <br />
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{' '}
+                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
+                                    </>
+                                )}
                             </Typography>
                         </Box>
                     </Box>
@@ -1805,14 +1820,29 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 textAlign: isHebrew ? 'right' : 'left',
                             }}
                         >
-                            {isHebrew ?
-                                'במו עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו. ' +
-                                'במלחמה הזאת ירושלים נמצאת במרכז העולם. ' +
-                                'ובבית שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה! ' +
-                                'בית המקדש הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה. ' +
-                                'בשנות הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע. ' +
-                                'ועכשיו, עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!'
-                                : 'The Second Temple'}
+                            {isHebrew ? (
+                                <>
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ובבית שלנו</span> צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
+                                    <br />
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
+                                    <br />
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
+                                </>
+                            ) : (
+                                <>
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{` `}
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{` `}
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{` `}
+                                    <br />
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{` `}
+                                    <br />
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{` `}
+                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
+                                </>
+                            )}
                         </Typography>
                     </Box>
                 </Container>
@@ -1937,7 +1967,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                             gap: 3,
                             py: 1,
                             alignItems: 'center',
-                            height: { xs: '500px', sm: '450px', md: '500px' }
+                            height: { xs: '320px', sm: '450px', md: '500px' }
                         }}>
                             {/* Spacer at start */}
                             <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
@@ -2131,7 +2161,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                             gap: 3,
                             py: 1,
                             alignItems: 'center',
-                            height: { xs: '500px', sm: '450px', md: '500px' }
+                            height: { xs: '320px', sm: '450px', md: '500px' }
                         }}>
                             {/* Spacer at start */}
                             <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />

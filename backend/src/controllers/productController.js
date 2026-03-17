@@ -2,24 +2,42 @@
 const { databaseController } = require('../config/database');
 const { getStorageUrl, getStorageUrls } = require('../utils/storageUtils');
 
-/** Flatten and normalize to array of non-empty strings (handles malformed/nested JSON from DB). */
-function normalizeToStrings(value) {
+/**
+ * Normalize a "media list" field the same way as `extraimages`:
+ * - accept array of strings
+ * - accept JSON stringified array
+ * - accept comma-separated string
+ * - accept single string
+ */
+function normalizeMediaList(value) {
     if (value == null) return [];
+    if (Array.isArray(value)) {
+        return value
+            .filter(x => typeof x === 'string' && x.trim())
+            .map(s => s.trim());
+    }
     if (typeof value === 'string') {
+        const s = value.trim();
+        if (!s) return [];
         try {
-            const parsed = JSON.parse(value);
-            return normalizeToStrings(parsed);
+            const parsed = JSON.parse(s);
+            if (Array.isArray(parsed)) {
+                return parsed
+                    .filter(x => typeof x === 'string' && x.trim())
+                    .map(x => x.trim());
+            }
         } catch {
-            return value.trim() ? [value.trim()] : [];
+            // ignore
         }
+        if (s.includes(',')) {
+            return s
+                .split(',')
+                .map(x => x.trim())
+                .filter(Boolean);
+        }
+        return [s];
     }
-    if (!Array.isArray(value)) return [];
-    const out = [];
-    for (const item of value) {
-        if (typeof item === 'string' && item.trim()) out.push(item.trim());
-        else if (Array.isArray(item)) out.push(...normalizeToStrings(item));
-    }
-    return out;
+    return [];
 }
 
 /** Ensure extraImages is always an array (DB may have stored comma-separated string). */
@@ -55,25 +73,10 @@ exports.getAllProducts = async (req, res) => {
 
         // Add storage URL to image paths (R2)
         const productsWithImageUrls = products.map(product => {
-            const childrenPlaying = normalizeToStrings(product.children_playing);
-            const desktopHeroImages = normalizeToStrings(product.desktop_hero_images);
+            const childrenPlayingArray = normalizeMediaList(product.children_playing);
+            const desktopHeroImagesArray = normalizeMediaList(product.desktop_hero_images);
+            const extraImagesArray = normalizeMediaList(product.extraimages);
             const price = product.price ? parseFloat(product.price) : 0;
-
-            let extraImagesArray = [];
-            if (product.extraimages) {
-                if (Array.isArray(product.extraimages)) {
-                    extraImagesArray = product.extraimages.filter(x => typeof x === 'string' && x.trim());
-                } else if (typeof product.extraimages === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.extraimages);
-                        extraImagesArray = Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string' && x.trim()) : [];
-                    } catch {
-                        extraImagesArray = product.extraimages.includes(',')
-                            ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                            : (product.extraimages.trim() ? [product.extraimages.trim()] : []);
-                    }
-                }
-            }
 
             const productWithUrls = {
                 ...product,
@@ -83,12 +86,9 @@ exports.getAllProducts = async (req, res) => {
                 homepageImage: getStorageUrl(product.homepageimage),
                 extraImages: getStorageUrls(extraImagesArray),
                 extraimages: getStorageUrls(extraImagesArray),
-                childrenPlaying: childrenPlaying.map(media =>
-                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
-                ).filter(Boolean),
-                desktopHeroImages: desktopHeroImages.map(url =>
-                    url.startsWith('http') ? url : getStorageUrl(url)
-                ).filter(Boolean)
+                // handled exactly like extraImages: normalize list then map to storage URLs
+                childrenPlaying: getStorageUrls(childrenPlayingArray),
+                desktopHeroImages: getStorageUrls(desktopHeroImagesArray)
             };
             return normalizeProductColors(productWithUrls);
         });
@@ -111,25 +111,11 @@ exports.getProductById = async (req, res) => {
         console.log('✅ Product fetched from database:', product ? `ID ${product.id}` : 'null');
 
         if (product) {
-            const childrenPlaying = normalizeToStrings(product.children_playing);
-            const desktopHeroImages = normalizeToStrings(product.desktop_hero_images);
+            const childrenPlayingArray = normalizeMediaList(product.children_playing);
+            const desktopHeroImagesArray = normalizeMediaList(product.desktop_hero_images);
             const price = product.price ? parseFloat(product.price) : 0;
 
-            let extraImagesArray = [];
-            if (product.extraimages) {
-                if (Array.isArray(product.extraimages)) {
-                    extraImagesArray = product.extraimages.filter(x => typeof x === 'string' && x.trim());
-                } else if (typeof product.extraimages === 'string') {
-                    try {
-                        const parsed = JSON.parse(product.extraimages);
-                        extraImagesArray = Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string' && x.trim()) : [];
-                    } catch {
-                        extraImagesArray = product.extraimages.includes(',')
-                            ? product.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                            : (product.extraimages.trim() ? [product.extraimages.trim()] : []);
-                    }
-                }
-            }
+            const extraImagesArray = normalizeMediaList(product.extraimages);
 
             const productWithImageUrls = normalizeProductColors({
                 ...product,
@@ -139,12 +125,9 @@ exports.getProductById = async (req, res) => {
                 recommendedAge: product.recommendedage ?? product.recommendedAge,
                 extraImages: getStorageUrls(extraImagesArray),
                 extraimages: getStorageUrls(extraImagesArray),
-                childrenPlaying: childrenPlaying.map(media =>
-                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
-                ).filter(Boolean),
-                desktopHeroImages: desktopHeroImages.map(url =>
-                    url.startsWith('http') ? url : getStorageUrl(url)
-                ).filter(Boolean)
+                // handled exactly like extraImages: normalize list then map to storage URLs
+                childrenPlaying: getStorageUrls(childrenPlayingArray),
+                desktopHeroImages: getStorageUrls(desktopHeroImagesArray)
             });
             res.json(productWithImageUrls);
         } else {
@@ -181,25 +164,11 @@ exports.updateProduct = async (req, res) => {
         console.log('Updating product with data:', req.body);
         const updatedProduct = await databaseController.updateProduct(req.params.id, req.body);
         if (updatedProduct) {
-            const childrenPlaying = normalizeToStrings(updatedProduct.children_playing);
-            const desktopHeroImages = normalizeToStrings(updatedProduct.desktop_hero_images);
+            const childrenPlayingArray = normalizeMediaList(updatedProduct.children_playing);
+            const desktopHeroImagesArray = normalizeMediaList(updatedProduct.desktop_hero_images);
             const price = updatedProduct.price ? parseFloat(updatedProduct.price) : 0;
 
-            let extraImagesArray = [];
-            if (updatedProduct.extraimages) {
-                if (Array.isArray(updatedProduct.extraimages)) {
-                    extraImagesArray = updatedProduct.extraimages.filter(x => typeof x === 'string' && x.trim());
-                } else if (typeof updatedProduct.extraimages === 'string') {
-                    try {
-                        const parsed = JSON.parse(updatedProduct.extraimages);
-                        extraImagesArray = Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string' && x.trim()) : [];
-                    } catch {
-                        extraImagesArray = updatedProduct.extraimages.includes(',')
-                            ? updatedProduct.extraimages.split(',').map(s => s.trim()).filter(Boolean)
-                            : (updatedProduct.extraimages.trim() ? [updatedProduct.extraimages.trim()] : []);
-                    }
-                }
-            }
+            const extraImagesArray = normalizeMediaList(updatedProduct.extraimages);
 
             const productWithImageUrls = normalizeProductColors({
                 ...updatedProduct,
@@ -209,12 +178,9 @@ exports.updateProduct = async (req, res) => {
                 homepageImage: getStorageUrl(updatedProduct.homepageimage),
                 extraImages: getStorageUrls(extraImagesArray),
                 extraimages: getStorageUrls(extraImagesArray),
-                childrenPlaying: childrenPlaying.map(media =>
-                    media.startsWith('http') ? media : getStorageUrl(`mikdash_child_playing/${media}`)
-                ).filter(Boolean),
-                desktopHeroImages: desktopHeroImages.map(url =>
-                    url.startsWith('http') ? url : getStorageUrl(url)
-                ).filter(Boolean)
+                // handled exactly like extraImages: normalize list then map to storage URLs
+                childrenPlaying: getStorageUrls(childrenPlayingArray),
+                desktopHeroImages: getStorageUrls(desktopHeroImagesArray)
             });
 
             res.json(productWithImageUrls);

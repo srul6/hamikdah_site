@@ -1,9 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { databaseController } = require('../config/database');
+const { requireAuth } = require('../middleware/authMiddleware');
 
-// GET endpoint to retrieve all orders
-router.get('/', async (req, res) => {
+function requireAdmin(req, res, next) {
+    if (!req.admin) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+    if (req.admin.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'Forbidden: admin access required'
+        });
+    }
+    next();
+}
+
+// GET endpoint to retrieve all orders (admin only)
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
     try {
         console.log('📋 Retrieving all orders from database...');
         const orders = await databaseController.getAllOrders();
@@ -24,8 +41,8 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET endpoint to retrieve a specific order by ID
-router.get('/:id', async (req, res) => {
+// GET endpoint to retrieve a specific order by ID (admin only)
+router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         console.log(`🔍 Retrieving order with ID: ${id}`);
@@ -79,8 +96,8 @@ router.post('/', async (req, res) => {
     }
 });
 
-// PUT endpoint to update order status
-router.put('/:id', async (req, res) => {
+// PUT endpoint to update order status (admin only)
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         console.log(`📝 Updating order ${id}...`);
@@ -103,8 +120,8 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// DELETE endpoint to delete an order
-router.delete('/:id', async (req, res) => {
+// DELETE endpoint to delete an order (admin only)
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         console.log(`🗑️  Deleting order ${id}...`);
@@ -126,8 +143,8 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// PATCH endpoint to update shipped status
-router.patch('/:id/shipped', async (req, res) => {
+// PATCH endpoint to update shipped status (admin only)
+router.patch('/:id/shipped', requireAuth, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { isShipped } = req.body;
