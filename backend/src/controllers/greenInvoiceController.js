@@ -259,8 +259,8 @@ class GreenInvoiceController {
                             phone: customData.customerPhone || 'לא זמין',
                             street: customData.customerStreet || 'לא זמין',
                             houseNumber: customData.customerHouseNumber || 'לא זמין',
-                            apartmentNumber: customData.customerApartmentNumber || '',
-                            floor: customData.customerFloor || '',
+                            apartmentNumber: customData.customerApartmentNumber || 'לא זמין',
+                            floor: customData.customerFloor || 'לא זמין',
                             city: customData.customerCity || 'לא זמין',
                             country: 'IL'
                         };

@@ -132,6 +132,34 @@ class DatabaseController {
             const values = [];
             let paramIndex = 1;
 
+            // Whitelist of allowed updatable fields (API & DB column names)
+            const allowedProductKeys = new Set([
+                // DB column names
+                'name_he',
+                'name_en',
+                'description_he',
+                'description_en',
+                'price',
+                'quantity',
+                'homepageimage',
+                'extraimages',
+                'buildingtime',
+                'pieces',
+                'height',
+                'length',
+                'width',
+                'recommendedage',
+                'children_playing',
+                'desktop_hero_images',
+                'colors',
+                // camelCase variants used by API/frontend
+                'buildingTime',
+                'recommendedAge',
+                'childrenPlaying',
+                'desktopHeroImages',
+                'extraImages'
+            ]);
+
             // Map camelCase from frontend to DB column names (lowercase)
             const dbKey = (key) => {
                 if (key === 'buildingTime') return 'buildingtime';
@@ -142,6 +170,10 @@ class DatabaseController {
                 return key;
             };
             Object.keys(updateData).forEach(key => {
+                // Skip keys that are not explicitly allowed
+                if (!allowedProductKeys.has(key)) {
+                    return;
+                }
                 if (updateData[key] !== undefined) {
                     const mappedKey = dbKey(key);
                     fields.push(`${mappedKey} = $${paramIndex}`);
@@ -289,7 +321,23 @@ class DatabaseController {
             const values = [];
             let paramIndex = 1;
 
+            // Whitelist of allowed updatable comment fields
+            const allowedCommentKeys = new Set([
+                'name_he',
+                'name_en',
+                'text_he',
+                'text_en',
+                'type',
+                'video_url',
+                'image_url',
+                'rating'
+            ]);
+
             Object.keys(commentData).forEach(key => {
+                // Skip keys that are not explicitly allowed
+                if (!allowedCommentKeys.has(key)) {
+                    return;
+                }
                 if (commentData[key] !== undefined) {
                     fields.push(`${key} = $${paramIndex}`);
                     values.push(commentData[key]);
