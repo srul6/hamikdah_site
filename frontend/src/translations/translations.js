@@ -212,7 +212,7 @@ export const translations = {
         siteTerms10Text2: 'השימוש במוצרים מיועד להתבצע תחת השגחת מבוגר במידת הצורך, במיוחד כאשר מדובר בילדים צעירים.',
         siteTerms10Text3: 'בעלי האתר אינם אחראים לשימוש שאינו בהתאם להוראות הבטיחות או להמלצות הגיל המצוינות.',
         siteTerms11Title: '11. יצירת קשר',
-        siteTerms11Contact: 'לשאלות ופניות ניתן ליצור קשר בכתובת או דרך עמוד ״צור קשר״ באתר.',
+        siteTerms11Contact: 'לשאלות ופניות ניתן ליצור קשר דרך עמוד ״צור קשר״ באתר או בכתובת:',
         siteTermsEmail: 'hamikdash.today@gmail.com',
 
         // Privacy Policy (מדיניות פרטיות)
@@ -455,7 +455,7 @@ export const translations = {
         siteTerms10Text2: 'Use of the products is intended to be under adult supervision when necessary, especially for young children.',
         siteTerms10Text3: 'The site owners are not responsible for use that does not comply with safety instructions or the indicated age recommendations.',
         siteTerms11Title: '11. Contact',
-        siteTerms11Contact: 'For questions and inquiries, please contact or via the Contact page on the site.',
+        siteTerms11Contact: 'For questions and inquiries, please contact via the Contact page on the site or via the email:',
         siteTermsEmail: 'hamikdash.today@gmail.com',
 
         // Privacy Policy - English
