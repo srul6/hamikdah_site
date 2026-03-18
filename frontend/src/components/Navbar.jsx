@@ -566,7 +566,18 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                             marginTop: '-1px',
                         }}
                     >
-                        <Grid container spacing={2} sx={{ maxWidth: { xs: '400px', sm: '600px', md: '800px' }, width: '100%', justifyContent: 'center', position: 'relative' }}>
+                        <Box
+                            sx={{
+                                // Use CSS grid (Safari-safe sizing)
+                                display: 'grid',
+                                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))' },
+                                gap: 2,
+                                width: 'min(800px, 100%)',
+                                maxWidth: { xs: '400px', sm: '600px', md: '800px' },
+                                position: 'relative',
+                                mx: 'auto'
+                            }}
+                        >
                             {products.map((product, index) => {
                                 // Calculate row position (0-indexed)
                                 const row = Math.floor(index / 3);
@@ -574,7 +585,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                 const isLastRow = row === totalRows - 1;
 
                                 return (
-                                    <Grid item xs={4} sm={4} md={4} lg={4} key={product.id} sx={{ position: 'relative', p: { xs: 0.5, sm: 0.5, md: 1 } }}>
+                                    <Box key={product.id} sx={{ position: 'relative', minWidth: 0 }}>
                                         <Box
                                             component={Link}
                                             to={`/product/${product.id}`}
@@ -584,6 +595,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 height: '100%',
+                                                minWidth: 0,
                                                 marginX: { xs: '8px', sm: '8px', md: '15px' },
                                                 ...(isLastRow ? { marginTop: '0px' } : { marginTop: { xs: '10px', sm: '10px', md: '20px' } }),
                                                 '&:hover .product-name-text': {
@@ -646,10 +658,10 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                             </Typography>
                                         </Box>
 
-                                    </Grid>
+                                    </Box>
                                 );
                             })}
-                        </Grid>
+                        </Box>
                     </Box>
                 )}
 

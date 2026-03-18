@@ -1238,6 +1238,7 @@ export default function GreenInvoicePayment() {
                                 fontWeight: 600,
                                 color: 'success.main',
                                 textAlign: 'center',
+                                lineHeight: { xs: '1.2', sm: '1.2', md: '1.2' },
                                 direction: isHebrew ? 'rtl' : 'ltr'
                             }}>
                                 {t.siteFeedbackThankYou}
@@ -1247,9 +1248,7 @@ export default function GreenInvoicePayment() {
 
                     {/* Feedback error (if save failed) */}
                     {!!feedbackError && (
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            {feedbackError}
-                        </Typography>
+                        console.log(feedbackError)
                     )}
                 </Box>
 
