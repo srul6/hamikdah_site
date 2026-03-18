@@ -55,6 +55,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/comments', require('./routes/comments'));
+app.use('/api/feedback', require('./routes/feedback'));
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));

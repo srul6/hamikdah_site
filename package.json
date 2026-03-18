@@ -11,6 +11,7 @@
         "concurrently": "^8.2.2"
     },
     "dependencies": {
-        "bcrypt": "^6.0.0"
+        "bcrypt": "^6.0.0",
+        "dompurify": "^3.3.3"
     }
 }

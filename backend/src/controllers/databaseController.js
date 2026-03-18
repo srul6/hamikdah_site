@@ -290,6 +290,41 @@ class DatabaseController {
         }
     }
 
+    // ===== SITE FEEDBACK =====
+
+    async ensureSiteFeedbackTable() {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS site_feedback (
+                id SERIAL PRIMARY KEY,
+                client_id TEXT UNIQUE NOT NULL,
+                message TEXT NOT NULL,
+                language TEXT NULL,
+                email TEXT NULL,
+                ip TEXT NULL,
+                user_agent TEXT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
+    }
+
+    /**
+     * Creates a feedback row.
+     * Returns inserted row on success, or null if client already submitted.
+     */
+    async createSiteFeedback({ clientId, message, language, email, ip, userAgent }) {
+        await this.ensureSiteFeedbackTable();
+
+        const result = await pool.query(
+            `INSERT INTO site_feedback (client_id, message, language, email, ip, user_agent)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (client_id) DO NOTHING
+             RETURNING *`,
+            [clientId, message, language || null, email || null, ip || null, userAgent || null]
+        );
+
+        return result.rows[0] || null;
+    }
+
     // ===== CART =====
 
     async getCart() {

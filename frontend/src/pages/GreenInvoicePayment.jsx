@@ -4,11 +4,16 @@ import {
     Grid, CircularProgress, Alert, Dialog, DialogTitle,
     DialogContent, DialogActions, FormControlLabel, Checkbox
 } from '@mui/material';
+import { IconButton } from '@mui/material';
+import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material';
 import { getPaymentForm } from '../api/greenInvoice';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useFormData } from '../contexts/FormDataContext';
 import { translations } from '../translations/translations';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { API_ENDPOINTS } from '../config';
+import DOMPurify from 'dompurify';
+
 
 export default function GreenInvoicePayment() {
     const location = useLocation();
@@ -33,9 +38,37 @@ export default function GreenInvoicePayment() {
     });
     const [fieldErrors, setFieldErrors] = useState({});
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [feedbackText, setFeedbackText] = useState('');
+    const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+    const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+    const [feedbackError, setFeedbackError] = useState(null);
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+    const FEEDBACK_MAX_CHARS = 500;
+    const feedbackMsgTrimmed = feedbackText.trim();
+    const feedbackCharCount = feedbackMsgTrimmed.length;
+    const feedbackTooLong = feedbackCharCount > FEEDBACK_MAX_CHARS;
+
+    // Single client id + "only once" UX (server also enforces uniqueness)
+    const getOrCreateFeedbackClientId = () => {
+        try {
+            const existing = localStorage.getItem('site_feedback_client_id');
+            if (existing && existing.length >= 8) return existing;
+            const id = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+            localStorage.setItem('site_feedback_client_id', id);
+            return id;
+        } catch (_) {
+            return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+    };
+
+    useEffect(() => {
+        try {
+            const submitted = localStorage.getItem('site_feedback_submitted') === '1';
+            if (submitted) setFeedbackSubmitted(true);
+        } catch (_) { /* ignore */ }
+    }, []);
 
     // Load saved form data from cookies on mount
     useEffect(() => {
@@ -223,6 +256,43 @@ export default function GreenInvoicePayment() {
         }
     };
 
+    const submitFeedback = async () => {
+        const msg = feedbackText.trim();
+        if (msg.length < 2) return;
+        if (feedbackTooLong) return;
+
+        setFeedbackSubmitting(true);
+        setFeedbackError(null);
+        setFeedbackSubmitted(true); // hide immediately per requirement
+        try {
+            const clientId = getOrCreateFeedbackClientId();
+            const res = await fetch(API_ENDPOINTS.feedback, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId,
+                    message: msg,
+                    language,
+                    email: customerInfo?.email || null
+                })
+            });
+
+            if (!res.ok) {
+                // keep thank-you UX, but record error for debugging
+                const data = await res.json().catch(() => ({}));
+                setFeedbackError(data?.message || `HTTP ${res.status}`);
+            } else {
+                try {
+                    localStorage.setItem('site_feedback_submitted', '1');
+                } catch (_) { /* ignore */ }
+            }
+        } catch (e) {
+            setFeedbackError(e?.message || 'Network error');
+        } finally {
+            setFeedbackSubmitting(false);
+        }
+    };
+
     // Handle payment form submission (this will be called by the embedded form)
     useEffect(() => {
         // Listen for messages from the payment form iframe
@@ -272,7 +342,7 @@ export default function GreenInvoicePayment() {
                     {paymentFormHtml ? (
                         // Render HTML form directly
                         <Box
-                            dangerouslySetInnerHTML={{ __html: paymentFormHtml }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(paymentFormHtml) }}
                             sx={{
                                 width: '100%',
                                 minHeight: '500px',
@@ -1060,6 +1130,127 @@ export default function GreenInvoicePayment() {
                             }
                         }}
                     />
+                </Box>
+
+                {/* Site Feedback (below Terms checkbox) */}
+                <Box sx={{
+                    mt: 2,
+                    mx: 'auto',
+                    maxWidth: { xs: '92%', sm: '85%', md: '70%' },
+                    textAlign: isHebrew ? 'right' : 'left',
+                    direction: isHebrew ? 'rtl' : 'ltr'
+                }}>
+                    {!feedbackSubmitted ? (
+                        <>
+                            <Box
+                                sx={{
+                                    position: 'relative',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                                    borderRadius: 2,
+                                    border: '1px solid rgba(0, 0, 0, 0.23)',
+                                    px: 2,
+                                    pt: 1.5,
+                                    pb: 1.5,
+                                    '&:hover': {
+                                        borderColor: 'rgb(229, 90, 61)'
+                                    },
+                                    '&:focus-within': {
+                                        borderColor: 'rgb(229, 90, 61)'
+                                    },
+                                    transition: 'border-color 0.2s ease'
+                                }}
+                            >
+                                <Typography
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: 'text.primary',
+                                        textAlign: isHebrew ? 'right' : 'left',
+                                        mb: 1
+                                    }}
+                                >
+                                    {t.siteFeedbackTitle}
+                                </Typography>
+
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    minRows={4}
+                                    value={feedbackText}
+                                    onChange={(e) => setFeedbackText(e.target.value)}
+                                    placeholder={t.siteFeedbackPlaceholder}
+                                    variant="standard"
+                                    InputProps={{ disableUnderline: true }}
+                                    sx={{
+                                        '& .MuiInputBase-root': {
+                                            fontSize: '1rem'
+                                        }
+                                    }}
+                                />
+
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        mt: 0.75,
+                                        display: 'block',
+                                        color: feedbackTooLong ? 'error.main' : 'text.secondary',
+                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                        textAlign: isHebrew ? 'right' : 'left'
+                                    }}
+                                >
+                                    {t.siteFeedbackLimit} · {feedbackCharCount} {t.siteFeedbackCountUnit}
+                                </Typography>
+
+                                <IconButton
+                                    onClick={submitFeedback}
+                                    disabled={feedbackSubmitting || feedbackText.trim().length < 2 || feedbackTooLong}
+                                    aria-label={t.siteFeedbackSubmitAriaLabel}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 'auto',
+                                        bottom: 12,
+                                        left: isHebrew ? 15 : 'auto',
+                                        right: isHebrew ? 'auto' : 15,
+                                        border: '1px solid rgba(229, 90, 61, 1)',
+                                        color: 'rgba(199, 61, 34, 1)',
+                                        width: 36,
+                                        height: 36,
+                                        '&:hover': { borderColor: 'rgba(199, 61, 34, 1)', backgroundColor: 'rgb(199, 61, 34, 1)', color: 'white' },
+                                        '&:disabled': { color: 'rgba(208, 79, 54, 0.42)', borderColor: 'rgba(208, 79, 54, 0.42)' }
+                                    }}
+                                >
+                                    {isHebrew ? <ArrowBackIosNew sx={{ fontSize: 18 }} /> : <ArrowForwardIos sx={{ fontSize: 18 }} />}
+                                </IconButton>
+                            </Box>
+                        </>
+                    ) : (
+                        <Box
+                            sx={{
+                                px: 5,
+                                py: 1,
+                                width: 'fit-content',
+                                margin: '25px auto 0 auto',
+                                borderRadius: 2,
+                                border: '1px solid rgb(229, 90, 61)',
+                                color: 'rgb(229, 90, 61)',
+                            }}
+                        >
+                            <Typography sx={{
+                                fontWeight: 600,
+                                color: 'success.main',
+                                textAlign: 'center',
+                                direction: isHebrew ? 'rtl' : 'ltr'
+                            }}>
+                                {t.siteFeedbackThankYou}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {/* Feedback error (if save failed) */}
+                    {!!feedbackError && (
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            {feedbackError}
+                        </Typography>
+                    )}
                 </Box>
 
                 {/* Action Buttons Section */}

@@ -106,6 +106,14 @@ export const translations = {
         invoiceEmailSent: 'חשבונית נשלחה לכתובת המייל:',
         viewInvoice: 'צפה בחשבונית',
         paymentSuccessNote: 'התשלום שלך עובד בהצלחה. חשבונית נשלחה לכתובת המייל שלך.',
+
+        // Site Feedback (checkout)
+        siteFeedbackTitle: 'יש לך רגע לשתף אותנו איך היתה לך החוויה באתר?',
+        siteFeedbackPlaceholder: 'נשמח לשמוע מה עבד טוב ומה אפשר לשפר...',
+        siteFeedbackThankYou: 'ממש תודה על המשוב! מעריכים!',
+        siteFeedbackSubmitAriaLabel: 'שליחת משוב',
+        siteFeedbackLimit: 'מקסימום 500 תווים',
+        siteFeedbackCountUnit: 'תווים',
         failureReason: 'סיבת הכישלון',
         paymentFailureNote: 'התשלום נכשל. אנא בדוק את פרטי כרטיס האשראי ונסה שוב.',
         needHelp: 'צריכים עזרה?',
@@ -349,6 +357,14 @@ export const translations = {
         invoiceEmailSent: 'Invoice sent to email:',
         viewInvoice: 'View Invoice',
         paymentSuccessNote: 'Your payment was processed successfully. An invoice has been sent to your email.',
+
+        // Site Feedback (checkout)
+        siteFeedbackTitle: 'How was your experience on the site?',
+        siteFeedbackPlaceholder: 'Tell us what worked well and what we can improve...',
+        siteFeedbackThankYou: 'Thank you very much for sharing your feedback with us.',
+        siteFeedbackSubmitAriaLabel: 'Submit feedback',
+        siteFeedbackLimit: 'Max 500 characters',
+        siteFeedbackCountUnit: 'characters',
         failureReason: 'Failure Reason',
         paymentFailureNote: 'Payment failed. Please check your credit card details and try again.',
         needHelp: 'Need Help?',
