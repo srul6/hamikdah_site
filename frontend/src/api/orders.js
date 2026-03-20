@@ -7,7 +7,7 @@ const API_ENDPOINTS = {
 
 export async function fetchOrders() {
     try {
-        const response = await fetch(API_ENDPOINTS.orders);
+        const response = await fetch(API_ENDPOINTS.orders, { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -21,7 +21,7 @@ export async function fetchOrders() {
 
 export async function fetchOrderById(id) {
     try {
-        const response = await fetch(`${API_ENDPOINTS.orders}/${id}`);
+        const response = await fetch(`${API_ENDPOINTS.orders}/${id}`, { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -37,6 +37,7 @@ export async function deleteOrder(id) {
     try {
         const response = await fetch(`${API_ENDPOINTS.orders}/${id}`, {
             method: 'DELETE',
+            credentials: 'include',
         });
 
         if (!response.ok) {

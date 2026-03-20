@@ -38,6 +38,7 @@ export async function createComment(commentData) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify(commentData),
         });
 
@@ -59,6 +60,7 @@ export async function updateComment(id, commentData) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify(commentData),
         });
 
@@ -77,6 +79,7 @@ export async function deleteComment(id) {
     try {
         const response = await fetch(`${API_ENDPOINTS.comments}/${id}`, {
             method: 'DELETE',
+            credentials: 'include',
         });
 
         if (!response.ok) {

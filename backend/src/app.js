@@ -10,6 +10,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Parse cookies
+app.set('trust proxy', 1);
 
 // CORS configuration - set FRONTEND_URL / BACKEND_URL in env; optional hardcoded origins below
 const allowedOrigins = [

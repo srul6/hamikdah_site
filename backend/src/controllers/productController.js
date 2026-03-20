@@ -106,9 +106,7 @@ exports.getAllProducts = async (req, res) => {
 // Get product by ID
 exports.getProductById = async (req, res) => {
     try {
-        console.log('🔍 Fetching product ID:', req.params.id);
         const product = await databaseController.getProductById(req.params.id);
-        console.log('✅ Product fetched from database:', product ? `ID ${product.id}` : 'null');
 
         if (product) {
             const childrenPlayingArray = normalizeMediaList(product.children_playing);
@@ -148,7 +146,6 @@ exports.getProductById = async (req, res) => {
 // Create new product
 exports.createProduct = async (req, res) => {
     try {
-        console.log('Creating product with data:', req.body);
         const newProduct = await databaseController.createProduct(req.body);
         res.status(201).json(newProduct);
     } catch (error) {
@@ -161,7 +158,6 @@ exports.createProduct = async (req, res) => {
 // Update product
 exports.updateProduct = async (req, res) => {
     try {
-        console.log('Updating product with data:', req.body);
         const updatedProduct = await databaseController.updateProduct(req.params.id, req.body);
         if (updatedProduct) {
             const childrenPlayingArray = normalizeMediaList(updatedProduct.children_playing);
