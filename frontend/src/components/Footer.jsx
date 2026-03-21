@@ -121,7 +121,7 @@ export default function Footer() {
                             </Button>
                             <Button
                                 component="a"
-                                href="https://wa.me/97253944166"
+                                href="https://wa.me/972539444166"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 startIcon={<WhatsAppIcon />}
