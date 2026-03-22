@@ -45,6 +45,15 @@ class GreenInvoiceController {
             // Check if there's a delivery fee (when totalAmount > calculatedTotal)
             const deliveryFee = totalAmount > calculatedTotal ? totalAmount - calculatedTotal : 0;
 
+            // Installments: each payment ≥ ₪50, at least 1 payment, cap at 6
+            const totalNumeric = parseFloat(totalAmount);
+            const MIN_PER_PAYMENT = 50;
+            const MAX_INSTALLMENTS = 6;
+            const numberOfPayments = Math.max(
+                1,
+                Math.min(MAX_INSTALLMENTS, Math.floor(totalNumeric / MIN_PER_PAYMENT))
+            );
+
             // Build invoice request according to GreenInvoice payments/form schema
             const invoiceRequest = {
                 description: `תשלום על הזמנה #${Date.now()}`,
@@ -55,7 +64,7 @@ class GreenInvoiceController {
                 currency: "ILS",
                 vatType: 0,
                 amount: totalAmount,
-                maxPayments: 1,
+                maxPayments: numberOfPayments,
                 pluginId: process.env.CARDCOM_PLUGIN_ID,
                 group: 100,
                 client: {
@@ -621,6 +630,61 @@ class GreenInvoiceController {
         }
 
         return errors;
+    }
+
+    // Send order data to your server
+    async sendOrderToServer(orderData) {
+        try {
+            const serverUrl = `${process.env.BACKEND_URL || 'https://hamikdah-site.onrender.com'}/api/orders`;
+
+            console.log('Sending order data to server:', serverUrl);
+
+            const response = await axios.post(serverUrl, orderData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.SERVER_API_KEY || ''}`
+                },
+                timeout: 10000
+            });
+
+            console.log('Order data sent to server successfully:', response.status);
+            return true;
+
+        } catch (error) {
+            console.error('Failed to send order data to server:', error.message);
+            // Don't throw error - server notification failure shouldn't break the webhook
+            return false;
+        }
+    }
+
+    // Store order locally for API access
+    async storeOrderLocally(orderData) {
+        try {
+            // Import the orders array directly from the orders route
+            const ordersRoute = require('../routes/orders');
+
+            console.log('Storing order locally in orders array');
+
+            // Add the order to the orders array
+            const orderWithTimestamp = {
+                ...orderData,
+                receivedAt: new Date().toISOString()
+            };
+
+            // Access the orders array from the route module
+            if (ordersRoute.orders) {
+                ordersRoute.orders.push(orderWithTimestamp);
+                console.log('Order stored locally successfully. Total orders:', ordersRoute.orders.length);
+                return true;
+            } else {
+                console.log('Orders array not accessible from route module');
+                return false;
+            }
+        } catch (error) {
+            console.error('Failed to store order locally:', error.message);
+            // Don't throw error - local storage failure shouldn't break the webhook
+            return false;
+        }
     }
 
     // Update order status in database (implement according to your database structure)
