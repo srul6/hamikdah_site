@@ -16,6 +16,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useLanguage } from '../contexts/LanguageContext';
+import { WHATSAPP_URL } from '../config';
 import { translations } from '../translations/translations';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -121,7 +122,7 @@ export default function Footer() {
                             </Button>
                             <Button
                                 component="a"
-                                href="https://wa.me/972539444166"
+                                href={WHATSAPP_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 startIcon={<WhatsAppIcon />}

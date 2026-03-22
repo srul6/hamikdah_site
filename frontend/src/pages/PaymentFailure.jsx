@@ -5,8 +5,10 @@ import {
     CircularProgress, Divider
 } from '@mui/material';
 import { Error, Refresh, ShoppingCart } from '@mui/icons-material';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
+import { WHATSAPP_URL } from '../config';
 
 export default function PaymentFailure() {
     const [searchParams] = useSearchParams();
@@ -50,23 +52,9 @@ export default function PaymentFailure() {
         navigate('/');
     };
 
-    const handleContactSupport = () => {
-        // Open email client with support email
-        const subject = encodeURIComponent(`Payment Failed - Order ${paymentDetails?.orderId}`);
-        const body = encodeURIComponent(`
-Payment failed for order ${paymentDetails?.orderId}
-
-Amount: ₪${paymentDetails?.amount}
-Reason: ${paymentDetails?.reason}
-
-Please help me resolve this issue.
-        `);
-        window.open(`mailto:support@yourbusiness.com?subject=${subject}&body=${body}`);
-    };
-
     if (isLoading) {
         return (
-            <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+            <Container maxWidth="md" sx={{ pt: 15, pb: 8, textAlign: 'center' }}>
                 <CircularProgress size={60} />
                 <Typography variant="h6" sx={{ mt: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                     {t.processing}
@@ -77,7 +65,7 @@ Please help me resolve this issue.
 
     if (error) {
         return (
-            <Container maxWidth="md" sx={{ py: 8 }}>
+            <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
                 <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
                     <Alert severity="error" sx={{ mb: 3 }}>
                         {error}
@@ -95,22 +83,22 @@ Please help me resolve this issue.
     }
 
     return (
-        <Container maxWidth="md" sx={{ py: 8 }}>
+        <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
             <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
                 {/* Error Icon */}
-                <Error 
-                    sx={{ 
-                        fontSize: 80, 
+                <Error
+                    sx={{
+                        fontSize: 80,
                         color: 'error.main',
                         mb: 3
-                    }} 
+                    }}
                 />
 
                 {/* Error Message */}
-                <Typography 
-                    variant="h3" 
-                    gutterBottom 
-                    sx={{ 
+                <Typography
+                    variant="h3"
+                    gutterBottom
+                    sx={{
                         color: 'error.main',
                         direction: isHebrew ? 'rtl' : 'ltr',
                         mb: 2
@@ -119,60 +107,58 @@ Please help me resolve this issue.
                     {t.paymentFailed}
                 </Typography>
 
-                <Typography 
-                    variant="h6" 
-                    sx={{ 
+                <Typography
+                    variant="h6"
+                    sx={{
                         color: 'text.secondary',
                         direction: isHebrew ? 'rtl' : 'ltr',
                         mb: 4
                     }}
                 >
                     {t.paymentFailedMessage}
+                    <br />
+                    {t.paymentFailedMessage2}
                 </Typography>
 
                 {/* Payment Details */}
                 {paymentDetails && (
-                    <Box sx={{ 
-                        backgroundColor: 'rgba(255, 235, 238, 0.5)', 
-                        borderRadius: 2, 
-                        p: 3, 
+                    <Box sx={{
+                        backgroundColor: 'rgba(255, 235, 238, 0.5)',
+                        borderRadius: 2,
+                        p: 3,
                         mb: 4,
-                        textAlign: isHebrew ? 'right' : 'left'
+                        width: '100%',
+                        textAlign: isHebrew ? 'right' : 'left',
+                        direction: isHebrew ? 'rtl' : 'ltr'
                     }}>
                         <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                             {t.orderSummary}
                         </Typography>
-                        
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.orderId}:
-                            </Typography>
-                            <Typography fontWeight="bold">
+
+                        <Typography component="div" variant="body1" sx={{ mb: 1, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            {t.orderId}:{' '}
+                            <Typography component="span" fontWeight="bold">
                                 {paymentDetails.orderId}
                             </Typography>
-                        </Box>
+                        </Typography>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.total}:
-                            </Typography>
-                            <Typography fontWeight="bold">
+                        <Typography component="div" variant="body1" sx={{ mb: 1, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            {t.total}:{' '}
+                            <Typography component="span" fontWeight="bold">
                                 ₪{paymentDetails.amount.toFixed(2)}
                             </Typography>
-                        </Box>
+                        </Typography>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.failureReason}:
-                            </Typography>
-                            <Typography fontWeight="bold" color="error.main">
+                        <Typography component="div" variant="body1" sx={{ mb: 1, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            {t.failureReason}:{' '}
+                            <Typography component="span" fontWeight="bold" color="error.main">
                                 {paymentDetails.reason}
                             </Typography>
-                        </Box>
+                        </Typography>
 
                         <Divider sx={{ my: 2 }} />
 
-                        <Alert severity="info" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                        <Alert severity="info" sx={{ direction: isHebrew ? 'rtl' : 'ltr', textAlign: isHebrew ? 'right' : 'left' }}>
                             {t.paymentFailureNote}
                         </Alert>
                     </Box>
@@ -184,44 +170,58 @@ Please help me resolve this issue.
                         variant="contained"
                         startIcon={<Refresh />}
                         onClick={handleTryAgain}
-                        sx={{ 
+                        sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
-                            '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
-                            direction: isHebrew ? 'rtl' : 'ltr'
+                            '&:hover': { backgroundColor: 'rgba(229, 90, 61, 0.8)' },
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            '& .MuiButton-startIcon': { marginInlineEnd: 0.5 }
                         }}
                     >
                         {t.tryAgain}
                     </Button>
-                    
+
                     <Button
                         variant="outlined"
                         startIcon={<ShoppingCart />}
                         onClick={handleContinueShopping}
-                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+
+                        sx={{
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            '& .MuiButton-startIcon': { marginInlineEnd: 0.5 },
+                            '&:hover': { backgroundColor: 'white' }
+
+                        }}
                     >
                         {t.continueShopping}
                     </Button>
                 </Box>
 
                 {/* Support Information */}
-                <Box sx={{ 
-                    backgroundColor: 'rgba(245, 240, 227, 0.5)', 
-                    borderRadius: 2, 
+                <Box sx={{
+                    backgroundColor: 'rgba(245, 240, 227, 0.5)',
+                    borderRadius: 2,
                     p: 3,
                     textAlign: isHebrew ? 'right' : 'left'
                 }}>
                     <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                         {t.needHelp}
                     </Typography>
-                    
+
                     <Typography variant="body2" sx={{ mb: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                         {t.contactSupportMessage}
                     </Typography>
 
                     <Button
+                        component="a"
+                        href={WHATSAPP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         variant="text"
-                        onClick={handleContactSupport}
-                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        startIcon={<WhatsAppIcon sx={{ color: '#25D366' }} />}
+                        sx={{
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            '& .MuiButton-startIcon': { marginInlineEnd: 1 }
+                        }}
                     >
                         {t.contactSupport}
                     </Button>

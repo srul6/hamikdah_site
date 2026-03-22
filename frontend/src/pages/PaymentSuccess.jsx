@@ -120,7 +120,11 @@ export default function PaymentSuccess() {
                         mb: 4
                     }}
                 >
-                    {t.thankYouPurchase}
+                    {t.thankYouPurchaseTitle}
+                    <br />
+                    {t.thankYouPurchaseDescription}
+                    <br />
+                    {t.thankYouPurchaseDescription2}
                 </Typography>
 
                 {/* Payment Details */}

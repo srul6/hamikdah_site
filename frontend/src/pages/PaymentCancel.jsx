@@ -5,8 +5,10 @@ import {
     CircularProgress, Divider
 } from '@mui/material';
 import { Cancel, ShoppingCart, ArrowBack } from '@mui/icons-material';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
+import { WHATSAPP_URL } from '../config';
 
 export default function PaymentCancel() {
     const [searchParams] = useSearchParams();
@@ -47,7 +49,7 @@ export default function PaymentCancel() {
 
     if (isLoading) {
         return (
-            <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+            <Container maxWidth="md" sx={{ pt: 15, pb: 8, textAlign: 'center' }}>
                 <CircularProgress size={60} />
                 <Typography variant="h6" sx={{ mt: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                     {t.processing}
@@ -57,7 +59,7 @@ export default function PaymentCancel() {
     }
 
     return (
-        <Container maxWidth="md" sx={{ py: 8 }}>
+        <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
             <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
                 {/* Cancel Icon */}
                 <Cancel 
@@ -94,38 +96,36 @@ export default function PaymentCancel() {
 
                 {/* Payment Details */}
                 {paymentDetails && (
-                    <Box sx={{ 
-                        backgroundColor: 'rgba(255, 244, 229, 0.5)', 
-                        borderRadius: 2, 
-                        p: 3, 
+                    <Box sx={{
+                        backgroundColor: 'rgba(255, 244, 229, 0.5)',
+                        borderRadius: 2,
+                        p: 3,
                         mb: 4,
-                        textAlign: isHebrew ? 'right' : 'left'
+                        width: '100%',
+                        textAlign: isHebrew ? 'right' : 'left',
+                        direction: isHebrew ? 'rtl' : 'ltr'
                     }}>
                         <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                             {t.orderSummary}
                         </Typography>
-                        
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.orderId}:
-                            </Typography>
-                            <Typography fontWeight="bold">
+
+                        <Typography component="div" variant="body1" sx={{ mb: 1, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            {t.orderId}:{' '}
+                            <Typography component="span" fontWeight="bold">
                                 {paymentDetails.orderId}
                             </Typography>
-                        </Box>
+                        </Typography>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.total}:
-                            </Typography>
-                            <Typography fontWeight="bold">
+                        <Typography component="div" variant="body1" sx={{ mb: 1, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                            {t.total}:{' '}
+                            <Typography component="span" fontWeight="bold">
                                 ₪{paymentDetails.amount.toFixed(2)}
                             </Typography>
-                        </Box>
+                        </Typography>
 
                         <Divider sx={{ my: 2 }} />
 
-                        <Alert severity="info" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                        <Alert severity="info" sx={{ direction: isHebrew ? 'rtl' : 'ltr', textAlign: isHebrew ? 'right' : 'left' }}>
                             {t.paymentCancelledNote}
                         </Alert>
                     </Box>
@@ -137,20 +137,25 @@ export default function PaymentCancel() {
                         variant="contained"
                         startIcon={<ArrowBack />}
                         onClick={handleBackToCart}
-                        sx={{ 
+                        sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
-                            '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
-                            direction: isHebrew ? 'rtl' : 'ltr'
+                            '&:hover': { backgroundColor: 'rgba(229, 90, 61, 0.8)' },
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            '& .MuiButton-startIcon': { marginInlineEnd: 0.5 }
                         }}
                     >
                         {t.backToCart}
                     </Button>
-                    
+
                     <Button
                         variant="outlined"
                         startIcon={<ShoppingCart />}
                         onClick={handleContinueShopping}
-                        sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
+                        sx={{
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            '& .MuiButton-startIcon': { marginInlineEnd: 0.5 },
+                            '&:hover': { backgroundColor: 'white' }
+                        }}
                     >
                         {t.continueShopping}
                     </Button>
@@ -178,6 +183,38 @@ export default function PaymentCancel() {
                             <li>{t.cancelReason3}</li>
                         </Typography>
                     </Box>
+                </Box>
+
+                {/* Support Information — same pattern as payment failure */}
+                <Box sx={{
+                    backgroundColor: 'rgba(245, 240, 227, 0.5)',
+                    borderRadius: 2,
+                    p: 3,
+                    mt: 3,
+                    textAlign: isHebrew ? 'right' : 'left'
+                }}>
+                    <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                        {t.needHelp}
+                    </Typography>
+
+                    <Typography variant="body2" sx={{ mb: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                        {t.contactSupportMessage}
+                    </Typography>
+
+                    <Button
+                        component="a"
+                        href={WHATSAPP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="text"
+                        startIcon={<WhatsAppIcon sx={{ color: '#25D366' }} />}
+                        sx={{
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            '& .MuiButton-startIcon': { marginInlineEnd: 1 }
+                        }}
+                    >
+                        {t.contactSupport}
+                    </Button>
                 </Box>
             </Paper>
         </Container>

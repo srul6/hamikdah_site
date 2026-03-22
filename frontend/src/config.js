@@ -1,4 +1,6 @@
 // Configuration for API URLs
+export const WHATSAPP_URL = 'https://wa.me/972539444166';
+
 const isDevelopment = process.env.NODE_ENV === 'development';
 // In production, set REACT_APP_API_URL in your build env (e.g. Render) or it falls back to the value below
 export const API_BASE_URL = isDevelopment
