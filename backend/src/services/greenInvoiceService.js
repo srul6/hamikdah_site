@@ -26,6 +26,13 @@ class GreenInvoiceService {
                 timeout: 30000
             });
 
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    '[GreenInvoice] POST /account/token response headers:',
+                    JSON.stringify(response.headers, null, 2)
+                );
+            }
+
             // Extract token from response headers (GreenInvoice specific)
             const token = response.headers['x-authorization-bearer'] || response.data.token;
 
@@ -129,6 +136,12 @@ class GreenInvoiceService {
                 }
             );
 
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    '[GreenInvoice] POST /payments/form response headers:',
+                    JSON.stringify(response.headers, null, 2)
+                );
+            }
             console.log('GreenInvoice payment form response:', response.data);
             return response.data;
         } catch (error) {

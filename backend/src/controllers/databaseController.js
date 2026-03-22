@@ -485,26 +485,16 @@ class DatabaseController {
         try {
             console.log(`🔄 Reducing quantity for product ${productId} by ${quantityToReduce}`);
 
-            // Get current product
-            const productResult = await pool.query(
-                'SELECT quantity FROM products WHERE id = $1',
-                [productId]
+            const result = await pool.query(
+                'UPDATE products SET quantity = GREATEST(0, quantity - $1) WHERE id = $2 RETURNING quantity',
+                [quantityToReduce, productId]
             );
 
-            if (productResult.rows.length === 0) {
+            if (result.rows.length === 0) {
                 throw new Error(`Product ${productId} not found`);
             }
 
-            const currentQuantity = productResult.rows[0].quantity || 0;
-            const newQuantity = Math.max(0, currentQuantity - quantityToReduce);
-
-            console.log(`📊 Product ${productId}: Current: ${currentQuantity}, Reducing by: ${quantityToReduce}, New: ${newQuantity}`);
-
-            // Update quantity
-            await pool.query(
-                'UPDATE products SET quantity = $1 WHERE id = $2',
-                [newQuantity, productId]
-            );
+            const newQuantity = result.rows[0].quantity;
 
             console.log(`✅ Successfully reduced product ${productId} quantity to ${newQuantity}`);
             return { success: true, newQuantity };

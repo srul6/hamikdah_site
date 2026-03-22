@@ -13,12 +13,12 @@ router.post('/payment-form', (req, res) => {
 });
 
 // Webhook endpoint to receive payment status updates from GreenInvoice
-router.post('/webhook', (req, res) => {
-    console.log('=== GreenInvoice webhook route hit ===');
-    console.log('Request method:', req.method);
-    console.log('Request URL:', req.url);
-    greenInvoiceController.webhook.bind(greenInvoiceController)(req, res);
-});
+router.post('/webhook/:secret', (req, res, next) => {
+    if (req.params.secret !== process.env.WEBHOOK_SECRET) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+}, greenInvoiceController.webhook.bind(greenInvoiceController));
 
 // Test endpoint to verify GreenInvoice connection
 router.get('/test', (req, res) => {

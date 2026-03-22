@@ -12,6 +12,13 @@ class GreenInvoiceController {
         console.log('GreenInvoice Controller initialized');
     }
 
+    sanitizeError(error) {
+        if (process.env.NODE_ENV === 'development') {
+            return { error: error.message, details: error.stack };
+        }
+        return { error: 'An internal error occurred' };
+    }
+
     // Get payment form for CardCom integration
     async getPaymentForm(req, res) {
         console.log('=== Creating GreenInvoice payment form ===');
@@ -77,7 +84,7 @@ class GreenInvoiceController {
                 remarks: "תודה על הזמנתך",
                 successUrl: `${process.env.FRONTEND_URL}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
                 failureUrl: `${process.env.FRONTEND_URL}/payment/failure`,
-                notifyUrl: `${process.env.BACKEND_URL}/api/greeninvoice/webhook`,
+                notifyUrl: `${process.env.BACKEND_URL}/api/greeninvoice/webhook/${process.env.WEBHOOK_SECRET}`,
                 custom: JSON.stringify({
                     orderId: Date.now(),
                     customerId: customerInfo.email,
@@ -129,10 +136,10 @@ class GreenInvoiceController {
                 res.status(statusCode).json({
                     success: false,
                     message: 'GreenInvoice API Error',
-                    error: error.greenInvoiceError.errorMessage || error.message,
                     errorCode: error.greenInvoiceError.errorCode,
                     greenInvoiceError: error.greenInvoiceError,
-                    status: statusCode
+                    status: statusCode,
+                    ...this.sanitizeError(error)
                 });
             } else if (error.isAxiosError && error.response) {
                 // Return axios error details
@@ -140,25 +147,24 @@ class GreenInvoiceController {
                 res.status(statusCode).json({
                     success: false,
                     message: 'API Request Error',
-                    error: error.message,
                     status: statusCode,
-                    details: error.response.data
+                    details: error.response.data,
+                    ...this.sanitizeError(error)
                 });
             } else if (error.isAxiosError && error.request) {
                 // No response received from server
                 res.status(503).json({
                     success: false,
                     message: 'No response received from GreenInvoice API',
-                    error: error.message,
-                    status: 503
+                    status: 503,
+                    ...this.sanitizeError(error)
                 });
             } else {
                 // Return generic error details
                 res.status(500).json({
                     success: false,
                     message: 'Failed to create payment form',
-                    error: error.message,
-                    details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                    ...this.sanitizeError(error)
                 });
             }
         }
@@ -582,8 +588,8 @@ class GreenInvoiceController {
         } catch (error) {
             console.error('Error processing webhook:', error);
             res.status(500).json({
-                error: 'Webhook processing failed',
-                message: error.message
+                message: 'Webhook processing failed',
+                ...this.sanitizeError(error)
             });
         }
     }
@@ -615,61 +621,6 @@ class GreenInvoiceController {
         }
 
         return errors;
-    }
-
-    // Send order data to your server
-    async sendOrderToServer(orderData) {
-        try {
-            const serverUrl = `${process.env.BACKEND_URL || 'https://hamikdah-site.onrender.com'}/api/orders`;
-
-            console.log('Sending order data to server:', serverUrl);
-
-            const response = await axios.post(serverUrl, orderData, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.SERVER_API_KEY || ''}`
-                },
-                timeout: 10000
-            });
-
-            console.log('Order data sent to server successfully:', response.status);
-            return true;
-
-        } catch (error) {
-            console.error('Failed to send order data to server:', error.message);
-            // Don't throw error - server notification failure shouldn't break the webhook
-            return false;
-        }
-    }
-
-    // Store order locally for API access
-    async storeOrderLocally(orderData) {
-        try {
-            // Import the orders array directly from the orders route
-            const ordersRoute = require('../routes/orders');
-
-            console.log('Storing order locally in orders array');
-
-            // Add the order to the orders array
-            const orderWithTimestamp = {
-                ...orderData,
-                receivedAt: new Date().toISOString()
-            };
-
-            // Access the orders array from the route module
-            if (ordersRoute.orders) {
-                ordersRoute.orders.push(orderWithTimestamp);
-                console.log('Order stored locally successfully. Total orders:', ordersRoute.orders.length);
-                return true;
-            } else {
-                console.log('Orders array not accessible from route module');
-                return false;
-            }
-        } catch (error) {
-            console.error('Failed to store order locally:', error.message);
-            // Don't throw error - local storage failure shouldn't break the webhook
-            return false;
-        }
     }
 
     // Update order status in database (implement according to your database structure)
@@ -759,11 +710,11 @@ class GreenInvoiceController {
                 });
             }
         } catch (error) {
-            console.error('❌ GreenInvoice connection failed:', error.message);
+            console.error('❌ GreenInvoice connection failed:', error);
             res.status(500).json({
                 success: false,
-                error: 'GreenInvoice connection failed',
-                message: error.message
+                message: 'GreenInvoice connection failed',
+                ...this.sanitizeError(error)
             });
         }
     }
