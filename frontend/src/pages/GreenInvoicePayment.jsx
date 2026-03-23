@@ -151,7 +151,7 @@ export default function GreenInvoicePayment() {
 
         // Validate all required fields
         const requiredFields = ['name', 'email', 'phone'];
-        if (homeDelivery || displayTotal >= 499) {
+        if (homeDelivery || displayTotal >= 350) {
             requiredFields.push('street', 'houseNumber', 'city');
         }
 
@@ -701,7 +701,7 @@ export default function GreenInvoicePayment() {
                 </Box>
 
                 {/* Shipping Details Section - Only show when delivery is needed */}
-                {(homeDelivery || displayTotal >= 499) && (
+                {(homeDelivery || displayTotal >= 350) && (
                     <Box sx={{ mb: 5 }}>
                         <Typography variant="h5" sx={{
                             direction: isHebrew ? 'rtl' : 'ltr',
@@ -741,10 +741,10 @@ export default function GreenInvoicePayment() {
                             {isHebrew
                                 ? homeDelivery
                                     ? 'אם בחרת במשלוח עד הבית, אנא מלא את פרטי הכתובת שלך'
-                                    : 'משלוח חינם זמין עבור הזמנות מעל ₪499 - אנא מלא את פרטי הכתובת שלך'
+                                    : 'משלוח חינם זמין עבור הזמנות מעל ₪350 - אנא מלא את פרטי הכתובת שלך'
                                 : homeDelivery
                                     ? 'If you selected home delivery, please fill in your address details'
-                                    : 'Free shipping available for orders over ₪499 - please fill in your address details'
+                                    : 'Free shipping available for orders over ₪350 - please fill in your address details'
                             }
                         </Typography>
 
