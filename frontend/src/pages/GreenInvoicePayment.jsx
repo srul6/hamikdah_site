@@ -14,6 +14,25 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config';
 import DOMPurify from 'dompurify';
 
+/** Product line label for checkout summary (includes color when selected). */
+function getCheckoutLineLabel(item, isHebrew) {
+    const sc = item.selectedColor;
+    if (isHebrew) {
+        if (item.displayName) return item.displayName;
+        const base = item.name_he || item.name_en || item.name || '';
+        if (sc) {
+            const c = sc.name_he || sc.name || '';
+            return c ? `${base} - ${c}` : base;
+        }
+        return base;
+    }
+    const base = item.name_en || item.name_he || item.name || '';
+    if (sc) {
+        const c = sc.name_en || sc.name || '';
+        return c ? `${base} - ${c}` : base;
+    }
+    return base;
+}
 
 export default function GreenInvoicePayment() {
     const location = useLocation();
@@ -38,6 +57,7 @@ export default function GreenInvoicePayment() {
     });
     const [fieldErrors, setFieldErrors] = useState({});
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [marketingConsent, setMarketingConsent] = useState(false);
     const [feedbackText, setFeedbackText] = useState('');
     const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
     const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
@@ -181,16 +201,23 @@ export default function GreenInvoicePayment() {
         setError(null);
 
         try {
-            const items = cart.map(item => ({
-                id: item.id,
-                name: item.name,
-                name_he: item.name_he,
-                name_en: item.name_en,
-                price: item.price,
-                quantity: item.quantity
-            }));
+            const items = cart.map(item => {
+                const sc = item.selectedColor;
+                const colorNameHe = sc ? (sc.name_he || sc.name || '') : '';
+                const colorNameEn = sc ? (sc.name_en || sc.name || '') : '';
+                return {
+                    id: item.id,
+                    name: item.name,
+                    name_he: item.name_he,
+                    name_en: item.name_en,
+                    price: item.price,
+                    quantity: item.quantity,
+                    color_name_he: colorNameHe,
+                    color_name_en: colorNameEn
+                };
+            });
 
-            const response = await getPaymentForm(items, displayTotal, customerInfo);
+            const response = await getPaymentForm(items, displayTotal, customerInfo, marketingConsent);
 
             if (response.success) {
                 if (response.paymentFormUrl) {
@@ -1017,21 +1044,39 @@ export default function GreenInvoicePayment() {
                         border: '1px solid rgba(229, 90, 61, 0.1)'
                     }}>
                         {cart.map((item, index) => (
-                            <Box key={index} sx={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                mb: 2,
-                                p: 2,
-                                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                                borderRadius: 2
-                            }}>
-                                <Typography sx={{
-                                    direction: isHebrew ? 'rtl' : 'ltr',
-                                    fontWeight: 500
-                                }}>
-                                    {isHebrew ? item.name_he : item.name_en} x {item.quantity}
+                            <Box
+                                key={item.uniqueId != null ? item.uniqueId : `${item.id}-${index}`}
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: isHebrew ? 'row-reverse' : 'row',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'flex-start',
+                                    gap: 2,
+                                    mb: 2,
+                                    p: 2,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                    borderRadius: 2
+                                }}
+                            >
+                                <Typography
+                                    sx={{
+                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                        textAlign: isHebrew ? 'right' : 'left',
+                                        fontWeight: 500,
+                                        flex: 1,
+                                        minWidth: 0
+                                    }}
+                                >
+                                    {getCheckoutLineLabel(item, isHebrew)} × {item.quantity}
                                 </Typography>
-                                <Typography sx={{ fontWeight: 600 }}>
+                                <Typography
+                                    sx={{
+                                        fontWeight: 600,
+                                        textAlign: isHebrew ? 'left' : 'right',
+                                        flexShrink: 0,
+                                        direction: 'ltr'
+                                    }}
+                                >
                                     ₪{(Number(item.price || 0) * item.quantity).toFixed(2)}
                                 </Typography>
                             </Box>
@@ -1066,7 +1111,7 @@ export default function GreenInvoicePayment() {
                 </Box>
 
                 {/* Terms and Conditions Section */}
-                <Box sx={{ mb: 0, textAlign: 'center' }}>
+                <Box sx={{ mb: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -1090,7 +1135,7 @@ export default function GreenInvoicePayment() {
                                 fontSize: { xs: '0.85rem', sm: '0.9rem', md: '1rem' },
                                 color: 'text.primary'
                             }}>
-                                {isHebrew ? 'קראתי ואני מאשר את ' : 'I confirm the '}
+                                {t.termsAgreementPrefix}
                                 <Button
                                     component="a"
                                     href="/terms"
@@ -1112,7 +1157,7 @@ export default function GreenInvoicePayment() {
                                         }
                                     }}
                                 >
-                                    {isHebrew ? 'תנאי השימוש' : 'terms and conditions'}
+                                    {t.termsAgreementLinkText}
                                 </Button>
                             </Typography>
                         }
@@ -1127,6 +1172,54 @@ export default function GreenInvoicePayment() {
                             '& .MuiFormControlLabel-label': {
                                 marginLeft: isHebrew ? 0 : '0px',
                                 marginRight: isHebrew ? '0px' : 0
+                            }
+                        }}
+                    />
+
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={marketingConsent}
+                                onChange={(e) => setMarketingConsent(e.target.checked)}
+                                sx={{
+                                    p: 0,
+                                    mt: '0px',
+                                    alignSelf: 'flex-start',
+                                    color: 'rgba(229, 90, 61, 1)',
+                                    '&.Mui-checked': {
+                                        color: 'rgba(229, 90, 61, 1)',
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                        fontSize: 18,
+                                    }
+                                }}
+                            />
+                        }
+                        label={
+                            <Typography variant="body2" sx={{
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                fontSize: { xs: '0.85rem', sm: '0.9rem', md: '1rem' },
+                                color: 'text.primary',
+                                display: 'block',
+                                lineHeight: 1.2
+                            }}>
+                                {t.marketingConsentLabel}
+                            </Typography>
+                        }
+                        labelPlacement={isHebrew ? 'start' : 'end'}
+                        sx={{
+                            mt: 1,
+                            alignItems: 'flex-start',
+                            justifyContent: 'flex-start',
+                            mx: 'auto',
+                            maxWidth: { xs: '90%', sm: '80%', md: '70%' },
+                            flexDirection: isHebrew ? 'row-reverse' : 'row',
+                            gap: 0.5,
+                            '& .MuiFormControlLabel-label': {
+                                margin: 0,
+                                marginTop: 0,
+                                marginLeft: 0,
+                                marginRight: 0
                             }
                         }}
                     />

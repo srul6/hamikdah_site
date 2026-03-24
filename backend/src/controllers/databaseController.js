@@ -608,10 +608,11 @@ class DatabaseController {
                         customer_city = $13,
                         customer_country = $14,
                         items = $15,
-                        dedication = $16,
-                        purchase_timestamp = $17,
+                    marketing_consent = $16,
+                    dedication = $17,
+                    purchase_timestamp = $18,
                         updated_at = NOW()
-                    WHERE form_id = $18
+                    WHERE form_id = $19
                     RETURNING *`,
                     [
                         orderData.documentId || null,
@@ -629,6 +630,7 @@ class DatabaseController {
                         orderData.customerInfo.city || null,
                         orderData.customerInfo.country || null,
                         JSON.stringify(orderData.items || []),
+                        orderData.marketingConsent || false,
                         orderData.dedication || null,
                         parsedTimestamp,
                         orderData.formId
@@ -646,8 +648,8 @@ class DatabaseController {
                     customer_name, customer_email, customer_phone,
                     customer_street, customer_house_number, customer_apartment_number,
                     customer_floor, customer_city, customer_country,
-                    items, dedication, purchase_timestamp
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                    items, marketing_consent, dedication, purchase_timestamp
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
                 ON CONFLICT (form_id) 
                 DO UPDATE SET
                     document_id = EXCLUDED.document_id,
@@ -665,6 +667,7 @@ class DatabaseController {
                     customer_city = EXCLUDED.customer_city,
                     customer_country = EXCLUDED.customer_country,
                     items = EXCLUDED.items,
+                    marketing_consent = EXCLUDED.marketing_consent,
                     dedication = EXCLUDED.dedication,
                     purchase_timestamp = EXCLUDED.purchase_timestamp,
                     updated_at = NOW()
@@ -686,6 +689,7 @@ class DatabaseController {
                     orderData.customerInfo.city || null,
                     orderData.customerInfo.country || null,
                     JSON.stringify(orderData.items || []),
+                    orderData.marketingConsent || false,
                     orderData.dedication || null,
                     parsedTimestamp
                 ]

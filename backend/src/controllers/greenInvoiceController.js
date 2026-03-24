@@ -3,6 +3,20 @@ const EmailService = require('../services/emailService');
 const { databaseController } = require('../config/database');
 const axios = require('axios'); // Added for testing document types
 
+/**
+ * Merge base product names with selected color for invoices, emails, and order storage.
+ */
+function productNameWithColor(baseHe, baseEn, colorHe, colorEn) {
+    const he = String(baseHe || baseEn || 'פריט').trim();
+    const en = String(baseEn || baseHe || 'Item').trim();
+    const cHe = colorHe && String(colorHe).trim();
+    const cEn = colorEn && String(colorEn).trim();
+    return {
+        name_he: cHe ? `${he} (${cHe})` : he,
+        name_en: cEn ? `${en} (${cEn})` : (cHe ? `${en} (${cHe})` : en)
+    };
+}
+
 class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
@@ -26,7 +40,8 @@ class GreenInvoiceController {
         console.log('Request headers:', req.headers);
 
         try {
-            const { items, totalAmount, currency = 'ILS', customerInfo, id } = req.body;
+            const { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent } = req.body;
+            const marketingConsent = !!marketing_consent;
 
             // Validate input parameters
             const errors = this.validatePaymentParams(items, totalAmount, customerInfo);
@@ -76,12 +91,20 @@ class GreenInvoiceController {
                     country: "IL"
                 },
                 income: [
-                    ...items.map(item => ({
-                        description: item.name_he || item.name_en || item.name || 'פריט',
-                        quantity: item.quantity || 1,
-                        price: parseFloat(item.price),
-                        vatType: 1
-                    })),
+                    ...items.map(item => {
+                        const names = productNameWithColor(
+                            item.name_he || item.name,
+                            item.name_en || item.name,
+                            item.color_name_he,
+                            item.color_name_en
+                        );
+                        return {
+                            description: names.name_he || names.name_en || 'פריט',
+                            quantity: item.quantity || 1,
+                            price: parseFloat(item.price),
+                            vatType: 1
+                        };
+                    }),
                     // Add delivery fee as a separate income item if applicable
                     ...(deliveryFee > 0 ? [{
                         description: 'משלוח עד הבית',
@@ -107,9 +130,12 @@ class GreenInvoiceController {
                     items: items.map(item => ({
                         id: item.id,
                         quantity: item.quantity,
-                        price: item.price
+                        price: item.price,
+                        color_name_he: item.color_name_he || '',
+                        color_name_en: item.color_name_en || ''
                     })),
                     dedication: customerInfo.dedication || '',
+                    marketing_consent: marketingConsent,
                     amount: totalAmount,
                     currency: currency
                 })
@@ -260,6 +286,7 @@ class GreenInvoiceController {
             let items = [];
             let amount = 0;
             let currency = 'ILS';
+            let marketingConsent = false;
 
             if (custom) {
                 try {
@@ -284,6 +311,7 @@ class GreenInvoiceController {
                     // Set values from custom data
                     amount = customData.amount || 0;
                     currency = customData.currency || 'ILS';
+                    marketingConsent = !!customData.marketing_consent;
 
                     // Create items array with actual product info
                     if (customData.items) {
@@ -302,19 +330,31 @@ class GreenInvoiceController {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
                                     if (product) {
                                         console.log('✅ Found product:', product.name_he, product.name_en);
+                                        const names = productNameWithColor(
+                                            product.name_he,
+                                            product.name_en,
+                                            item.color_name_he,
+                                            item.color_name_en
+                                        );
                                         return {
                                             id: item.id,
-                                            name_he: product.name_he || 'פריט',
-                                            name_en: product.name_en || 'Item',
+                                            name_he: names.name_he,
+                                            name_en: names.name_en,
                                             quantity: item.quantity || 1,
                                             price: item.price || 0
                                         };
                                     } else {
                                         console.log('⚠️  Product not found for ID:', item.id);
+                                        const names = productNameWithColor(
+                                            'פריט לא ידוע',
+                                            'Unknown Item',
+                                            item.color_name_he,
+                                            item.color_name_en
+                                        );
                                         return {
                                             id: item.id,
-                                            name_he: 'פריט לא ידוע',
-                                            name_en: 'Unknown Item',
+                                            name_he: names.name_he,
+                                            name_en: names.name_en,
                                             quantity: item.quantity || 1,
                                             price: item.price || 0
                                         };
@@ -322,13 +362,21 @@ class GreenInvoiceController {
                                 }));
                             } catch (error) {
                                 console.error('❌ Failed to load products from database:', error);
-                                items = itemData.map(item => ({
-                                    id: item.id,
-                                    name_he: 'פריט',
-                                    name_en: 'Item',
-                                    quantity: item.quantity || 1,
-                                    price: item.price || 0
-                                }));
+                                items = itemData.map(item => {
+                                    const names = productNameWithColor(
+                                        'פריט',
+                                        'Item',
+                                        item.color_name_he,
+                                        item.color_name_en
+                                    );
+                                    return {
+                                        id: item.id,
+                                        name_he: names.name_he,
+                                        name_en: names.name_en,
+                                        quantity: item.quantity || 1,
+                                        price: item.price || 0
+                                    };
+                                });
                             }
                         } else {
                             // Old format: comma-separated string (fallback)
@@ -414,6 +462,7 @@ class GreenInvoiceController {
                 currency,
                 customerInfo: fullCustomerInfo,
                 items: Array.isArray(items) ? items : [],
+                marketingConsent: marketingConsent,
                 purchaseTimestamp: new Date().toLocaleString('he-IL', {
                     timeZone: 'Asia/Jerusalem',
                     year: 'numeric',

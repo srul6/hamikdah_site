@@ -1,0 +1,2 @@
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN DEFAULT false;
+

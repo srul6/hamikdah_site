@@ -141,6 +141,9 @@ export const translations = {
 
         // Terms of Service
         termsTitle: 'תנאי שימוש',
+        termsAgreementPrefix: 'קראתי ואני מאשר את ',
+        termsAgreementLinkText: 'תנאי השימוש',
+        marketingConsentLabel: 'אני רוצה לשמוע על מבצעים ועדכונים על מוצרים חדשים!',
         cancellationPolicy: 'מדיניות ביטולים',
         cancellationText: 'ניתן לבטל את הרכישה עד 14 יום מרכישת המוצר. בתנאי שהמוצר לא נפתח. דמי ביטול סך 70 ₪. החזרת המוצר לעסק היא באחריות הצרכן.',
         cancellationNote: 'במידה והמוצר נפתח אפילו בניילון הנצמד העוטף את המוצר, לא ניתן לבטל את הרכישה.',
@@ -392,6 +395,9 @@ export const translations = {
 
         // Terms of Service
         termsTitle: 'Terms of Service',
+        termsAgreementPrefix: 'I have read and agree to ',
+        termsAgreementLinkText: 'terms and conditions',
+        marketingConsentLabel: 'I want to hear about promotions and updates on new products',
         cancellationPolicy: 'Cancellation Policy',
         cancellationText: 'You may cancel your purchase within 14 days of purchasing the product, provided the product has not been opened. A cancellation fee of ₪70 applies. Returning the product to the store is the responsibility of the customer.',
         cancellationNote: 'If the product has been opened, even if only the shrink wrap was removed, the purchase cannot be canceled.',
