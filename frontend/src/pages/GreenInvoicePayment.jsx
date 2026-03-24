@@ -1132,7 +1132,7 @@ export default function GreenInvoicePayment() {
                         label={
                             <Typography variant="body2" sx={{
                                 direction: isHebrew ? 'rtl' : 'ltr',
-                                fontSize: { xs: '0.85rem', sm: '0.9rem', md: '1rem' },
+                                fontSize: { xs: '0.95rem', sm: '1rem', md: '1.1rem' },
                                 color: 'text.primary'
                             }}>
                                 {t.termsAgreementPrefix}
@@ -1198,7 +1198,7 @@ export default function GreenInvoicePayment() {
                         label={
                             <Typography variant="body2" sx={{
                                 direction: isHebrew ? 'rtl' : 'ltr',
-                                fontSize: { xs: '0.85rem', sm: '0.9rem', md: '1rem' },
+                                fontSize: { xs: '0.98rem', sm: '1.02rem', md: '1.12rem' },
                                 color: 'text.primary',
                                 display: 'block',
                                 lineHeight: 1.2
