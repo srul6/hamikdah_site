@@ -1200,8 +1200,8 @@ export default function GreenInvoicePayment() {
                                 direction: isHebrew ? 'rtl' : 'ltr',
                                 fontSize: { xs: '0.98rem', sm: '1.02rem', md: '1.12rem' },
                                 color: 'text.primary',
-                                display: 'block',
-                                lineHeight: 1.2
+                                lineHeight: 1.2,
+                                p: -2
                             }}>
                                 {t.marketingConsentLabel}
                             </Typography>
@@ -1209,7 +1209,7 @@ export default function GreenInvoicePayment() {
                         labelPlacement={isHebrew ? 'start' : 'end'}
                         sx={{
                             mt: 1,
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
                             justifyContent: 'flex-start',
                             mx: 'auto',
                             maxWidth: { xs: '90%', sm: '80%', md: '70%' },
@@ -1219,7 +1219,10 @@ export default function GreenInvoicePayment() {
                                 margin: 0,
                                 marginTop: 0,
                                 marginLeft: 0,
-                                marginRight: 0
+                                marginRight: 0,
+                                minWidth: 0,
+                                width: 'fit-content',
+                                display: 'inline-block',
                             }
                         }}
                     />
@@ -1390,7 +1393,7 @@ export default function GreenInvoicePayment() {
                                 <span>{isHebrew ? 'מעבד...' : 'Processing...'}</span>
                             </Box>
                         ) : (
-                            `${isHebrew ? 'שלם עכשיו' : 'Pay Now'} ₪${displayTotal.toFixed(2)}`
+                            `${isHebrew ? 'לשלם עכשיו' : 'Pay Now'} ₪${displayTotal.toFixed(2)}`
                         )}
                     </Button>
                     <Button
@@ -1417,7 +1420,7 @@ export default function GreenInvoicePayment() {
                             alignSelf: 'center'
                         }}
                     >
-                        {isHebrew ? 'חזור לעגלה' : 'Back to Cart'}
+                        {isHebrew ? 'חזרה לעגלה' : 'Back to Cart'}
                     </Button>
                 </Box>
 
