@@ -1168,7 +1168,7 @@ export default function GreenInvoicePayment() {
                             mx: 'auto',
                             maxWidth: { xs: '90%', sm: '80%', md: '70%' },
                             flexDirection: isHebrew ? 'row-reverse' : 'row',
-                            gap: { xs: 0, sm: 0.5, md: 0.5 },
+                            gap: 0.5,
                             '& .MuiFormControlLabel-label': {
                                 marginLeft: isHebrew ? 0 : '0px',
                                 marginRight: isHebrew ? '0px' : 0
@@ -1214,7 +1214,7 @@ export default function GreenInvoicePayment() {
                             mx: 'auto',
                             maxWidth: { xs: '90%', sm: '80%', md: '70%' },
                             flexDirection: isHebrew ? 'row-reverse' : 'row',
-                            gap: 0.5,
+                            gap: { xs: 0, sm: 0.5, md: 0.5 },
                             '& .MuiFormControlLabel-label': {
                                 margin: 0,
                                 marginTop: 0,
