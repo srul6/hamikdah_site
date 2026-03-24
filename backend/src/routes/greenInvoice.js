@@ -61,7 +61,13 @@ router.get('/test-email', async (req, res) => {
                 city: 'Jerusalem'
             },
             items: [
-                { name_he: 'בית המקדש', name_en: 'The Temple', quantity: 1, price: 150 }
+                {
+                    name_he: 'קופת צדקה (כחול)',
+                    name_en: 'Charity box (Blue)',
+                    quantity: 2,
+                    price: 50
+                },
+                { name_he: 'בית המקדש', name_en: 'The Temple', quantity: 1, price: 50 }
             ],
             purchaseTimestamp: new Date().toISOString(),
             dedication: 'לעילוי נשמת'

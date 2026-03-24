@@ -2,9 +2,10 @@ const sgMail = require('@sendgrid/mail');
 
 class EmailService {
     constructor() {
-        this.adminEmail = process.env.ADMIN_EMAIL;
-        this.sendFromEmail = process.env.SENDGRID_FROM_EMAIL;
-        this.sendGridApiKey = process.env.SENDGRID_API_KEY;
+        this.adminEmail = (process.env.ADMIN_EMAIL || '').trim();
+        this.sendFromEmail = (process.env.SENDGRID_FROM_EMAIL || '').trim();
+        this.sendFromName = (process.env.SENDGRID_FROM_NAME || 'הזמנה חדשה').trim();
+        this.sendGridApiKey = (process.env.SENDGRID_API_KEY || '').trim();
 
         this.initializeSendGrid();
     }
@@ -20,6 +21,11 @@ class EmailService {
             return;
         }
 
+        if (!this.sendFromEmail) {
+            console.warn('⚠️  Email service incomplete - missing SENDGRID_FROM_EMAIL (verified sender in SendGrid). Order emails will fail until set.');
+            return;
+        }
+
         sgMail.setApiKey(this.sendGridApiKey);
 
     }
@@ -27,6 +33,11 @@ class EmailService {
     async sendOrderNotification(orderData) {
         if (!this.sendGridApiKey || !this.adminEmail) {
             console.error('❌ Email service not configured - missing SENDGRID_API_KEY or ADMIN_EMAIL (check Render env vars)');
+            return false;
+        }
+
+        if (!this.sendFromEmail) {
+            console.error('❌ Email not sent: SENDGRID_FROM_EMAIL is empty. Set it in .env to a SendGrid-verified sender (same as Single Sender or domain).');
             return false;
         }
 
@@ -51,7 +62,10 @@ class EmailService {
 
             const msg = {
                 to: this.adminEmail,
-                from: this.sendFromEmail, // SendGrid requires verified sender
+                from: {
+                    email: this.sendFromEmail,
+                    ...(this.sendFromName ? { name: this.sendFromName } : {})
+                },
                 subject: subject,
                 text: textContent,
                 html: htmlContent
