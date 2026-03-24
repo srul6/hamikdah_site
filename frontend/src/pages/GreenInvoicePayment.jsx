@@ -1168,7 +1168,7 @@ export default function GreenInvoicePayment() {
                             mx: 'auto',
                             maxWidth: { xs: '90%', sm: '80%', md: '70%' },
                             flexDirection: isHebrew ? 'row-reverse' : 'row',
-                            gap: 0.5,
+                            gap: { xs: 0, sm: 0.5, md: 0.5 },
                             '& .MuiFormControlLabel-label': {
                                 marginLeft: isHebrew ? 0 : '0px',
                                 marginRight: isHebrew ? '0px' : 0
@@ -1201,7 +1201,7 @@ export default function GreenInvoicePayment() {
                                 fontSize: { xs: '0.98rem', sm: '1.02rem', md: '1.12rem' },
                                 color: 'text.primary',
                                 lineHeight: 1.2,
-                                p: -2
+                                p: 0
                             }}>
                                 {t.marketingConsentLabel}
                             </Typography>
