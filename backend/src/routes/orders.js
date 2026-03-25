@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { databaseController } = require('../config/database');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { validateOrderCreatePayload } = require('../utils/checkoutValidation');
+const clientMessages = require('../utils/clientFacingMessages');
 
 function requireAdmin(req, res, next) {
     if (!req.admin) {
@@ -76,9 +78,16 @@ router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         console.log('📝 Creating new order...');
-        const orderData = req.body;
+        const validated = validateOrderCreatePayload(req.body);
+        if (!validated.ok) {
+            console.warn('Order create validation failed:', validated.errors);
+            return res.status(400).json({
+                success: false,
+                message: clientMessages.ORDER_REJECTED
+            });
+        }
 
-        const newOrder = await databaseController.createOrder(orderData);
+        const newOrder = await databaseController.createOrder(validated.orderData);
 
         res.json({
             success: true,
@@ -90,8 +99,7 @@ router.post('/', async (req, res) => {
         console.error('❌ Error creating order:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to create order',
-            message: error.message
+            message: clientMessages.ORDER_REJECTED
         });
     }
 });

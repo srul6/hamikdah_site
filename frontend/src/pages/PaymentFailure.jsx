@@ -26,15 +26,13 @@ export default function PaymentFailure() {
         const amount = searchParams.get('amount');
         const currency = searchParams.get('currency') || 'ILS';
         const reason = searchParams.get('reason') || 'Payment failed';
-        const customerEmail = searchParams.get('customerEmail');
 
         if (orderId && amount) {
             setPaymentDetails({
                 orderId,
                 amount: parseFloat(amount),
                 currency,
-                reason,
-                customerEmail
+                reason
             });
         } else {
             setError('Payment details not found');

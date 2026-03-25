@@ -26,15 +26,13 @@ export default function PaymentSuccess() {
         const amount = searchParams.get('amount');
         const currency = searchParams.get('currency') || 'ILS';
         const documentId = searchParams.get('documentId');
-        const customerEmail = searchParams.get('customerEmail');
 
         if (orderId && amount) {
             setPaymentDetails({
                 orderId,
                 amount: parseFloat(amount),
                 currency,
-                documentId,
-                customerEmail
+                documentId
             });
 
             // Clear the cart after successful payment
@@ -174,7 +172,7 @@ export default function PaymentSuccess() {
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                             {!isHebrew && <Email color="action" />}
                             <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
-                                {t.invoiceEmailSent} {paymentDetails.customerEmail}
+                                {t.invoiceEmailSentGeneric}
                             </Typography>
                             {isHebrew && <Email color="action" />}
                         </Box>

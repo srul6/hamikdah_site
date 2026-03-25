@@ -24,14 +24,11 @@ export default function PaymentCancel() {
         const orderId = searchParams.get('orderId');
         const amount = searchParams.get('amount');
         const currency = searchParams.get('currency') || 'ILS';
-        const customerEmail = searchParams.get('customerEmail');
-
         if (orderId && amount) {
             setPaymentDetails({
                 orderId,
                 amount: parseFloat(amount),
-                currency,
-                customerEmail
+                currency
             });
         }
 

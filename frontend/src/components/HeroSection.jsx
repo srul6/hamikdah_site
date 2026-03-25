@@ -58,8 +58,8 @@ export default function HeroSection() {
                     height: '100%',
                     borderRadius: '15px',
                     backgroundImage: {
-                        xs: 'url(/first_web.jpg)',
-                        md: 'url(/hero_section.jpg)'
+                        xs: 'url(/first_web.webp)',
+                        md: 'url(/hero_section.webp)'
                     },
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',

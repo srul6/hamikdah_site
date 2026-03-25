@@ -14,6 +14,20 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config';
 import DOMPurify from 'dompurify';
 
+/** Max lengths — matches backend `checkoutValidation` (defense in depth with input maxLength). */
+const FIELD_MAX_LEN = {
+    name: 120,
+    email: 254,
+    phone: 25,
+    street: 200,
+    houseNumber: 30,
+    apartmentNumber: 30,
+    floor: 15,
+    city: 100,
+    dedication: 500,
+    feedback: 500
+};
+
 /** Product line label for checkout summary (includes color when selected). */
 function getCheckoutLineLabel(item, isHebrew) {
     const sc = item.selectedColor;
@@ -65,7 +79,7 @@ export default function GreenInvoicePayment() {
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
-    const FEEDBACK_MAX_CHARS = 500;
+    const FEEDBACK_MAX_CHARS = FIELD_MAX_LEN.feedback;
     const feedbackMsgTrimmed = feedbackText.trim();
     const feedbackCharCount = feedbackMsgTrimmed.length;
     const feedbackTooLong = feedbackCharCount > FEEDBACK_MAX_CHARS;
@@ -338,11 +352,10 @@ export default function GreenInvoicePayment() {
                     // Payment successful - navigate to success page
                     navigate('/payment/success', {
                         state: {
-                            orderId: Date.now(), // Generate a simple order ID
+                            orderId: Date.now(),
                             amount: displayTotal,
                             currency: 'ILS',
-                            documentId: documentId,
-                            customerEmail: customerInfo.email
+                            documentId: documentId
                         }
                     });
                 } else if (status === 'failed' || status === 'declined') {
@@ -354,7 +367,7 @@ export default function GreenInvoicePayment() {
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [navigate, displayTotal, customerInfo.email, t.paymentFailed]);
+    }, [navigate, displayTotal, t.paymentFailed]);
 
     // If we have a payment form, show it
     if (paymentFormHtml || iframeUrl) {
@@ -550,6 +563,7 @@ export default function GreenInvoicePayment() {
                                 size="small"
                                 error={!!fieldErrors.name}
                                 inputProps={{
+                                    maxLength: FIELD_MAX_LEN.name,
                                     style: { textAlign: isHebrew ? 'right' : 'left' }
                                 }}
                                 sx={{
@@ -602,6 +616,7 @@ export default function GreenInvoicePayment() {
                                 size="small"
                                 error={!!fieldErrors.email}
                                 inputProps={{
+                                    maxLength: FIELD_MAX_LEN.email,
                                     style: { textAlign: isHebrew ? 'right' : 'left' }
                                 }}
                                 sx={{
@@ -653,6 +668,7 @@ export default function GreenInvoicePayment() {
                                 size="small"
                                 error={!!fieldErrors.phone}
                                 inputProps={{
+                                    maxLength: FIELD_MAX_LEN.phone,
                                     style: { textAlign: isHebrew ? 'right' : 'left' }
                                 }}
                                 sx={{
@@ -704,6 +720,7 @@ export default function GreenInvoicePayment() {
                                 variant="outlined"
                                 size="small"
                                 inputProps={{
+                                    maxLength: FIELD_MAX_LEN.dedication,
                                     style: { textAlign: isHebrew ? 'right' : 'left' }
                                 }}
                                 sx={{
@@ -796,6 +813,7 @@ export default function GreenInvoicePayment() {
                                     size="small"
                                     error={!!fieldErrors.street}
                                     inputProps={{
+                                        maxLength: FIELD_MAX_LEN.street,
                                         style: { textAlign: isHebrew ? 'right' : 'left' }
                                     }}
                                     sx={{
@@ -847,6 +865,7 @@ export default function GreenInvoicePayment() {
                                     size="small"
                                     error={!!fieldErrors.houseNumber}
                                     inputProps={{
+                                        maxLength: FIELD_MAX_LEN.houseNumber,
                                         style: { textAlign: isHebrew ? 'right' : 'left' }
                                     }}
                                     sx={{
@@ -896,6 +915,7 @@ export default function GreenInvoicePayment() {
                                     variant="outlined"
                                     size="small"
                                     inputProps={{
+                                        maxLength: FIELD_MAX_LEN.apartmentNumber,
                                         style: { textAlign: isHebrew ? 'right' : 'left' }
                                     }}
                                     sx={{
@@ -931,6 +951,7 @@ export default function GreenInvoicePayment() {
                                     variant="outlined"
                                     size="small"
                                     inputProps={{
+                                        maxLength: FIELD_MAX_LEN.floor,
                                         style: { textAlign: isHebrew ? 'right' : 'left' }
                                     }}
                                     sx={{
@@ -968,6 +989,7 @@ export default function GreenInvoicePayment() {
                                     size="small"
                                     error={!!fieldErrors.city}
                                     inputProps={{
+                                        maxLength: FIELD_MAX_LEN.city,
                                         style: { textAlign: isHebrew ? 'right' : 'left' }
                                     }}
                                     sx={{
@@ -1274,6 +1296,7 @@ export default function GreenInvoicePayment() {
                                     onChange={(e) => setFeedbackText(e.target.value)}
                                     placeholder={t.siteFeedbackPlaceholder}
                                     variant="standard"
+                                    inputProps={{ maxLength: FIELD_MAX_LEN.feedback }}
                                     InputProps={{ disableUnderline: true }}
                                     sx={{
                                         '& .MuiInputBase-root': {
@@ -1343,7 +1366,9 @@ export default function GreenInvoicePayment() {
 
                     {/* Feedback error (if save failed) */}
                     {!!feedbackError && (
-                        console.log(feedbackError)
+                        <Typography color="error" variant="caption" sx={{ display: 'block', mt: 1 }}>
+                            {feedbackError}
+                        </Typography>
                     )}
                 </Box>
 

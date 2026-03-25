@@ -6,6 +6,50 @@ const path = require('path');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
+/** Cache-Control: hashed webpack assets (CRA) — 1 year; images/video/fonts — 30 days; HTML — no cache */
+const CACHE_IMMUTABLE_SEC = 31536000; // 1 year
+const CACHE_MEDIA_SEC = 2592000; // 30 days
+
+function setSpaBuildCacheHeaders(res, filePath) {
+    const base = path.basename(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+
+    if (base === 'index.html') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return;
+    }
+
+    // CRA: main.<hash>.js/css and <id>.<hash>.chunk.js
+    if (/\.[a-f0-9]{8,}\.(js|mjs|css)$/i.test(base) || /\.[a-f0-9]{8,}\.chunk\.(js|mjs|css)$/i.test(base)) {
+        res.setHeader('Cache-Control', `public, max-age=${CACHE_IMMUTABLE_SEC}, immutable`);
+        return;
+    }
+
+    const longCacheMediaExt = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.avif', '.bmp',
+        '.mp4', '.webm', '.mov', '.m4v', '.woff', '.woff2', '.ttf', '.otf', '.eot'];
+    if (longCacheMediaExt.includes(ext)) {
+        res.setHeader('Cache-Control', `public, max-age=${CACHE_MEDIA_SEC}`);
+        return;
+    }
+
+    if (ext === '.map') {
+        res.setHeader('Cache-Control', `public, max-age=${CACHE_IMMUTABLE_SEC}, immutable`);
+        return;
+    }
+
+    if (ext === '.js' || ext === '.css') {
+        res.setHeader('Cache-Control', `public, max-age=${CACHE_IMMUTABLE_SEC}, immutable`);
+        return;
+    }
+
+    if (base === 'asset-manifest.json' || base === 'manifest.json') {
+        res.setHeader('Cache-Control', 'no-cache');
+        return;
+    }
+
+    res.setHeader('Cache-Control', `public, max-age=${CACHE_MEDIA_SEC}`);
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -44,8 +88,12 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
-// Serve product images statically
-app.use('/images', express.static(path.join(__dirname, '../public/images')));
+// Serve product images statically (30-day cache)
+app.use('/images', express.static(path.join(__dirname, '../public/images'), {
+    setHeaders(res) {
+        res.setHeader('Cache-Control', `public, max-age=${CACHE_MEDIA_SEC}`);
+    }
+}));
 
 // API routes - these must come BEFORE the catch-all route
 app.use('/api/products', productsRouter);
@@ -58,16 +106,24 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/feedback', require('./routes/feedback'));
 
-// Serve static files from the React build
-app.use(express.static(path.join(__dirname, '../../frontend/build')));
+// Serve static files from the React build (hashed JS/CSS long cache; HTML no cache)
+app.use(express.static(path.join(__dirname, '../../frontend/build'), {
+    setHeaders: setSpaBuildCacheHeaders
+}));
 
 // Handle API routes that weren't matched above
 app.all('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// SPA routes: serve React app
-const sendIndex = (req, res) => res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+// SPA routes: serve React app (always revalidate — fresh HTML after deploy)
+const indexPath = path.join(__dirname, '../../frontend/build/index.html');
+const sendIndex = (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(indexPath);
+};
 app.get('/admin', sendIndex);
 app.get('/terms', sendIndex);
 app.get('/site-terms', sendIndex);

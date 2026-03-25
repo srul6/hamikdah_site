@@ -2,6 +2,8 @@ const GreenInvoiceService = require('../services/greenInvoiceService');
 const EmailService = require('../services/emailService');
 const { databaseController } = require('../config/database');
 const axios = require('axios'); // Added for testing document types
+const { validateCheckoutRequest } = require('../utils/checkoutValidation');
+const clientMessages = require('../utils/clientFacingMessages');
 
 /**
  * Merge base product names with selected color for invoices, emails, and order storage.
@@ -35,24 +37,33 @@ class GreenInvoiceController {
 
     // Get payment form for CardCom integration
     async getPaymentForm(req, res) {
+        const dev = process.env.NODE_ENV !== 'production';
         console.log('=== Creating GreenInvoice payment form ===');
-        console.log('Request body:', JSON.stringify(req.body, null, 2));
-        console.log('Request headers:', req.headers);
+        if (dev) {
+            console.log('Request body:', JSON.stringify(req.body, null, 2));
+            console.log('Request headers:', req.headers);
+        }
 
         try {
-            const { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent } = req.body;
+            let { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent } = req.body;
             const marketingConsent = !!marketing_consent;
 
-            // Validate input parameters
-            const errors = this.validatePaymentParams(items, totalAmount, customerInfo);
-            if (errors.length > 0) {
-                console.log('Validation errors:', errors);
+            const validated = validateCheckoutRequest({ items, totalAmount, customerInfo });
+            if (!validated.ok) {
+                if (dev) {
+                    console.warn('Payment form validation failed:', validated.errors);
+                } else {
+                    console.warn('Payment form validation failed');
+                }
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid input parameters',
-                    errors: errors
+                    message: clientMessages.BAD_REQUEST
                 });
             }
+            items = validated.items;
+            customerInfo = validated.customerInfo;
+
+            const checkoutSessionId = Date.now();
 
             // Calculate total amount from items
             const calculatedTotal = items.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
@@ -71,7 +82,7 @@ class GreenInvoiceController {
 
             // Build invoice request according to GreenInvoice payments/form schema
             const invoiceRequest = {
-                description: `תשלום על הזמנה #${Date.now()}`,
+                description: `תשלום על הזמנה #${checkoutSessionId}`,
                 type: 320,
                 date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
                 dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
@@ -114,11 +125,12 @@ class GreenInvoiceController {
                     }] : [])
                 ],
                 remarks: "תודה על הזמנתך",
-                successUrl: `${process.env.FRONTEND_URL}/payment/success?orderId=${Date.now()}&amount=${totalAmount}&currency=${currency}&customerEmail=${encodeURIComponent(customerInfo.email)}`,
+                // Do not put customer email in the URL (history, referrers, access logs).
+                successUrl: `${process.env.FRONTEND_URL}/payment/success?orderId=${checkoutSessionId}&amount=${encodeURIComponent(totalAmount)}&currency=${encodeURIComponent(currency)}`,
                 failureUrl: `${process.env.FRONTEND_URL}/payment/failure`,
                 notifyUrl: `${process.env.BACKEND_URL}/api/greeninvoice/webhook/${process.env.WEBHOOK_SECRET}`,
                 custom: JSON.stringify({
-                    orderId: Date.now(),
+                    orderId: checkoutSessionId,
                     customerId: customerInfo.email,
                     customerName: customerInfo.name,
                     customerPhone: customerInfo.phone,
@@ -141,16 +153,27 @@ class GreenInvoiceController {
                 })
             };
 
-            console.log('Creating invoice with request:', JSON.stringify(invoiceRequest, null, 2));
+            if (dev) {
+                console.log('Creating invoice with request:', JSON.stringify(invoiceRequest, null, 2));
+            } else {
+                console.log('Creating GreenInvoice payment form, line items:', items.length);
+            }
 
             // Create the payment form
             const paymentResult = await this.greenInvoiceService.getPaymentForm(invoiceRequest);
 
             if (!paymentResult || !paymentResult.url) {
-                throw new Error('Failed to create payment form: ' + JSON.stringify(paymentResult));
+                if (dev) {
+                    console.error('GreenInvoice getPaymentForm empty result:', paymentResult);
+                }
+                throw new Error('Failed to create payment form');
             }
 
-            console.log('Payment form created successfully:', paymentResult);
+            if (dev) {
+                console.log('Payment form created successfully:', paymentResult);
+            } else {
+                console.log('Payment form created, formId:', paymentResult.formId || 'n/a');
+            }
 
             // Return the payment form URL with additional details
             res.json({
@@ -162,46 +185,21 @@ class GreenInvoiceController {
             });
 
         } catch (error) {
-            console.error('Error creating payment form:', error);
-
-            // Enhanced error handling to return full GreenInvoice error details
-            if (error.isAxiosError && error.greenInvoiceError) {
-                // Return the full GreenInvoice error details from the service
-                const statusCode = error.response?.status || 500;
-                res.status(statusCode).json({
-                    success: false,
-                    message: 'GreenInvoice API Error',
-                    errorCode: error.greenInvoiceError.errorCode,
-                    greenInvoiceError: error.greenInvoiceError,
-                    status: statusCode,
-                    ...this.sanitizeError(error)
-                });
-            } else if (error.isAxiosError && error.response) {
-                // Return axios error details
-                const statusCode = error.response.status || 500;
-                res.status(statusCode).json({
-                    success: false,
-                    message: 'API Request Error',
-                    status: statusCode,
-                    details: error.response.data,
-                    ...this.sanitizeError(error)
-                });
-            } else if (error.isAxiosError && error.request) {
-                // No response received from server
-                res.status(503).json({
-                    success: false,
-                    message: 'No response received from GreenInvoice API',
-                    status: 503,
-                    ...this.sanitizeError(error)
-                });
-            } else {
-                // Return generic error details
-                res.status(500).json({
-                    success: false,
-                    message: 'Failed to create payment form',
-                    ...this.sanitizeError(error)
-                });
+            console.error('Error creating payment form:', error.message || error);
+            if (error.isAxiosError) {
+                const status = error.response?.status;
+                if (process.env.NODE_ENV !== 'production') {
+                    console.error('GreenInvoice/axios detail:', status, error.response?.data || error.message);
+                } else if (status) {
+                    console.error('GreenInvoice upstream HTTP status:', status);
+                }
             }
+
+            const status = error.isAxiosError && !error.response ? 503 : 500;
+            res.status(status).json({
+                success: false,
+                message: clientMessages.PAYMENT_START_FAILED
+            });
         }
     }
 
@@ -212,10 +210,10 @@ class GreenInvoiceController {
             return res.status(403).json({ error: 'Test endpoint not available in production' });
         }
 
-        const { orderId, amount, currency, customerEmail } = req.query;
+        const { orderId, amount, currency } = req.query;
 
-        // Redirect to success page with test data
-        const successUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${orderId || 'TEST-123'}&amount=${amount || '50'}&currency=${currency || 'ILS'}&customerEmail=${customerEmail || 'test@example.com'}`;
+        // Redirect to success page with test data (no email in URL)
+        const successUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${orderId || 'TEST-123'}&amount=${amount || '50'}&currency=${currency || 'ILS'}`;
 
         res.redirect(successUrl);
     }
@@ -242,7 +240,7 @@ class GreenInvoiceController {
             const webhookId = req.body.id || req.body.document_id || req.body.transaction_id;
             if (!webhookId) {
                 console.log('❌ No webhook ID found, rejecting duplicate prevention check');
-                return res.status(400).json({ error: 'No webhook ID provided' });
+                return res.status(400).json({ success: false, message: clientMessages.WEBHOOK_REJECTED });
             }
 
             // Check if this webhook was already processed
@@ -445,7 +443,7 @@ class GreenInvoiceController {
             if (!formId || !status) {
                 console.error('❌ Invalid webhook data received - Missing formId or status');
                 console.error('Received data:', { formId, status, documentId, paymentId });
-                return res.status(400).json({ error: 'Invalid webhook data' });
+                return res.status(400).json({ success: false, message: clientMessages.WEBHOOK_REJECTED });
             }
 
             console.log(`🎯 Payment webhook received - Form ID: ${formId}, Status: "${status}", Document ID: ${documentId || 'N/A'}`);
@@ -646,39 +644,10 @@ class GreenInvoiceController {
         } catch (error) {
             console.error('Error processing webhook:', error);
             res.status(500).json({
-                message: 'Webhook processing failed',
-                ...this.sanitizeError(error)
+                success: false,
+                message: clientMessages.WEBHOOK_REJECTED
             });
         }
-    }
-
-    // Validate payment parameters
-    validatePaymentParams(items, totalAmount, customerInfo) {
-        const errors = [];
-
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            errors.push('Items array is required and must not be empty');
-        }
-
-        if (!totalAmount || isNaN(totalAmount) || totalAmount <= 0) {
-            errors.push('Total amount must be a positive number');
-        }
-
-        if (!customerInfo) {
-            errors.push('Customer information is required');
-        } else {
-            if (!customerInfo.name || customerInfo.name.trim() === '') {
-                errors.push('Customer name is required');
-            }
-            if (!customerInfo.email || customerInfo.email.trim() === '') {
-                errors.push('Customer email is required');
-            }
-            if (!customerInfo.phone || customerInfo.phone.trim() === '') {
-                errors.push('Customer phone is required');
-            }
-        }
-
-        return errors;
     }
 
     // Send order data to your server
@@ -826,8 +795,7 @@ class GreenInvoiceController {
             console.error('❌ GreenInvoice connection failed:', error);
             res.status(500).json({
                 success: false,
-                message: 'GreenInvoice connection failed',
-                ...this.sanitizeError(error)
+                message: clientMessages.BAD_REQUEST
             });
         }
     }

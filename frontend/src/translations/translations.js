@@ -107,6 +107,7 @@ export const translations = {
         orderId: 'מספר הזמנה',
         invoiceNumber: 'מספר חשבונית',
         invoiceEmailSent: 'חשבונית נשלחה לכתובת המייל:',
+        invoiceEmailSentGeneric: 'החשבונית נשלחה לכתובת המייל שהזנת בעת התשלום.',
         viewInvoice: 'צפה בחשבונית',
         paymentSuccessNote: 'התשלום שלך עובד בהצלחה. חשבונית נשלחה לכתובת המייל שלך.',
 
@@ -361,6 +362,7 @@ export const translations = {
         orderId: 'Order ID',
         invoiceNumber: 'Invoice Number',
         invoiceEmailSent: 'Invoice sent to email:',
+        invoiceEmailSentGeneric: 'The invoice was sent to the email address you used at checkout.',
         viewInvoice: 'View Invoice',
         paymentSuccessNote: 'Your payment was processed successfully. An invoice has been sent to your email.',
 
