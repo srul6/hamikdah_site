@@ -4,11 +4,24 @@ const GreenInvoiceController = require('../controllers/greenInvoiceController');
 
 const greenInvoiceController = new GreenInvoiceController();
 
+const devLog = (...args) => {
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(...args);
+    }
+};
+
+function blockTestRoutesInProduction(req, res, next) {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: 'Not available in production' });
+    }
+    next();
+}
+
 // Get payment form for CardCom integration
 router.post('/payment-form', (req, res) => {
-    console.log('=== GreenInvoice payment form route hit ===');
-    console.log('Request method:', req.method);
-    console.log('Request URL:', req.url);
+    devLog('=== GreenInvoice payment form route hit ===');
+    devLog('Request method:', req.method);
+    devLog('Request URL:', req.url);
     greenInvoiceController.getPaymentForm.bind(greenInvoiceController)(req, res);
 });
 
@@ -21,27 +34,27 @@ router.post('/webhook/:secret', (req, res, next) => {
 }, greenInvoiceController.webhook.bind(greenInvoiceController));
 
 // Test endpoint to verify GreenInvoice connection
-router.get('/test', (req, res) => {
-    console.log('=== GreenInvoice test route hit ===');
+router.get('/test', blockTestRoutesInProduction, (req, res) => {
+    devLog('=== GreenInvoice test route hit ===');
     greenInvoiceController.test.bind(greenInvoiceController)(req, res);
 });
 
 // Test endpoint to simulate payment success (development only)
-router.get('/test-success', (req, res) => {
-    console.log('=== GreenInvoice test success route hit ===');
+router.get('/test-success', blockTestRoutesInProduction, (req, res) => {
+    devLog('=== GreenInvoice test success route hit ===');
     greenInvoiceController.testPaymentSuccess.bind(greenInvoiceController)(req, res);
 });
 
 // Test endpoint to simulate payment failure (development only)
-router.get('/test-failure', (req, res) => {
-    console.log('=== GreenInvoice test failure route hit ===');
+router.get('/test-failure', blockTestRoutesInProduction, (req, res) => {
+    devLog('=== GreenInvoice test failure route hit ===');
     greenInvoiceController.testPaymentFailure.bind(greenInvoiceController)(req, res);
 });
 
 // Test endpoint to verify email service
-router.get('/test-email', async (req, res) => {
+router.get('/test-email', blockTestRoutesInProduction, async (req, res) => {
     try {
-        console.log('=== Testing email service ===');
+        devLog('=== Testing email service ===');
 
         const testOrderData = {
             formId: 'TEST-' + Date.now(),
@@ -79,7 +92,7 @@ router.get('/test-email', async (req, res) => {
         if (result) {
             res.json({
                 success: true,
-                message: 'Test email sent successfully to ' + emailService.adminEmail
+                message: 'Test email sent successfully'
             });
         } else {
             res.status(500).json({
@@ -91,7 +104,7 @@ router.get('/test-email', async (req, res) => {
         console.error('Test email error:', error);
         res.status(500).json({
             success: false,
-            error: error.message
+            message: 'Failed to send test email'
         });
     }
 });
