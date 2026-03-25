@@ -141,7 +141,7 @@ export const translations = {
 
         // Terms of Service
         termsTitle: 'תנאי שימוש',
-        termsAgreementPrefix: 'קראתי ואני מאשר את ',
+        termsAgreementPrefix: 'קראתי ואני מאשר/ת את ',
         termsAgreementLinkText: 'תנאי השימוש',
         marketingConsentLabel: 'אני רוצה לשמוע על מבצעים ועדכונים על מוצרים חדשים!',
         cancellationPolicy: 'מדיניות ביטולים',

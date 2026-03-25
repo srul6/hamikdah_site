@@ -123,8 +123,7 @@ export default function GreenInvoicePayment() {
     };
 
     const validatePhone = (phone) => {
-        // Accepts Israeli numbers starting with 0, international numbers with +, and other formats
-        const phoneRegex = /^(?:(?:\+972\d{8,9})|(?:0\d{9})|\+(?!972)\d{6,15})$/;
+        const phoneRegex = /^(?:\+972|972|0)[\d\-\s]{7,10}$|^\+?[1-9]\d{6,14}$/;
         return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
     };
 
@@ -188,7 +187,7 @@ export default function GreenInvoicePayment() {
 
         // Check if terms and conditions are accepted
         if (!termsAccepted) {
-            setError(isHebrew ? 'אנא אשר את תנאי השימוש כדי להמשיך' : 'Please accept the terms and conditions to continue');
+            setError(isHebrew ? 'אנא אשר/י את תנאי השימוש כדי להמשיך' : 'Please accept the terms and conditions to continue');
             return;
         }
 
@@ -493,7 +492,7 @@ export default function GreenInvoicePayment() {
                         color: 'text.secondary',
                         direction: isHebrew ? 'rtl' : 'ltr'
                     }}>
-                        {isHebrew ? 'אנא מלא את הפרטים שלך להשלמת ההזמנה' : 'Please fill in your details to complete your order'}
+                        {isHebrew ? 'אנא מלא/י את הפרטים שלך להשלמת ההזמנה' : 'Please fill in your details to complete your order'}
                     </Typography>
                 </Box>
 
@@ -767,8 +766,8 @@ export default function GreenInvoicePayment() {
                         }}>
                             {isHebrew
                                 ? homeDelivery
-                                    ? 'אם בחרת במשלוח עד הבית, אנא מלא את פרטי הכתובת שלך'
-                                    : 'משלוח חינם זמין עבור הזמנות מעל ₪350 - אנא מלא את פרטי הכתובת שלך'
+                                    ? 'אם בחרת במשלוח עד הבית, אנא מלא/י את פרטי הכתובת שלך'
+                                    : 'משלוח חינם זמין עבור הזמנות מעל ₪350 - אנא מלא/י את פרטי הכתובת שלך'
                                 : homeDelivery
                                     ? 'If you selected home delivery, please fill in your address details'
                                     : 'Free shipping available for orders over ₪350 - please fill in your address details'
