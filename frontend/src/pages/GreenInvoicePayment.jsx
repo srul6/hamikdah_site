@@ -230,7 +230,12 @@ export default function GreenInvoicePayment() {
                 };
             });
 
-            const response = await getPaymentForm(items, displayTotal, customerInfo, marketingConsent);
+            const deliveryFeeAmount =
+                homeDelivery && subtotal < 350 ? 35 : 0;
+            const response = await getPaymentForm(items, displayTotal, customerInfo, marketingConsent, {
+                couponDiscount: discount || 0,
+                deliveryFee: deliveryFeeAmount
+            });
 
             if (response.success) {
                 if (response.paymentFormUrl) {

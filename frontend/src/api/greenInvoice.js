@@ -1,7 +1,9 @@
 import { API_ENDPOINTS } from '../config';
 
 // Get payment form from GreenInvoice for CardCom integration
-export const getPaymentForm = async (items, totalAmount, customerInfo, marketingConsent) => {
+export const getPaymentForm = async (items, totalAmount, customerInfo, marketingConsent, breakdown = {}) => {
+    const couponDiscount = Number(breakdown.couponDiscount) || 0;
+    const deliveryFee = Number(breakdown.deliveryFee) || 0;
     try {
         const response = await fetch(`${API_ENDPOINTS.greenInvoice}/payment-form`, {
             method: 'POST',
@@ -13,7 +15,9 @@ export const getPaymentForm = async (items, totalAmount, customerInfo, marketing
                 totalAmount,
                 currency: 'ILS',
                 customerInfo,
-                marketing_consent: !!marketingConsent
+                marketing_consent: !!marketingConsent,
+                couponDiscount,
+                deliveryFee
             }),
         });
 

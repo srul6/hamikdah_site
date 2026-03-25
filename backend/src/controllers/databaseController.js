@@ -808,6 +808,116 @@ class DatabaseController {
         }
     }
 
+    // ===== COUPONS =====
+
+    mapCouponRow(row) {
+        if (!row) return null;
+        const d = (v) => {
+            if (!v) return '';
+            if (v instanceof Date) return v.toISOString().split('T')[0];
+            const s = String(v);
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+            const dt = new Date(s);
+            return Number.isNaN(dt.getTime()) ? s : dt.toISOString().split('T')[0];
+        };
+        return {
+            id: row.id,
+            code: row.code,
+            discount: parseFloat(row.discount),
+            type: row.type,
+            minAmount: parseFloat(row.min_amount),
+            maxDiscount: parseFloat(row.max_discount),
+            validFrom: d(row.valid_from),
+            validUntil: d(row.valid_until),
+            isActive: row.is_active,
+            usageCount: parseInt(row.usage_count, 10) || 0,
+            maxUsage: parseInt(row.max_usage, 10) || 0
+        };
+    }
+
+    async getAllCoupons() {
+        const r = await pool.query('SELECT * FROM coupons ORDER BY id ASC');
+        return (r.rows || []).map((row) => this.mapCouponRow(row));
+    }
+
+    async getCouponByCode(code) {
+        if (!code || typeof code !== 'string') return null;
+        const r = await pool.query(
+            'SELECT * FROM coupons WHERE UPPER(TRIM(code)) = UPPER(TRIM($1)) LIMIT 1',
+            [code]
+        );
+        return r.rows[0] ? this.mapCouponRow(r.rows[0]) : null;
+    }
+
+    async createCoupon(data) {
+        const r = await pool.query(
+            `INSERT INTO coupons (
+                code, discount, type, min_amount, max_discount, valid_from, valid_until, is_active, usage_count, max_usage
+            ) VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10)
+            RETURNING *`,
+            [
+                String(data.code).toUpperCase().trim(),
+                parseFloat(data.discount),
+                data.type,
+                parseFloat(data.minAmount) || 0,
+                parseFloat(data.maxDiscount),
+                data.validFrom,
+                data.validUntil,
+                data.isActive !== false,
+                parseInt(data.usageCount, 10) || 0,
+                parseInt(data.maxUsage, 10) || 100
+            ]
+        );
+        return this.mapCouponRow(r.rows[0]);
+    }
+
+    async updateCoupon(id, body) {
+        const existing = await pool.query('SELECT * FROM coupons WHERE id = $1', [id]);
+        if (!existing.rows[0]) return null;
+
+        const cur = existing.rows[0];
+        const next = {
+            code: body.code !== undefined ? String(body.code).toUpperCase().trim() : cur.code,
+            discount: body.discount !== undefined ? parseFloat(body.discount) : parseFloat(cur.discount),
+            type: body.type !== undefined ? body.type : cur.type,
+            min_amount: body.minAmount !== undefined ? parseFloat(body.minAmount) : parseFloat(cur.min_amount),
+            max_discount: body.maxDiscount !== undefined ? parseFloat(body.maxDiscount) : parseFloat(cur.max_discount),
+            valid_from: body.validFrom !== undefined ? body.validFrom : cur.valid_from,
+            valid_until: body.validUntil !== undefined ? body.validUntil : cur.valid_until,
+            is_active: body.isActive !== undefined ? !!body.isActive : cur.is_active,
+            usage_count: body.usageCount !== undefined ? parseInt(body.usageCount, 10) : parseInt(cur.usage_count, 10),
+            max_usage: body.maxUsage !== undefined ? parseInt(body.maxUsage, 10) : parseInt(cur.max_usage, 10)
+        };
+
+        const r = await pool.query(
+            `UPDATE coupons SET
+                code = $1, discount = $2, type = $3, min_amount = $4, max_discount = $5,
+                valid_from = $6::date, valid_until = $7::date, is_active = $8, usage_count = $9, max_usage = $10,
+                updated_at = NOW()
+            WHERE id = $11
+            RETURNING *`,
+            [
+                next.code,
+                next.discount,
+                next.type,
+                next.min_amount,
+                next.max_discount,
+                next.valid_from,
+                next.valid_until,
+                next.is_active,
+                next.usage_count,
+                next.max_usage,
+                id
+            ]
+        );
+        return r.rows[0] ? this.mapCouponRow(r.rows[0]) : null;
+    }
+
+    async deleteCoupon(id) {
+        const r = await pool.query('DELETE FROM coupons WHERE id = $1 RETURNING id', [id]);
+        return r.rowCount > 0;
+    }
+
     // ===== LOGIN ATTEMPTS BY IP (brute-force protection, server-side) =====
 
     async getLoginLockStatusByIp(ip) {

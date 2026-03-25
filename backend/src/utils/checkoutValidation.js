@@ -26,6 +26,9 @@ const LIMITS = {
 };
 
 const MAX_LINE_ITEMS = 50;
+const MAX_DELIVERY_FEE = 50;
+/** Tolerance for ILS totals (agorot / float noise). */
+const TOTAL_EPSILON = 0.05;
 
 // Pragmatic email check (RFC 5322 full validation is overkill here)
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -159,24 +162,82 @@ function validateItems(items) {
 }
 
 /**
- * Payment form: items + total + customerInfo
+ * Payment form: items + total + customerInfo; optional couponDiscount + deliveryFee when both sent
+ * (so Green Invoice income lines can match amount when coupon and delivery apply together).
  */
-function validateCheckoutRequest({ items, totalAmount, customerInfo }) {
+function validateCheckoutRequest({ items, totalAmount, customerInfo, couponDiscount: couponDiscountRaw, deliveryFee: deliveryFeeRaw }) {
     const itemResult = validateItems(items);
-    if (!itemResult.ok) return { ok: false, errors: itemResult.errors, customerInfo: null, items: null };
+    if (!itemResult.ok) return { ok: false, errors: itemResult.errors, customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
 
     const cust = validateCustomerInfo(customerInfo);
-    if (!cust.ok) return { ok: false, errors: cust.errors, customerInfo: null, items: null };
+    if (!cust.ok) return { ok: false, errors: cust.errors, customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
 
     const total = parseFloat(totalAmount);
     if (Number.isNaN(total) || total <= 0) {
-        return { ok: false, errors: ['Total amount must be a positive number'], customerInfo: null, items: null };
+        return { ok: false, errors: ['Total amount must be a positive number'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
     }
     if (total > 1e8) {
-        return { ok: false, errors: ['Total amount is too large'], customerInfo: null, items: null };
+        return { ok: false, errors: ['Total amount is too large'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
     }
 
-    return { ok: true, errors: [], customerInfo: cust.sanitized, items: itemResult.sanitized };
+    const calculatedLineTotal = itemResult.sanitized.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+    );
+
+    let couponDiscount = 0;
+    let deliveryFee = 0;
+
+    const explicitBreakdown =
+        couponDiscountRaw !== undefined &&
+        couponDiscountRaw !== null &&
+        deliveryFeeRaw !== undefined &&
+        deliveryFeeRaw !== null;
+
+    if (explicitBreakdown) {
+        couponDiscount = parseFloat(couponDiscountRaw);
+        deliveryFee = parseFloat(deliveryFeeRaw);
+        if (Number.isNaN(couponDiscount) || couponDiscount < 0) {
+            return { ok: false, errors: ['couponDiscount must be a valid non-negative number'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+        if (Number.isNaN(deliveryFee) || deliveryFee < 0) {
+            return { ok: false, errors: ['deliveryFee must be a valid non-negative number'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+        if (couponDiscount > calculatedLineTotal + TOTAL_EPSILON) {
+            return { ok: false, errors: ['couponDiscount cannot exceed line items subtotal'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+        if (deliveryFee > MAX_DELIVERY_FEE) {
+            return { ok: false, errors: ['deliveryFee is too large'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+        const expected = calculatedLineTotal - couponDiscount + deliveryFee;
+        if (Math.abs(expected - total) > TOTAL_EPSILON) {
+            return { ok: false, errors: ['Total amount does not match items, discount, and delivery'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+    } else {
+        const delta = total - calculatedLineTotal;
+        if (delta > TOTAL_EPSILON) {
+            deliveryFee = delta;
+            couponDiscount = 0;
+        } else if (delta < -TOTAL_EPSILON) {
+            couponDiscount = -delta;
+            deliveryFee = 0;
+        }
+        if (deliveryFee > MAX_DELIVERY_FEE) {
+            return { ok: false, errors: ['Inferred delivery fee is too large'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+        if (couponDiscount > calculatedLineTotal + TOTAL_EPSILON) {
+            return { ok: false, errors: ['Inferred discount exceeds line items subtotal'], customerInfo: null, items: null, couponDiscount: null, deliveryFee: null };
+        }
+    }
+
+    return {
+        ok: true,
+        errors: [],
+        customerInfo: cust.sanitized,
+        items: itemResult.sanitized,
+        couponDiscount,
+        deliveryFee
+    };
 }
 
 /**

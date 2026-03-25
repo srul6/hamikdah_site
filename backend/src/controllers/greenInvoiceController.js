@@ -45,10 +45,10 @@ class GreenInvoiceController {
         }
 
         try {
-            let { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent } = req.body;
+            let { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent, couponDiscount, deliveryFee } = req.body;
             const marketingConsent = !!marketing_consent;
 
-            const validated = validateCheckoutRequest({ items, totalAmount, customerInfo });
+            const validated = validateCheckoutRequest({ items, totalAmount, customerInfo, couponDiscount, deliveryFee });
             if (!validated.ok) {
                 if (dev) {
                     console.warn('Payment form validation failed:', validated.errors);
@@ -62,14 +62,10 @@ class GreenInvoiceController {
             }
             items = validated.items;
             customerInfo = validated.customerInfo;
+            const discountAmount = validated.couponDiscount || 0;
+            const deliveryFeeAmount = validated.deliveryFee || 0;
 
             const checkoutSessionId = Date.now();
-
-            // Calculate total amount from items
-            const calculatedTotal = items.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
-
-            // Check if there's a delivery fee (when totalAmount > calculatedTotal)
-            const deliveryFee = totalAmount > calculatedTotal ? totalAmount - calculatedTotal : 0;
 
             // Installments: each payment ≥ ₪50, at least 1 payment, cap at 6
             const totalNumeric = parseFloat(totalAmount);
@@ -116,11 +112,16 @@ class GreenInvoiceController {
                             vatType: 1
                         };
                     }),
-                    // Add delivery fee as a separate income item if applicable
-                    ...(deliveryFee > 0 ? [{
+                    ...(deliveryFeeAmount > 0 ? [{
                         description: 'משלוח עד הבית',
                         quantity: 1,
-                        price: deliveryFee,
+                        price: deliveryFeeAmount,
+                        vatType: 1
+                    }] : []),
+                    ...(discountAmount > 0 ? [{
+                        description: 'הנחה (קופון)',
+                        quantity: 1,
+                        price: -discountAmount,
                         vatType: 1
                     }] : [])
                 ],
@@ -149,7 +150,9 @@ class GreenInvoiceController {
                     dedication: customerInfo.dedication || '',
                     marketing_consent: marketingConsent,
                     amount: totalAmount,
-                    currency: currency
+                    currency: currency,
+                    couponDiscount: discountAmount,
+                    deliveryFee: deliveryFeeAmount
                 })
             };
 
@@ -660,7 +663,7 @@ class GreenInvoiceController {
             const response = await axios.post(serverUrl, orderData, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.SERVER_API_KEY || ''}`
+                    'x-internal-secret': process.env.INTERNAL_API_SECRET || ''
                 },
                 timeout: 10000
             });

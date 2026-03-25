@@ -21,6 +21,25 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+/** Server-to-server order creation (e.g. Green Invoice webhook → same backend). */
+function requireInternalOrderSecret(req, res, next) {
+    const expected = process.env.INTERNAL_API_SECRET;
+    if (!expected || String(expected).trim() === '') {
+        console.error('❌ INTERNAL_API_SECRET is not set; refusing POST /api/orders');
+        return res.status(503).json({
+            success: false,
+            message: 'Service misconfigured'
+        });
+    }
+    if (req.headers['x-internal-secret'] !== expected) {
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized'
+        });
+    }
+    next();
+}
+
 // GET endpoint to retrieve all orders (admin only)
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
     try {
@@ -38,7 +57,7 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve orders',
-            message: error.message
+            message: 'Failed to retrieve orders'
         });
     }
 });
@@ -69,13 +88,13 @@ router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve order',
-            message: error.message
+            message: 'Failed to retrieve order'
         });
     }
 });
 
-// POST endpoint to create a new order (usually called from webhook)
-router.post('/', async (req, res) => {
+// POST endpoint to create a new order (webhook / internal — requires x-internal-secret)
+router.post('/', requireInternalOrderSecret, async (req, res) => {
     try {
         console.log('📝 Creating new order...');
         const validated = validateOrderCreatePayload(req.body);

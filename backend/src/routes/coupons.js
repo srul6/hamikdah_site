@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
+const { databaseController } = require('../config/database');
 
 function requireAdmin(req, res, next) {
     if (!req.admin) {
@@ -18,213 +19,252 @@ function requireAdmin(req, res, next) {
     next();
 }
 
-// In-memory storage for coupons (in production, use a database)
-let coupons = [
-    {
-        id: 1,
-        code: 'WELCOME10',
-        discount: 10, // 10% discount
-        type: 'percentage', // 'percentage' or 'fixed'
-        minAmount: 0, // minimum order amount
-        maxDiscount: 50, // maximum discount amount
-        validFrom: '2025-01-01',
-        validUntil: '2025-12-31',
-        isActive: true,
-        usageCount: 0,
-        maxUsage: 100
-    },
-    {
-        id: 2,
-        code: 'SAVE20',
-        discount: 20, // 20 ILS discount
-        type: 'fixed',
-        minAmount: 100,
-        maxDiscount: 20,
-        validFrom: '2025-01-01',
-        validUntil: '2025-12-31',
-        isActive: true,
-        usageCount: 0,
-        maxUsage: 50
-    }
-];
+// Apply coupon (public — must be registered before GET /:code if code could be "apply"; POST is distinct)
+router.post('/apply', async (req, res) => {
+    try {
+        const { code, totalAmount } = req.body;
 
-// Get all coupons (admin only)
-router.get('/', (req, res) => {
-    res.json({
-        success: true,
-        coupons: coupons
-    });
+        if (!code || totalAmount === undefined || totalAmount === null) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields'
+            });
+        }
+
+        const coupon = await databaseController.getCouponByCode(code);
+
+        if (!coupon || !coupon.isActive) {
+            return res.status(404).json({
+                success: false,
+                message_en: 'Coupon not found or inactive',
+                message_he: 'אממ, נראה שאין קוד קופון כזה:('
+            });
+        }
+
+        const now = new Date();
+        const validFrom = new Date(coupon.validFrom);
+        const validUntil = new Date(coupon.validUntil);
+
+        if (now < validFrom || now > validUntil) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon has expired or is not yet valid'
+            });
+        }
+
+        if (coupon.usageCount >= coupon.maxUsage) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon usage limit reached'
+            });
+        }
+
+        const total = parseFloat(totalAmount);
+        if (total < coupon.minAmount) {
+            return res.status(400).json({
+                success: false,
+                message: `Minimum order amount is ₪${coupon.minAmount}`
+            });
+        }
+
+        let discountAmount = 0;
+        if (coupon.type === 'percentage') {
+            discountAmount = (total * coupon.discount) / 100;
+            discountAmount = Math.min(discountAmount, coupon.maxDiscount);
+        } else {
+            discountAmount = Math.min(coupon.discount, coupon.maxDiscount);
+        }
+
+        const finalAmount = Math.max(0, total - discountAmount);
+
+        res.json({
+            success: true,
+            coupon,
+            originalAmount: total,
+            discountAmount,
+            finalAmount
+        });
+    } catch (error) {
+        console.error('❌ Coupon apply error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to apply coupon'
+        });
+    }
 });
 
-// Get coupon by code
-router.get('/:code', (req, res) => {
-    const { code } = req.params;
-    const coupon = coupons.find(c => c.code.toUpperCase() === code.toUpperCase() && c.isActive);
-
-    if (!coupon) {
-        return res.status(404).json({
+// Get all coupons (admin only)
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const coupons = await databaseController.getAllCoupons();
+        res.json({
+            success: true,
+            coupons
+        });
+    } catch (error) {
+        console.error('❌ Error listing coupons:', error);
+        res.status(500).json({
             success: false,
-            message_en: 'Coupon not found or inactive',
-            message_he: 'אממ, נראה שאין קוד קופון כזה:('
+            message: 'Failed to retrieve coupons'
         });
     }
+});
 
-    // Check if coupon is still valid
-    const now = new Date();
-    const validFrom = new Date(coupon.validFrom);
-    const validUntil = new Date(coupon.validUntil);
+// Get coupon by code (public — for checkout validation)
+router.get('/:code', async (req, res) => {
+    try {
+        const { code } = req.params;
+        const coupon = await databaseController.getCouponByCode(code);
 
-    if (now < validFrom || now > validUntil) {
-        return res.status(400).json({
+        if (!coupon || !coupon.isActive) {
+            return res.status(404).json({
+                success: false,
+                message_en: 'Coupon not found or inactive',
+                message_he: 'אממ, נראה שאין קוד קופון כזה:('
+            });
+        }
+
+        const now = new Date();
+        const validFrom = new Date(coupon.validFrom);
+        const validUntil = new Date(coupon.validUntil);
+
+        if (now < validFrom || now > validUntil) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon has expired or is not yet valid'
+            });
+        }
+
+        if (coupon.usageCount >= coupon.maxUsage) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon usage limit reached'
+            });
+        }
+
+        res.json({
+            success: true,
+            coupon
+        });
+    } catch (error) {
+        console.error('❌ Error fetching coupon:', error);
+        res.status(500).json({
             success: false,
-            message: 'Coupon has expired or is not yet valid'
+            message: 'Failed to retrieve coupon'
         });
     }
-
-    // Check usage limit
-    if (coupon.usageCount >= coupon.maxUsage) {
-        return res.status(400).json({
-            success: false,
-            message: 'Coupon usage limit reached'
-        });
-    }
-
-    res.json({
-        success: true,
-        coupon: coupon
-    });
 });
 
 // Create new coupon (admin only)
-router.post('/', requireAuth, requireAdmin, (req, res) => {
-    const { code, discount, type, minAmount, maxDiscount, validFrom, validUntil, maxUsage } = req.body;
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const { code, discount, type, minAmount, maxDiscount, validFrom, validUntil, maxUsage } = req.body;
 
-    if (!code || !discount || !type) {
-        return res.status(400).json({
+        if (!code || discount === undefined || !type) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields'
+            });
+        }
+
+        const existing = await databaseController.getCouponByCode(code);
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon code already exists'
+            });
+        }
+
+        const newCoupon = await databaseController.createCoupon({
+            code: code.toUpperCase(),
+            discount: parseFloat(discount),
+            type,
+            minAmount: parseFloat(minAmount) || 0,
+            maxDiscount: parseFloat(maxDiscount) || parseFloat(discount),
+            validFrom: validFrom || new Date().toISOString().split('T')[0],
+            validUntil: validUntil || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            isActive: true,
+            usageCount: 0,
+            maxUsage: parseInt(maxUsage, 10) || 100
+        });
+
+        res.json({
+            success: true,
+            message: 'Coupon created successfully',
+            coupon: newCoupon
+        });
+    } catch (error) {
+        console.error('❌ Error creating coupon:', error);
+        if (error.code === '23505') {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon code already exists'
+            });
+        }
+        res.status(500).json({
             success: false,
-            message: 'Missing required fields'
+            message: 'Failed to create coupon'
         });
     }
-
-    // Check if code already exists
-    if (coupons.find(c => c.code.toUpperCase() === code.toUpperCase())) {
-        return res.status(400).json({
-            success: false,
-            message: 'Coupon code already exists'
-        });
-    }
-
-    const newCoupon = {
-        id: Date.now(),
-        code: code.toUpperCase(),
-        discount: parseFloat(discount),
-        type: type,
-        minAmount: parseFloat(minAmount) || 0,
-        maxDiscount: parseFloat(maxDiscount) || discount,
-        validFrom: validFrom || new Date().toISOString().split('T')[0],
-        validUntil: validUntil || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        isActive: true,
-        usageCount: 0,
-        maxUsage: parseInt(maxUsage) || 100
-    };
-
-    coupons.push(newCoupon);
-
-    res.json({
-        success: true,
-        message: 'Coupon created successfully',
-        coupon: newCoupon
-    });
 });
 
 // Update coupon (admin only)
-router.put('/:id', requireAuth, requireAdmin, (req, res) => {
-    const { id } = req.params;
-    const couponIndex = coupons.findIndex(c => c.id === parseInt(id));
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updated = await databaseController.updateCoupon(parseInt(id, 10), req.body);
 
-    if (couponIndex === -1) {
-        return res.status(404).json({
+        if (!updated) {
+            return res.status(404).json({
+                success: false,
+                message: 'Coupon not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Coupon updated successfully',
+            coupon: updated
+        });
+    } catch (error) {
+        console.error('❌ Error updating coupon:', error);
+        if (error.code === '23505') {
+            return res.status(400).json({
+                success: false,
+                message: 'Coupon code already exists'
+            });
+        }
+        res.status(500).json({
             success: false,
-            message: 'Coupon not found'
+            message: 'Failed to update coupon'
         });
     }
-
-    const updatedCoupon = { ...coupons[couponIndex], ...req.body };
-    coupons[couponIndex] = updatedCoupon;
-
-    res.json({
-        success: true,
-        message: 'Coupon updated successfully',
-        coupon: updatedCoupon
-    });
 });
 
 // Delete coupon (admin only)
-router.delete('/:id', requireAuth, requireAdmin, (req, res) => {
-    const { id } = req.params;
-    const couponIndex = coupons.findIndex(c => c.id === parseInt(id));
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const ok = await databaseController.deleteCoupon(parseInt(id, 10));
 
-    if (couponIndex === -1) {
-        return res.status(404).json({
+        if (!ok) {
+            return res.status(404).json({
+                success: false,
+                message: 'Coupon not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Coupon deleted successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error deleting coupon:', error);
+        res.status(500).json({
             success: false,
-            message: 'Coupon not found'
+            message: 'Failed to delete coupon'
         });
     }
-
-    coupons.splice(couponIndex, 1);
-
-    res.json({
-        success: true,
-        message: 'Coupon deleted successfully'
-    });
-});
-
-// Apply coupon to order
-router.post('/apply', (req, res) => {
-    const { code, totalAmount } = req.body;
-
-    if (!code || !totalAmount) {
-        return res.status(400).json({
-            success: false,
-            message: 'Missing required fields'
-        });
-    }
-
-    const coupon = coupons.find(c => c.code.toUpperCase() === code.toUpperCase() && c.isActive);
-
-    if (!coupon) {
-        return res.status(404).json({
-            success: false,
-            message: 'Coupon not found or inactive'
-        });
-    }
-
-    // Check minimum amount
-    if (totalAmount < coupon.minAmount) {
-        return res.status(400).json({
-            success: false,
-            message: `Minimum order amount is ₪${coupon.minAmount}`
-        });
-    }
-
-    // Calculate discount
-    let discountAmount = 0;
-    if (coupon.type === 'percentage') {
-        discountAmount = (totalAmount * coupon.discount) / 100;
-        discountAmount = Math.min(discountAmount, coupon.maxDiscount);
-    } else {
-        discountAmount = Math.min(coupon.discount, coupon.maxDiscount);
-    }
-
-    const finalAmount = Math.max(0, totalAmount - discountAmount);
-
-    res.json({
-        success: true,
-        coupon: coupon,
-        originalAmount: totalAmount,
-        discountAmount: discountAmount,
-        finalAmount: finalAmount
-    });
 });
 
 module.exports = router;
