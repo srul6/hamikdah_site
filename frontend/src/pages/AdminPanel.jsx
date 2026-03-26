@@ -13,7 +13,9 @@ import CommentIcon from '@mui/icons-material/Comment';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import DownloadIcon from '@mui/icons-material/Download';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { API_ENDPOINTS } from '../config';
+import CouponsTab from './CouponsTab';
 import ImageUploader from '../components/ImageUploader';
 import VideoUploader from '../components/VideoUploader';
 import { fetchComments, createComment, updateComment, deleteComment } from '../api/comments';
@@ -775,6 +777,17 @@ export default function AdminPanel() {
               mx: 0.5
             }}
           />
+          <Tab
+            icon={<LocalOfferIcon />}
+            label="Coupons"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
         </Tabs>
       </Box>
 
@@ -1242,6 +1255,9 @@ export default function AdminPanel() {
           )}
         </>
       )}
+
+      {/* Coupons Tab */}
+      {activeTab === 3 && <CouponsTab />}
 
       {/* Product Dialog */}
       <Dialog

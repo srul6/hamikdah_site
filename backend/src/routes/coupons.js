@@ -158,7 +158,7 @@ router.get('/:code', async (req, res) => {
 // Create new coupon (admin only)
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const { code, discount, type, minAmount, maxDiscount, validFrom, validUntil, maxUsage } = req.body;
+        const { code, discount, type, minAmount, maxDiscount, validFrom, validUntil, maxUsage, isActive } = req.body;
 
         if (!code || discount === undefined || !type) {
             return res.status(400).json({
@@ -183,7 +183,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
             maxDiscount: parseFloat(maxDiscount) || parseFloat(discount),
             validFrom: validFrom || new Date().toISOString().split('T')[0],
             validUntil: validUntil || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            isActive: true,
+            isActive: isActive !== undefined ? !!isActive : true,
             usageCount: 0,
             maxUsage: parseInt(maxUsage, 10) || 100
         });
