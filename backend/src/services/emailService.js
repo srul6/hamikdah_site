@@ -1,87 +1,67 @@
-const sgMail = require('@sendgrid/mail');
+const { Resend } = require('resend');
 
 class EmailService {
     constructor() {
         this.adminEmail = (process.env.ADMIN_EMAIL || '').trim();
-        this.sendFromEmail = (process.env.SENDGRID_FROM_EMAIL || '').trim();
-        this.sendFromName = (process.env.SENDGRID_FROM_NAME || 'הזמנה חדשה').trim();
-        this.sendGridApiKey = (process.env.SENDGRID_API_KEY || '').trim();
+        this.sendFromEmail = (process.env.RESEND_FROM_EMAIL || '').trim();
+        this.sendFromName = (process.env.RESEND_FROM_NAME || 'הזמנה חדשה').trim();
+        this.resendApiKey = (process.env.RESEND_API_KEY || '').trim();
 
-        this.initializeSendGrid();
+        this.initializeResend();
     }
 
-    initializeSendGrid() {
-        if (!this.sendGridApiKey) {
-            console.warn('⚠️  Email service not configured - missing SENDGRID_API_KEY');
+    initializeResend() {
+        if (!this.resendApiKey) {
+            console.warn('⚠️  Email service not configured - missing RESEND_API_KEY');
             return;
         }
-
         if (!this.adminEmail) {
             console.warn('⚠️  Email service not configured - missing ADMIN_EMAIL');
             return;
         }
-
         if (!this.sendFromEmail) {
-            console.warn('⚠️  Email service incomplete - missing SENDGRID_FROM_EMAIL (verified sender in SendGrid). Order emails will fail until set.');
+            console.warn('⚠️  Email service incomplete - missing RESEND_FROM_EMAIL. Order emails will fail until set.');
             return;
         }
 
-        sgMail.setApiKey(this.sendGridApiKey);
-
+        this.resend = new Resend(this.resendApiKey);
     }
 
     async sendOrderNotification(orderData) {
-        if (!this.sendGridApiKey || !this.adminEmail) {
-            console.error('❌ Email service not configured - missing SENDGRID_API_KEY or ADMIN_EMAIL (check Render env vars)');
+        if (!this.resendApiKey || !this.adminEmail) {
+            console.error('❌ Email service not configured - missing RESEND_API_KEY or ADMIN_EMAIL');
             return false;
         }
-
         if (!this.sendFromEmail) {
-            console.error('❌ Email not sent: SENDGRID_FROM_EMAIL is empty. Set it in .env to a SendGrid-verified sender (same as Single Sender or domain).');
+            console.error('❌ Email not sent: RESEND_FROM_EMAIL is empty. Set it in .env to a verified Resend sender.');
             return false;
         }
 
         try {
-            const {
-                formId,
-                status,
-                documentId,
-                paymentId,
-                amount,
-                currency,
-                customerInfo,
-                items,
-                purchaseTimestamp,
-                dedication
-            } = orderData;
-
+            const { formId, status } = orderData;
             const subject = `🎉 הזמנה חדשה ${status.toUpperCase()} - מספר: ${formId.slice(0, 8)}`;
+            const fromField = this.sendFromName
+                ? `${this.sendFromName} <${this.sendFromEmail}>`
+                : this.sendFromEmail;
 
-            const htmlContent = this.generateOrderEmailHTML(orderData);
-            const textContent = this.generateOrderEmailText(orderData);
-
-            const msg = {
+            const { error } = await this.resend.emails.send({
+                from: fromField,
                 to: this.adminEmail,
-                from: {
-                    email: this.sendFromEmail,
-                    ...(this.sendFromName ? { name: this.sendFromName } : {})
-                },
                 subject: subject,
-                text: textContent,
-                html: htmlContent
-            };
+                html: this.generateOrderEmailHTML(orderData),
+                text: this.generateOrderEmailText(orderData),
+            });
 
-            console.log('📧 Sending email notification to:', this.adminEmail);
-            const result = await sgMail.send(msg);
-            console.log('✅ Order notification email sent successfully via SendGrid');
-            console.log('   Response status:', result[0]?.statusCode);
+            if (error) {
+                console.error('❌ Failed to send order notification email via Resend:', error);
+                return false;
+            }
+
+            console.log('✅ Order notification email sent successfully via Resend');
             return true;
 
         } catch (error) {
-            console.error('❌ Failed to send order notification email via SendGrid:', error);
-            if (error.response) {
-                console.error('   SendGrid error details:', error.response.body);
-            }
+            console.error('❌ Failed to send order notification email via Resend:', error);
             return false;
         }
     }

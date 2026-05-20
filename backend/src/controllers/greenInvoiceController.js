@@ -501,7 +501,7 @@ class GreenInvoiceController {
                 if (emailSent) {
                     console.log('✅ Admin email notification sent successfully');
                 } else {
-                    console.error('❌ Admin email not sent (service not configured or SendGrid failed – check SENDGRID_API_KEY, ADMIN_EMAIL and server logs)');
+                    console.error('❌ Admin email not sent (service not configured or Resend failed – check RESEND_API_KEY, RESEND_FROM_EMAIL, ADMIN_EMAIL and server logs)');
                 }
             } catch (error) {
                 console.error('❌ Failed to send admin email notification:', error);
