@@ -8,6 +8,10 @@ yarn-error.log*
 frontend/build/
 backend/dist/
 
+# Google service account keys (never commit)
+*-sheets-*.json
+hamikdash-sheets*.json
+
 # Environment variables
 .env
 .env.local

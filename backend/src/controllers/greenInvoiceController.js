@@ -1,5 +1,6 @@
 const GreenInvoiceService = require('../services/greenInvoiceService');
 const EmailService = require('../services/emailService');
+const GoogleSheetsService = require('../services/googleSheetsService');
 const { databaseController } = require('../config/database');
 const axios = require('axios'); // Added for testing document types
 const { validateCheckoutRequest } = require('../utils/checkoutValidation');
@@ -23,6 +24,7 @@ class GreenInvoiceController {
     constructor() {
         this.greenInvoiceService = new GreenInvoiceService();
         this.emailService = new EmailService();
+        this.googleSheetsService = new GoogleSheetsService();
         this.databaseController = databaseController; // Use the database controller from config
         this.processedWebhooks = new Set(); // Track processed webhooks to prevent duplicates
         console.log('GreenInvoice Controller initialized');
@@ -505,6 +507,19 @@ class GreenInvoiceController {
                 }
             } catch (error) {
                 console.error('❌ Failed to send admin email notification:', error);
+            }
+
+            // Append order row to Google Sheets (independent of email — failures do not block each other)
+            console.log('📊 Appending order to Google Sheets...');
+            try {
+                const sheetAppended = await this.googleSheetsService.sendOrderToGoogleSheet(orderData);
+                if (sheetAppended) {
+                    console.log('✅ Order row appended to Google Sheets');
+                } else {
+                    console.error('❌ Order not appended to Google Sheets (service not configured or API failed – check GOOGLE_* env vars and server logs)');
+                }
+            } catch (error) {
+                console.error('❌ Failed to append order to Google Sheets:', error);
             }
 
             // Handle different payment statuses

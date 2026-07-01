@@ -87,17 +87,24 @@ router.get('/test-email', blockTestRoutesInProduction, async (req, res) => {
         };
 
         const emailService = greenInvoiceController.emailService;
-        const result = await emailService.sendOrderNotification(testOrderData);
+        const googleSheetsService = greenInvoiceController.googleSheetsService;
 
-        if (result) {
+        const emailResult = await emailService.sendOrderNotification(testOrderData);
+        const sheetResult = await googleSheetsService.sendOrderToGoogleSheet(testOrderData);
+
+        if (emailResult || sheetResult) {
             res.json({
                 success: true,
-                message: 'Test email sent successfully'
+                message: 'Test completed',
+                email: emailResult ? 'sent' : 'failed',
+                googleSheets: sheetResult ? 'appended' : 'failed'
             });
         } else {
             res.status(500).json({
                 success: false,
-                message: 'Failed to send test email. Check server logs for details.'
+                message: 'Failed to send test email and append to Google Sheets. Check server logs for details.',
+                email: 'failed',
+                googleSheets: 'failed'
             });
         }
     } catch (error) {
