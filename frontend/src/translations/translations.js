@@ -48,7 +48,7 @@ export const translations = {
         shoppingCart: 'עגלת קניות',
         orderSummary: 'סיכום הזמנה',
         couponCode: 'קוד קופון',
-        enterCouponCode: 'הכנס קוד קופון',
+        enterCouponCode: 'יש לך קופון?',
         apply: 'החל',
         subtotal: 'סכום ביניים',
         discount: 'הנחה',
