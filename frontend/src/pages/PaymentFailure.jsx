@@ -73,7 +73,7 @@ export default function PaymentFailure() {
                         onClick={handleContinueShopping}
                         sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                     >
-                        {t.continueShopping}
+                        {isHebrew ? t.backToWebsite : t.continueShopping}
                     </Button>
                 </Paper>
             </Container>
@@ -190,7 +190,7 @@ export default function PaymentFailure() {
 
                         }}
                     >
-                        {t.continueShopping}
+                        {isHebrew ? t.backToWebsite : t.continueShopping}
                     </Button>
                 </Box>
 

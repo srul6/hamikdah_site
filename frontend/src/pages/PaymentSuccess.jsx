@@ -8,6 +8,7 @@ import { CheckCircle, Receipt, Email } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCart } from '../contexts/CartContext';
 import { translations } from '../translations/translations';
+import { clearCheckoutDeliveryPreferences } from '../utils/cookieManager';
 
 export default function PaymentSuccess() {
     const [searchParams] = useSearchParams();
@@ -37,6 +38,7 @@ export default function PaymentSuccess() {
 
             // Clear the cart after successful payment
             clearCart();
+            clearCheckoutDeliveryPreferences();
         } else {
             setError('Payment details not found');
         }
@@ -78,7 +80,7 @@ export default function PaymentSuccess() {
                         onClick={handleContinueShopping}
                         sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}
                     >
-                        {t.continueShopping}
+                        {isHebrew ? t.backToWebsite : t.continueShopping}
                     </Button>
                 </Paper>
             </Container>
@@ -207,7 +209,7 @@ export default function PaymentSuccess() {
                             direction: isHebrew ? 'rtl' : 'ltr'
                         }}
                     >
-                        {t.continueShopping}
+                        {isHebrew ? t.backToWebsite : t.continueShopping}
                     </Button>
                 </Box>
 

@@ -37,7 +37,6 @@ export function CartProvider({ children }) {
                 price: item.price,
                 name_he: item.name_he,
                 name_en: item.name_en,
-                displayName: item.displayName,
                 homepageimage: item.homepageimage,
                 addedAt: item.addedAt
             }));
@@ -69,13 +68,10 @@ export function CartProvider({ children }) {
             } else {
                 // Add new item with all necessary fields
                 const newItem = {
-                    ...product, // Include all product fields
+                    ...product,
                     quantity: quantity,
                     selectedColor: selectedColor,
                     uniqueId: uniqueId,
-                    displayName: selectedColor ?
-                        `${product.name_he || product.name_en} - ${selectedColor.name_he || selectedColor.name}` :
-                        (product.name_he || product.name_en),
                     addedAt: new Date().toISOString()
                 };
                 return [...prevCart, newItem];

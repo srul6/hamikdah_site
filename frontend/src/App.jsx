@@ -27,21 +27,7 @@ function AppContent() {
 
     // Wrapper function to maintain compatibility with existing addToCart signature
     const handleAddToCart = (product, selectedColor = null) => {
-        // Create uniqueId for compatibility
-        const colorId = selectedColor ? selectedColor.name || selectedColor.name_en : null;
-        const uniqueId = colorId ? `${product.id}-${colorId}` : product.id;
-
-        // Add displayName for compatibility
-        const displayName = selectedColor ?
-            `${product.name_he || product.name_en} - ${selectedColor.name_he || selectedColor.name}` :
-            (product.name_he || product.name_en);
-
-        // Use context's addToCart with color
-        addToCartContext({
-            ...product,
-            uniqueId,
-            displayName
-        }, 1, selectedColor);
+        addToCartContext(product, 1, selectedColor);
     };
 
     // Wrapper for removeFromCart to use uniqueId

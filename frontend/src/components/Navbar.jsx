@@ -15,6 +15,7 @@ import { fetchProducts } from '../api/products';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
+import { getCartItemDisplayName } from '../utils/cartDisplayName';
 
 // Add CSS animation for smooth slide-down
 const slideDownAnimation = `
@@ -757,7 +758,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                                                 item.selectedColor.mainImage :
                                                                 (item.homepageimage || '/logo.png')
                                                         }
-                                                        alt={item.displayName || (isHebrew ? item.name_he : item.name_en)}
+                                                        alt={getCartItemDisplayName(item, isHebrew)}
                                                         style={{
                                                             width: '100%',
                                                             height: '100%',
@@ -779,7 +780,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                                             whiteSpace: 'nowrap'
                                                         }}
                                                     >
-                                                        {item.displayName || (isHebrew ? item.name_he : item.name_en)}
+                                                        {getCartItemDisplayName(item, isHebrew)}
                                                     </Typography>
 
                                                     <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>

@@ -19,6 +19,11 @@ import {
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { API_ENDPOINTS } from '../config';
+import {
+    getHomeDeliveryPreference,
+    saveHomeDeliveryPreference
+} from '../utils/cookieManager';
+import { getCartItemDisplayName } from '../utils/cartDisplayName';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const navigate = useNavigate();
@@ -30,7 +35,12 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const [couponError, setCouponError] = useState('');
     const [couponSuccess, setCouponSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [homeDelivery, setHomeDelivery] = useState(false);
+    const [homeDelivery, setHomeDeliveryState] = useState(() => getHomeDeliveryPreference());
+
+    const setHomeDelivery = (enabled) => {
+        setHomeDeliveryState(enabled);
+        saveHomeDeliveryPreference(enabled);
+    };
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -45,7 +55,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     // Apply coupon
     const handleApplyCoupon = async () => {
         if (!couponCode.trim()) {
-            setCouponError(isHebrew ? 'נא להזין קוד קופון' : 'Please enter a coupon code');
+            setCouponError(t.enterCouponCodeRequired);
             return;
         }
 
@@ -69,13 +79,13 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
             if (data.success) {
                 setAppliedCoupon(data);
-                setCouponSuccess((isHebrew ? `יש! חסכת ₪${data.discountAmount.toFixed(2)}` : `Coupon applied! You saved ₪${data.discountAmount.toFixed(2)}`));
+                setCouponSuccess(`${t.couponAppliedPrefix}${data.discountAmount.toFixed(2)}`);
                 setCouponCode('');
             } else {
-                setCouponError((isHebrew ? data.message_he : data.message_en) || (isHebrew ? 'אממ, נראה שאין קוד קופון כזה :(' : 'Coupon not found or inactive'));
+                setCouponError((isHebrew ? data.message_he : data.message_en) || t.couponNotFound);
             }
         } catch (error) {
-            setCouponError(isHebrew ? 'שגיאת רשת. נסו שוב.' : 'Network error. Please try again.');
+            setCouponError(t.networkErrorRetry);
         } finally {
             setIsLoading(false);
         }
@@ -91,6 +101,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     // Continue to payment
     const handleContinueToPayment = () => {
         if (cart.length === 0) return;
+
+        saveHomeDeliveryPreference(homeDelivery);
 
         navigate('/payment', {
             state: {
@@ -111,7 +123,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 <Box
                     component="img"
                     src="/empty_bag.webp"
-                    alt="Empty cart"
+                    alt={t.emptyCartAlt}
                     sx={{
                         width: { xs: '150px', sm: '200px', md: '250px' },
                         height: 'auto',
@@ -183,7 +195,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         item.selectedColor.mainImage :
                                                         (item.homepageimage || '/logo.png')
                                                 }
-                                                alt={item.displayName || (isHebrew ? item.name_he : item.name_en)}
+                                                alt={getCartItemDisplayName(item, isHebrew)}
                                                 sx={{
                                                     objectFit: 'cover',
                                                     cursor: 'pointer',
@@ -245,7 +257,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         lineHeight: '1.1',
                                                         textAlign: 'right',
                                                     }}>
-                                                        {item.displayName || (isHebrew ? item.name_he : item.name_en)}
+                                                        {getCartItemDisplayName(item, isHebrew)}
                                                     </Typography>
 
 
@@ -426,7 +438,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 ) : (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Chip
-                                            label={`${appliedCoupon.coupon.code} - ₪${appliedCoupon.discountAmount.toFixed(2)} off`}
+                                            label={`${appliedCoupon.coupon.code} - ₪${appliedCoupon.discountAmount.toFixed(2)} ${isHebrew ? t.discount : t.couponOffSuffix}`}
                                             color="success"
                                             onDelete={handleRemoveCoupon}
                                         />
@@ -515,39 +527,40 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                             fontSize: { xs: '0.9rem', md: '1.1rem' }
                                                         }}
                                                     >
-                                                        {isHebrew ? 'יש לך משלוח עד הבית!' : 'You have home delivery!'}
+                                                        {t.youHaveHomeDelivery}
                                                     </Typography>
                                                 </Box>
                                             </Box>
                                             <Typography
                                                 variant="body2"
-                                                color="rgba(229, 90, 61, 1)"
                                                 sx={{
+                                                    color: 'rgb(21, 20, 20)',
                                                     mt: 2.5,
                                                     mb: 1.1,
                                                     textAlign: 'center',
                                                     direction: isHebrew ? 'rtl' : 'ltr',
                                                     fontSize: { xs: '0.9rem', md: '1rem' },
                                                     fontWeight: 'bold',
-
                                                 }}
                                             >
-                                                {isHebrew ? 'זמן אספקה עד 7 ימי עסקים' : 'Delivery time is 7 business days'}
+                                                {t.deliveryTime}
                                             </Typography>
                                         </>
                                     )}
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{
-                                            mb: 1,
-                                            textAlign: 'center',
-                                            direction: isHebrew ? 'rtl' : 'ltr',
-                                            fontSize: { xs: '0.8rem', md: '0.9rem' },
-                                        }}
-                                    >
-                                        {isHebrew ? 'בקנייה מעל 350 ₪ משלוח חינם' : 'Free delivery for purchases over 350₪'}
-                                    </Typography>
+                                    {subtotal < 350 && (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                mb: 1,
+                                                textAlign: 'center',
+                                                direction: isHebrew ? 'rtl' : 'ltr',
+                                                fontSize: { xs: '0.8rem', md: '0.9rem' },
+                                            }}
+                                        >
+                                            {t.freeDeliveryOver350}
+                                        </Typography>
+                                    )}
 
                                     {/* Delivery Selection Button (when total < 350) */}
                                     {subtotal < 350 && (
@@ -579,8 +592,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                 }}
                                             >
                                                 {homeDelivery
-                                                    ? (isHebrew ? '!יש לך משלוח עד הבית' : 'Home Delivery Selected')
-                                                    : (isHebrew ? 'הוסף משלוח עד הבית (+₪35)' : 'Add Home Delivery (+₪35)')
+                                                    ? t.homeDeliverySelected
+                                                    : t.addHomeDelivery
                                                 }
                                             </Button>
 
@@ -609,7 +622,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                         </Box>
                                     )}
 
-                                    {homeDelivery && (
+                                    {homeDelivery && subtotal < 350 && (
                                         <Typography
                                             variant="body2"
                                             color="rgb(21, 20, 20)"
@@ -622,7 +635,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                 pb: 0.5
                                             }}
                                         >
-                                            {isHebrew ? 'זמן אספקה עד 7 ימי עסקים' : 'Delivery time is 7 business days'}
+                                            {t.deliveryTime}
                                         </Typography>
                                     )}
 
@@ -639,7 +652,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                     fontSize: { xs: '0.8rem', md: '0.9rem' }
                                                 }}
                                             >
-                                                {isHebrew ? 'איסוף עצמי יתבצע מרחוב העליה 7 נתיבות' : 'Self-collection will be conducted on Aliya Street 7, Netivot'}
+                                                {t.selfCollectionInfo}
                                             </Typography>
 
                                         </>

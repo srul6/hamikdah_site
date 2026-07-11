@@ -154,7 +154,7 @@ export default function PaymentCancel() {
                             '&:hover': { backgroundColor: 'white' }
                         }}
                     >
-                        {t.continueShopping}
+                        {isHebrew ? t.backToWebsite : t.continueShopping}
                     </Button>
                 </Box>
 

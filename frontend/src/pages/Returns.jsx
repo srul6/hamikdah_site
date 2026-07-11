@@ -52,7 +52,7 @@ export default function Returns() {
                     {t.packageSecurely}<br />
                     {t.packageNote}<br /><br />
                     {t.shipToAddress}<br />
-                    {t.address}
+                    {t.storeAddress}
                 </Typography>
 
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>
@@ -69,10 +69,10 @@ export default function Returns() {
                     {t.damagedItems}
                 </Typography>
                 <Typography paragraph sx={legalBodySx}>
-                    {t.damagedItemsText}
+                    {isHebrew ? t.warrantyText : t.damagedItemsText}
                 </Typography>
                 <Typography paragraph sx={legalBodySecondarySx}>
-                    {t.damagedItemsNote}
+                    {t.warrantyNote}
                 </Typography>
 
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>
@@ -83,15 +83,15 @@ export default function Returns() {
                 </Typography>
 
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>
-                    {t.contactUs}
+                    {isHebrew ? t.contactUs : t.contactTitle}
                 </Typography>
                 <Typography paragraph sx={legalBodySx}>
                     {t.contactUsText}
                 </Typography>
                 <Typography paragraph sx={legalBodySx}>
-                    <strong>{isHebrew ? 'אימייל:' : 'Email:'}</strong> {t.returnsEmail}<br />
-                    <strong>{isHebrew ? 'טלפון:' : 'Phone:'}</strong> {t.returnsPhone}<br />
-                    <strong>{isHebrew ? 'כתובת:' : 'Address:'}</strong> {t.returnsAddress}
+                    <strong>{isHebrew ? 'אימייל:' : 'Email:'}</strong> {t.termsEmail}<br />
+                    <strong>{isHebrew ? 'טלפון:' : 'Phone:'}</strong> {t.termsPhone}<br />
+                    <strong>{isHebrew ? 'כתובת:' : 'Address:'}</strong> {t.storeAddress}
                 </Typography>
             </Paper>
         </Container>

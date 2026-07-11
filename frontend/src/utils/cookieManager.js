@@ -233,6 +233,49 @@ export function updatePreference(key, value) {
     return savePreferencesToCookie(currentPrefs);
 }
 
+export function getHomeDeliveryPreference() {
+    const prefs = getPreferencesFromCookie();
+    return prefs.homeDelivery === true;
+}
+
+export function saveHomeDeliveryPreference(enabled) {
+    if (enabled) {
+        return updatePreference('homeDelivery', true);
+    }
+    return clearHomeDeliveryPreference();
+}
+
+export function clearHomeDeliveryPreference() {
+    const currentPrefs = getPreferencesFromCookie();
+    delete currentPrefs.homeDelivery;
+    return savePreferencesToCookie(currentPrefs);
+}
+
+export function getHomeDeliveryOptOutPreference() {
+    const prefs = getPreferencesFromCookie();
+    return prefs.homeDeliveryOptOut === true;
+}
+
+export function saveHomeDeliveryOptOutPreference(optOut) {
+    if (optOut) {
+        return updatePreference('homeDeliveryOptOut', true);
+    }
+    return clearHomeDeliveryOptOutPreference();
+}
+
+export function clearHomeDeliveryOptOutPreference() {
+    const currentPrefs = getPreferencesFromCookie();
+    delete currentPrefs.homeDeliveryOptOut;
+    return savePreferencesToCookie(currentPrefs);
+}
+
+export function clearCheckoutDeliveryPreferences() {
+    const currentPrefs = getPreferencesFromCookie();
+    delete currentPrefs.homeDelivery;
+    delete currentPrefs.homeDeliveryOptOut;
+    return savePreferencesToCookie(currentPrefs);
+}
+
 // ===== UTILITY FUNCTIONS =====
 
 /**
@@ -306,6 +349,13 @@ export default {
     savePreferencesToCookie,
     getPreferencesFromCookie,
     updatePreference,
+    getHomeDeliveryPreference,
+    saveHomeDeliveryPreference,
+    clearHomeDeliveryPreference,
+    getHomeDeliveryOptOutPreference,
+    saveHomeDeliveryOptOutPreference,
+    clearHomeDeliveryOptOutPreference,
+    clearCheckoutDeliveryPreferences,
     getCookieSize,
     areCookiesEnabled,
     getAllCookies,

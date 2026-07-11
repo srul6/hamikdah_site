@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Container, Typography, Box, Button, Paper, TextField,
-    Grid, CircularProgress, Alert, Dialog, DialogTitle,
+    Grid, CircularProgress, Dialog, DialogTitle,
     DialogContent, DialogActions, FormControlLabel, Checkbox
 } from '@mui/material';
 import { IconButton } from '@mui/material';
@@ -9,10 +9,18 @@ import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material';
 import { getPaymentForm } from '../api/greenInvoice';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useFormData } from '../contexts/FormDataContext';
+import { useCart } from '../contexts/CartContext';
 import { translations } from '../translations/translations';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config';
+import {
+    getHomeDeliveryPreference,
+    saveHomeDeliveryPreference,
+    getHomeDeliveryOptOutPreference,
+    saveHomeDeliveryOptOutPreference
+} from '../utils/cookieManager';
 import DOMPurify from 'dompurify';
+import { getCartItemDisplayName } from '../utils/cartDisplayName';
 
 /** Max lengths — matches backend `checkoutValidation` (defense in depth with input maxLength). */
 const FIELD_MAX_LEN = {
@@ -28,31 +36,45 @@ const FIELD_MAX_LEN = {
     feedback: 500
 };
 
-/** Product line label for checkout summary (includes color when selected). */
-function getCheckoutLineLabel(item, isHebrew) {
-    const sc = item.selectedColor;
-    if (isHebrew) {
-        if (item.displayName) return item.displayName;
-        const base = item.name_he || item.name_en || item.name || '';
-        if (sc) {
-            const c = sc.name_he || sc.name || '';
-            return c ? `${base} - ${c}` : base;
-        }
-        return base;
-    }
-    const base = item.name_en || item.name_he || item.name || '';
-    if (sc) {
-        const c = sc.name_en || sc.name || '';
-        return c ? `${base} - ${c}` : base;
-    }
-    return base;
-}
-
 export default function GreenInvoicePayment() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { cart, subtotal, discount, total, appliedCoupon, homeDelivery, finalTotal } = location.state || {};
+    const { cart: contextCart, isLoading: cartLoading } = useCart();
+    const locationState = location.state || {};
+    const {
+        cart: stateCart,
+        subtotal: cartSubtotal,
+        discount: stateDiscount,
+        total: stateTotal,
+        appliedCoupon
+    } = locationState;
+    const checkoutCart = (Array.isArray(stateCart) && stateCart.length > 0)
+        ? stateCart
+        : (contextCart || []);
     const { formData: savedFormData, updateField, updateFields } = useFormData();
+
+    const [selectedHomeDelivery, setSelectedHomeDelivery] = useState(
+        () => getHomeDeliveryPreference()
+    );
+    const [homeDeliveryOptOut, setHomeDeliveryOptOut] = useState(
+        () => getHomeDeliveryOptOutPreference()
+    );
+
+    const updateHomeDelivery = (enabled) => {
+        setSelectedHomeDelivery(enabled);
+        saveHomeDeliveryPreference(enabled);
+    };
+
+    const clearAddressFieldErrors = () => {
+        setFieldErrors(prev => ({
+            ...prev,
+            street: null,
+            houseNumber: null,
+            city: null,
+            apartmentNumber: null,
+            floor: null
+        }));
+    };
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -116,19 +138,53 @@ export default function GreenInvoicePayment() {
 
     // Redirect if no cart data
     useEffect(() => {
-        if (!cart || !Array.isArray(cart) || cart.length === 0) {
+        if (cartLoading) return;
+        if (!checkoutCart.length) {
             navigate('/cart');
-            return;
         }
-    }, [cart, navigate]);
+    }, [checkoutCart, cartLoading, navigate]);
 
     // Scroll to top when component mounts
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
 
-    // Calculate total including delivery
-    const displayTotal = finalTotal || total;
+    const orderSubtotal = cartSubtotal ?? checkoutCart.reduce(
+        (sum, item) => sum + (Number(item.price || 0) * item.quantity),
+        0
+    );
+    const discount = stateDiscount ?? 0;
+    const orderTotal = stateTotal ?? (orderSubtotal - discount);
+    const qualifiesForFreeShipping = orderSubtotal >= 350;
+    const isHomeDelivery = (qualifiesForFreeShipping && !homeDeliveryOptOut) || selectedHomeDelivery;
+    const deliveryFee = selectedHomeDelivery && !qualifiesForFreeShipping ? 35 : 0;
+    const displayTotal = orderTotal + deliveryFee;
+
+    const removeHomeDelivery = () => {
+        if (qualifiesForFreeShipping) {
+            setHomeDeliveryOptOut(true);
+            saveHomeDeliveryOptOutPreference(true);
+        }
+        updateHomeDelivery(false);
+        clearAddressFieldErrors();
+    };
+
+    const addHomeDelivery = () => {
+        if (qualifiesForFreeShipping) {
+            setHomeDeliveryOptOut(false);
+            saveHomeDeliveryOptOutPreference(false);
+        } else {
+            updateHomeDelivery(true);
+        }
+    };
+
+    const toggleHomeDelivery = () => {
+        if (isHomeDelivery) {
+            removeHomeDelivery();
+        } else {
+            addHomeDelivery();
+        }
+    };
 
     // Validation functions
     const validateEmail = (email) => {
@@ -143,34 +199,34 @@ export default function GreenInvoicePayment() {
 
     const validateField = (field, value) => {
         if (!value || value.trim() === '') {
-            return isHebrew ? 'שדה זה הוא חובה' : 'This field is required';
+            return t.fieldRequired;
         }
 
         switch (field) {
             case 'email':
                 if (!validateEmail(value)) {
-                    return isHebrew ? 'כתובת אימייל לא תקינה' : 'Invalid email address';
+                    return t.invalidEmail;
                 }
                 break;
             case 'phone':
                 if (!validatePhone(value)) {
-                    return isHebrew ? 'מספר טלפון לא תקין' : 'Invalid phone number';
+                    return t.invalidPhone;
                 }
                 break;
             case 'name':
                 if (value.trim().length < 2) {
-                    return isHebrew ? 'שם חייב להכיל לפחות 2 תווים' : 'Name must be at least 2 characters';
+                    return t.nameMinLength;
                 }
                 break;
             case 'street':
             case 'city':
                 if (value.trim().length < 2) {
-                    return isHebrew ? 'שדה זה חייב להכיל לפחות 2 תווים' : 'This field must be at least 2 characters';
+                    return t.fieldMinLength;
                 }
                 break;
             case 'houseNumber':
                 if (value.trim().length < 1) {
-                    return isHebrew ? 'מספר בית הוא חובה' : 'House number is required';
+                    return t.houseNumberRequired;
                 }
                 break;
         }
@@ -184,7 +240,7 @@ export default function GreenInvoicePayment() {
 
         // Validate all required fields
         const requiredFields = ['name', 'email', 'phone'];
-        if (homeDelivery || displayTotal >= 350) {
+        if (isHomeDelivery) {
             requiredFields.push('street', 'houseNumber', 'city');
         }
 
@@ -201,7 +257,7 @@ export default function GreenInvoicePayment() {
 
         // Check if terms and conditions are accepted
         if (!termsAccepted) {
-            setError(isHebrew ? 'אנא אשר/י את תנאי השימוש כדי להמשיך' : 'Please accept the terms and conditions to continue');
+            setError(t.acceptTermsRequired);
             return;
         }
 
@@ -214,7 +270,7 @@ export default function GreenInvoicePayment() {
         setError(null);
 
         try {
-            const items = cart.map(item => {
+            const items = checkoutCart.map(item => {
                 const sc = item.selectedColor;
                 const colorNameHe = sc ? (sc.name_he || sc.name || '') : '';
                 const colorNameEn = sc ? (sc.name_en || sc.name || '') : '';
@@ -230,11 +286,9 @@ export default function GreenInvoicePayment() {
                 };
             });
 
-            const deliveryFeeAmount =
-                homeDelivery && subtotal < 350 ? 35 : 0;
             const response = await getPaymentForm(items, displayTotal, customerInfo, marketingConsent, {
                 couponDiscount: discount || 0,
-                deliveryFee: deliveryFeeAmount
+                deliveryFee
             });
 
             if (response.success) {
@@ -251,10 +305,10 @@ export default function GreenInvoicePayment() {
                 } else if (response.iframeUrl) {
                     setIframeUrl(response.iframeUrl);
                 } else {
-                    setError('No payment form received from GreenInvoice');
+                    setError(t.noPaymentFormReceived);
                 }
             } else {
-                setError(response.message || 'Failed to create payment form');
+                setError(response.message || t.paymentFormCreateFailed);
             }
         } catch (error) {
             console.error('Payment form error:', error);
@@ -332,7 +386,7 @@ export default function GreenInvoicePayment() {
                 } catch (_) { /* ignore */ }
             }
         } catch (e) {
-            setFeedbackError(e?.message || 'Network error');
+            setFeedbackError(e?.message || t.networkError);
         } finally {
             setFeedbackSubmitting(false);
         }
@@ -409,7 +463,7 @@ export default function GreenInvoicePayment() {
                                 width="100%"
                                 height="100%"
                                 frameBorder="0"
-                                title="CardCom Payment Form"
+                                title={t.cardcomPaymentFormTitle}
                                 style={{ border: 'none' }}
                                 allow="payment"
                             />
@@ -431,16 +485,13 @@ export default function GreenInvoicePayment() {
                             fontWeight: 600,
                             mb: 1
                         }}>
-                            🔒 {isHebrew ? 'תשלום מאובטח' : 'Secure Payment'}
+                            🔒 {t.securePayment}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{
                             direction: isHebrew ? 'rtl' : 'ltr',
                             lineHeight: 1.6
                         }}>
-                            {isHebrew
-                                ? 'התשלום שלך מוגן על ידי Green Invoice ו-Cardcom עם הצפנה מתקדמת'
-                                : 'Your payment is protected by Green Invoice and Cardcom with advanced encryption'
-                            }
+                            {t.securePaymentDescription}
                         </Typography>
                     </Box>
 
@@ -471,13 +522,13 @@ export default function GreenInvoicePayment() {
                     mb: 0,
                     direction: isHebrew ? 'rtl' : 'ltr'
                 }}>
-                    {isHebrew ? 'השלמת הזמנה' : 'Complete Your Order'}
+                    {t.completeYourOrder}
                 </Typography>
                 <Typography variant="h6" sx={{
                     color: 'text.secondary',
                     direction: isHebrew ? 'rtl' : 'ltr'
                 }}>
-                    {isHebrew ? 'עוד רגע וסיימנו' : 'One more step to complete your purchase'}
+                    {t.checkoutSubtitle}
                 </Typography>
             </Box>
 
@@ -504,13 +555,13 @@ export default function GreenInvoicePayment() {
                         color: 'rgba(229, 90, 61, 1)',
                         fontWeight: 600
                     }}>
-                        {isHebrew ? 'פרטי לקוח' : 'Customer Information'}
+                        {t.customerInfo}
                     </Typography>
                     <Typography variant="body1" sx={{
                         color: 'text.secondary',
                         direction: isHebrew ? 'rtl' : 'ltr'
                     }}>
-                        {isHebrew ? 'אנא מלא/י את הפרטים שלך להשלמת ההזמנה' : 'Please fill in your details to complete your order'}
+                        {t.checkoutCustomerSubtitle}
                     </Typography>
                 </Box>
 
@@ -543,7 +594,7 @@ export default function GreenInvoicePayment() {
                         }}>
                             1
                         </Box>
-                        {isHebrew ? 'פרטים אישיים' : 'Personal Information'}
+                        {t.personalInformation}
                     </Typography>
 
                     <Grid container spacing={2} sx={{
@@ -558,8 +609,8 @@ export default function GreenInvoicePayment() {
                         }}>
                             <TextField
                                 fullWidth
-                                label={isHebrew ? 'שם מלא' : 'Full Name'}
-                                placeholder={isHebrew ? 'כאן את שמך המלא' : 'Enter your full name'}
+                                label={t.name}
+                                placeholder={t.namePlaceholder}
                                 value={customerInfo.name}
                                 onChange={(e) => handleInputChange('name', e.target.value)}
                                 onBlur={() => handleInputBlur('name')}
@@ -610,8 +661,8 @@ export default function GreenInvoicePayment() {
                         }}>
                             <TextField
                                 fullWidth
-                                label={isHebrew ? 'אימייל' : 'Email'}
-                                placeholder={isHebrew ? 'כאן את כתובת האימייל שלך' : 'Enter your email address'}
+                                label={t.email}
+                                placeholder={t.emailPlaceholder}
                                 type="email"
                                 value={customerInfo.email}
                                 onChange={(e) => handleInputChange('email', e.target.value)}
@@ -663,8 +714,8 @@ export default function GreenInvoicePayment() {
                         }}>
                             <TextField
                                 fullWidth
-                                label={isHebrew ? 'טלפון' : 'Phone'}
-                                placeholder={isHebrew ? 'כאן את מספר הטלפון שלך' : 'Enter your phone number'}
+                                label={t.phone}
+                                placeholder={t.phonePlaceholder}
                                 value={customerInfo.phone}
                                 onChange={(e) => handleInputChange('phone', e.target.value)}
                                 onBlur={() => handleInputBlur('phone')}
@@ -715,8 +766,8 @@ export default function GreenInvoicePayment() {
                         }}>
                             <TextField
                                 fullWidth
-                                label={isHebrew ? 'הקדשה' : 'Dedication (Optional)'}
-                                placeholder={isHebrew ? 'תקדישו לאהובים שלכם אם תרצו' : 'Enter dedication (optional)'}
+                                label={t.dedicationLabel}
+                                placeholder={t.dedicationPlaceholder}
                                 value={customerInfo.dedication}
                                 onChange={(e) => handleInputChange('dedication', e.target.value)}
                                 onBlur={() => handleInputBlur('dedication')}
@@ -748,289 +799,390 @@ export default function GreenInvoicePayment() {
                     </Grid>
                 </Box>
 
-                {/* Shipping Details Section - Only show when delivery is needed */}
-                {(homeDelivery || displayTotal >= 350) && (
-                    <Box sx={{ mb: 5 }}>
-                        <Typography variant="h5" sx={{
-                            direction: isHebrew ? 'rtl' : 'ltr',
-                            mb: 1,
-                            color: 'rgba(229, 90, 61, 1)',
-                            fontWeight: 600,
+                {/* Delivery Section */}
+                <Box sx={{ mb: 5 }}>
+                    <Typography variant="h5" sx={{
+                        direction: isHebrew ? 'rtl' : 'ltr',
+                        mb: 3,
+                        color: 'rgba(229, 90, 61, 1)',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.5rem' }
+                    }}>
+                        <Box component="span" sx={{
+                            width: { xs: 20, sm: 22, md: 24 },
+                            height: { xs: 20, sm: 22, md: 24 },
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(229, 90, 61, 1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: 1,
-                            fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.5rem' }
+                            color: 'white',
+                            fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.9rem' },
+                            fontWeight: 'bold'
                         }}>
-                            <Box component="span" sx={{
-                                width: { xs: 20, sm: 22, md: 24 },
-                                height: { xs: 20, sm: 22, md: 24 },
-                                borderRadius: '50%',
-                                backgroundColor: 'rgba(229, 90, 61, 1)',
+                            2
+                        </Box>
+                        {t.whatAboutDelivery}
+                    </Typography>
+
+                    <Box sx={{ mb: 3, mt: 1.5 }}>
+                        <Box sx={{ textAlign: 'center', px: { xs: 0.5, sm: 1 } }}>
+
+                            <Box sx={{
                                 display: 'flex',
-                                alignItems: 'center',
                                 justifyContent: 'center',
-                                color: 'white',
-                                fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.9rem' },
-                                fontWeight: 'bold'
+                                alignItems: 'center',
+                                gap: 1.5,
+                                mb: 1.5,
+                                mt: 0.5
                             }}>
-                                2
+                                <Button
+                                    variant={isHomeDelivery ? 'contained' : 'outlined'}
+                                    size="small"
+                                    onClick={toggleHomeDelivery}
+                                    sx={{
+                                        backgroundColor: isHomeDelivery ? '#d8472a' : 'transparent',
+                                        color: isHomeDelivery ? 'white' : '#d8472a',
+                                        borderColor: '#d8472a',
+                                        '&:hover': {
+                                            backgroundColor: isHomeDelivery ? 'rgba(229, 90, 61, 1)' : 'rgba(216, 71, 42, 0.1)',
+                                            borderColor: '#b83a22'
+                                        },
+                                        fontSize: { xs: '0.85rem', md: '0.95rem' },
+                                        px: { xs: 2.5, md: 3 },
+                                        py: { xs: 0.75, md: 0.875 },
+                                        minHeight: 38
+                                    }}
+                                >
+                                    {isHomeDelivery
+                                        ? t.youHaveHomeDelivery
+                                        : t.addHomeDelivery}
+                                </Button>
+
+                                {isHomeDelivery && (
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={removeHomeDelivery}
+                                        sx={{
+                                            color: '#666',
+                                            borderColor: '#666',
+                                            minWidth: '36px',
+                                            width: '36px',
+                                            height: '36px',
+                                            p: 0,
+                                            fontSize: '1rem',
+                                            '&:hover': {
+                                                borderColor: '#333',
+                                                backgroundColor: 'rgba(102, 102, 102, 0.1)'
+                                            }
+                                        }}
+                                    >
+                                        ✕
+                                    </Button>
+                                )}
                             </Box>
-                            {isHebrew ? 'פרטי משלוח' : 'Shipping Details'}
-                        </Typography>
 
-                        <Typography variant="body2" sx={{
-                            color: 'text.secondary',
-                            textAlign: 'center',
-                            mb: 3,
-                            direction: isHebrew ? 'rtl' : 'ltr',
-                            fontStyle: 'italic'
-                        }}>
-                            {isHebrew
-                                ? homeDelivery
-                                    ? 'אם בחרת במשלוח עד הבית, אנא מלא/י את פרטי הכתובת שלך'
-                                    : 'משלוח חינם זמין עבור הזמנות מעל ₪350 - אנא מלא/י את פרטי הכתובת שלך'
-                                : homeDelivery
-                                    ? 'If you selected home delivery, please fill in your address details'
-                                    : 'Free shipping available for orders over ₪350 - please fill in your address details'
-                            }
-                        </Typography>
+                            {!qualifiesForFreeShipping && !isHomeDelivery && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                        mb: 0.75,
+                                        mt: 0.5,
+                                        textAlign: 'center',
+                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                        fontSize: { xs: '0.8rem', md: '0.9rem' }
+                                    }}
+                                >
+                                    {t.freeDeliveryOver350}
+                                </Typography>
+                            )}
 
-                        <Grid container spacing={2} sx={{
-                            direction: isHebrew ? 'rtl' : 'ltr',
-                            justifyContent: 'center'
-                        }}>
-                            <Grid item xs={12} md={6} sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                width: { xs: '100%', md: '70%' }
-                            }}>
-                                <TextField
-                                    fullWidth
-                                    label={isHebrew ? 'רחוב' : 'Street'}
-                                    placeholder={isHebrew ? 'כאן את שם הרחוב' : 'Enter street name'}
-                                    value={customerInfo.street}
-                                    onChange={(e) => handleInputChange('street', e.target.value)}
-                                    onBlur={() => handleInputBlur('street')}
-                                    required
-                                    variant="outlined"
-                                    size="small"
-                                    error={!!fieldErrors.street}
-                                    inputProps={{
-                                        maxLength: FIELD_MAX_LEN.street,
-                                        style: { textAlign: isHebrew ? 'right' : 'left' }
-                                    }}
+                            {!isHomeDelivery && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
                                     sx={{
+                                        mb: 0.75,
+                                        mt: 0.5,
+                                        textAlign: 'center',
                                         direction: isHebrew ? 'rtl' : 'ltr',
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: 2,
-                                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 0.5)'
-                                            },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 1)'
-                                            }
-                                        },
-                                        '& .MuiInputLabel-root': {
-                                            textAlign: isHebrew ? 'right' : 'left'
-                                        }
+                                        fontSize: { xs: '0.8rem', md: '0.9rem' }
                                     }}
-                                />
-                                {fieldErrors.street && (
-                                    <Typography
-                                        variant="caption"
-                                        color="error"
-                                        sx={{
-                                            mt: 0.5,
-                                            width: '100%',
-                                            textAlign: isHebrew ? 'right' : 'left',
-                                            fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                                        }}
-                                    >
-                                        {fieldErrors.street}
-                                    </Typography>
-                                )}
-                            </Grid>
-                            <Grid item xs={12} md={3} sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                width: { xs: '100%', md: '70%' }
-                            }}>
-                                <TextField
-                                    fullWidth
-                                    label={isHebrew ? 'מספר בית' : 'House Number'}
-                                    placeholder={isHebrew ? 'כאן את מספר הבית' : 'Enter house number'}
-                                    value={customerInfo.houseNumber}
-                                    onChange={(e) => handleInputChange('houseNumber', e.target.value)}
-                                    onBlur={() => handleInputBlur('houseNumber')}
-                                    required
-                                    variant="outlined"
-                                    size="small"
-                                    error={!!fieldErrors.houseNumber}
-                                    inputProps={{
-                                        maxLength: FIELD_MAX_LEN.houseNumber,
-                                        style: { textAlign: isHebrew ? 'right' : 'left' }
-                                    }}
-                                    sx={{
-                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: 2,
-                                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 0.5)'
-                                            },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 1)'
-                                            }
-                                        },
-                                        '& .MuiInputLabel-root': {
-                                            textAlign: isHebrew ? 'right' : 'left'
-                                        }
-                                    }}
-                                />
-                                {fieldErrors.houseNumber && (
-                                    <Typography
-                                        variant="caption"
-                                        color="error"
-                                        sx={{
-                                            mt: 0.5,
-                                            width: '100%',
-                                            textAlign: isHebrew ? 'right' : 'left',
-                                            fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                                        }}
-                                    >
-                                        {fieldErrors.houseNumber}
-                                    </Typography>
-                                )}
-                            </Grid>
-                            <Grid item xs={12} md={3} sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                width: { xs: '100%', md: '70%' }
-                            }}>
-                                <TextField
-                                    fullWidth
-                                    label={isHebrew ? 'מספר דירה' : 'Apartment Number (Optional)'}
-                                    placeholder={isHebrew ? 'כאן את מספר הדירה' : 'Enter apartment number'}
-                                    value={customerInfo.apartmentNumber}
-                                    onChange={(e) => handleInputChange('apartmentNumber', e.target.value)}
-                                    onBlur={() => handleInputBlur('apartmentNumber')}
-                                    variant="outlined"
-                                    size="small"
-                                    inputProps={{
-                                        maxLength: FIELD_MAX_LEN.apartmentNumber,
-                                        style: { textAlign: isHebrew ? 'right' : 'left' }
-                                    }}
-                                    sx={{
-                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: 2,
-                                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 0.5)'
-                                            },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 1)'
-                                            }
-                                        },
-                                        '& .MuiInputLabel-root': {
-                                            textAlign: isHebrew ? 'right' : 'left'
-                                        }
-                                    }}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6} sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                width: { xs: '100%', md: '70%' }
-                            }}>
-                                <TextField
-                                    fullWidth
-                                    label={isHebrew ? 'קומה' : 'Floor (Optional)'}
-                                    placeholder={isHebrew ? 'כאן את מספר הקומה' : 'Enter floor number'}
-                                    value={customerInfo.floor}
-                                    onChange={(e) => handleInputChange('floor', e.target.value)}
-                                    onBlur={() => handleInputBlur('floor')}
-                                    variant="outlined"
-                                    size="small"
-                                    inputProps={{
-                                        maxLength: FIELD_MAX_LEN.floor,
-                                        style: { textAlign: isHebrew ? 'right' : 'left' }
-                                    }}
-                                    sx={{
-                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: 2,
-                                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 0.5)'
-                                            },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 1)'
-                                            }
-                                        },
-                                        '& .MuiInputLabel-root': {
-                                            textAlign: isHebrew ? 'right' : 'left'
-                                        }
-                                    }}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6} sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                width: { xs: '100%', md: '70%' }
-                            }}>
-                                <TextField
-                                    fullWidth
-                                    label={isHebrew ? 'עיר' : 'City'}
-                                    placeholder={isHebrew ? 'כאן את שם העיר' : 'Enter city name'}
-                                    value={customerInfo.city}
-                                    onChange={(e) => handleInputChange('city', e.target.value)}
-                                    onBlur={() => handleInputBlur('city')}
-                                    required
-                                    variant="outlined"
-                                    size="small"
-                                    error={!!fieldErrors.city}
-                                    inputProps={{
-                                        maxLength: FIELD_MAX_LEN.city,
-                                        style: { textAlign: isHebrew ? 'right' : 'left' }
-                                    }}
-                                    sx={{
-                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: 2,
-                                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 0.5)'
-                                            },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                borderColor: 'rgba(229, 90, 61, 1)'
-                                            }
-                                        },
-                                        '& .MuiInputLabel-root': {
-                                            textAlign: isHebrew ? 'right' : 'left'
-                                        }
-                                    }}
-                                />
-                                {fieldErrors.city && (
-                                    <Typography
-                                        variant="caption"
-                                        color="error"
-                                        sx={{
-                                            mt: 0.5,
-                                            width: '100%',
-                                            textAlign: isHebrew ? 'right' : 'left',
-                                            fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                                        }}
-                                    >
-                                        {fieldErrors.city}
-                                    </Typography>
-                                )}
-                            </Grid>
-                        </Grid>
+                                >
+                                    {t.selfCollectionInfo}
+                                </Typography>
+                            )}
+                        </Box>
                     </Box>
-                )}
+
+                    {isHomeDelivery && (
+                        <>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: 'rgb(21, 20, 20)',
+                                    textAlign: 'center',
+                                    mb: 0.5,
+                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                    fontSize: { xs: '0.9rem', md: '1rem' },
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                {t.deliveryTime}
+                            </Typography>
+
+                            <Typography variant="body2" sx={{
+                                color: 'text.secondary',
+                                textAlign: 'center',
+                                mb: 3,
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                fontStyle: 'italic'
+                            }}>
+                                {t.fillAddressForDelivery}
+                            </Typography>
+
+                            <Grid container spacing={2} sx={{
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                justifyContent: 'center'
+                            }}>
+                                <Grid item xs={12} md={6} sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    width: { xs: '100%', md: '70%' }
+                                }}>
+                                    <TextField
+                                        fullWidth
+                                        label={t.street}
+                                        placeholder={t.streetPlaceholder}
+                                        value={customerInfo.street}
+                                        onChange={(e) => handleInputChange('street', e.target.value)}
+                                        onBlur={() => handleInputBlur('street')}
+                                        required
+                                        variant="outlined"
+                                        size="small"
+                                        error={!!fieldErrors.street}
+                                        inputProps={{
+                                            maxLength: FIELD_MAX_LEN.street,
+                                            style: { textAlign: isHebrew ? 'right' : 'left' }
+                                        }}
+                                        sx={{
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 2,
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 0.5)'
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 1)'
+                                                }
+                                            },
+                                            '& .MuiInputLabel-root': {
+                                                textAlign: isHebrew ? 'right' : 'left'
+                                            }
+                                        }}
+                                    />
+                                    {fieldErrors.street && (
+                                        <Typography
+                                            variant="caption"
+                                            color="error"
+                                            sx={{
+                                                mt: 0.5,
+                                                width: '100%',
+                                                textAlign: isHebrew ? 'right' : 'left',
+                                                fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                                            }}
+                                        >
+                                            {fieldErrors.street}
+                                        </Typography>
+                                    )}
+                                </Grid>
+                                <Grid item xs={12} md={3} sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    width: { xs: '100%', md: '70%' }
+                                }}>
+                                    <TextField
+                                        fullWidth
+                                        label={t.houseNumber}
+                                        placeholder={t.houseNumberPlaceholder}
+                                        value={customerInfo.houseNumber}
+                                        onChange={(e) => handleInputChange('houseNumber', e.target.value)}
+                                        onBlur={() => handleInputBlur('houseNumber')}
+                                        required
+                                        variant="outlined"
+                                        size="small"
+                                        error={!!fieldErrors.houseNumber}
+                                        inputProps={{
+                                            maxLength: FIELD_MAX_LEN.houseNumber,
+                                            style: { textAlign: isHebrew ? 'right' : 'left' }
+                                        }}
+                                        sx={{
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 2,
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 0.5)'
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 1)'
+                                                }
+                                            },
+                                            '& .MuiInputLabel-root': {
+                                                textAlign: isHebrew ? 'right' : 'left'
+                                            }
+                                        }}
+                                    />
+                                    {fieldErrors.houseNumber && (
+                                        <Typography
+                                            variant="caption"
+                                            color="error"
+                                            sx={{
+                                                mt: 0.5,
+                                                width: '100%',
+                                                textAlign: isHebrew ? 'right' : 'left',
+                                                fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                                            }}
+                                        >
+                                            {fieldErrors.houseNumber}
+                                        </Typography>
+                                    )}
+                                </Grid>
+                                <Grid item xs={12} md={3} sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    width: { xs: '100%', md: '70%' }
+                                }}>
+                                    <TextField
+                                        fullWidth
+                                        label={t.apartmentNumberOptional}
+                                        placeholder={t.apartmentNumberPlaceholder}
+                                        value={customerInfo.apartmentNumber}
+                                        onChange={(e) => handleInputChange('apartmentNumber', e.target.value)}
+                                        onBlur={() => handleInputBlur('apartmentNumber')}
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{
+                                            maxLength: FIELD_MAX_LEN.apartmentNumber,
+                                            style: { textAlign: isHebrew ? 'right' : 'left' }
+                                        }}
+                                        sx={{
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 2,
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 0.5)'
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 1)'
+                                                }
+                                            },
+                                            '& .MuiInputLabel-root': {
+                                                textAlign: isHebrew ? 'right' : 'left'
+                                            }
+                                        }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6} sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    width: { xs: '100%', md: '70%' }
+                                }}>
+                                    <TextField
+                                        fullWidth
+                                        label={t.floorOptional}
+                                        placeholder={t.floorPlaceholder}
+                                        value={customerInfo.floor}
+                                        onChange={(e) => handleInputChange('floor', e.target.value)}
+                                        onBlur={() => handleInputBlur('floor')}
+                                        variant="outlined"
+                                        size="small"
+                                        inputProps={{
+                                            maxLength: FIELD_MAX_LEN.floor,
+                                            style: { textAlign: isHebrew ? 'right' : 'left' }
+                                        }}
+                                        sx={{
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 2,
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 0.5)'
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 1)'
+                                                }
+                                            },
+                                            '& .MuiInputLabel-root': {
+                                                textAlign: isHebrew ? 'right' : 'left'
+                                            }
+                                        }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6} sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    width: { xs: '100%', md: '70%' }
+                                }}>
+                                    <TextField
+                                        fullWidth
+                                        label={t.city}
+                                        placeholder={t.cityPlaceholder}
+                                        value={customerInfo.city}
+                                        onChange={(e) => handleInputChange('city', e.target.value)}
+                                        onBlur={() => handleInputBlur('city')}
+                                        required
+                                        variant="outlined"
+                                        size="small"
+                                        error={!!fieldErrors.city}
+                                        inputProps={{
+                                            maxLength: FIELD_MAX_LEN.city,
+                                            style: { textAlign: isHebrew ? 'right' : 'left' }
+                                        }}
+                                        sx={{
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 2,
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 0.5)'
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'rgba(229, 90, 61, 1)'
+                                                }
+                                            },
+                                            '& .MuiInputLabel-root': {
+                                                textAlign: isHebrew ? 'right' : 'left'
+                                            }
+                                        }}
+                                    />
+                                    {fieldErrors.city && (
+                                        <Typography
+                                            variant="caption"
+                                            color="error"
+                                            sx={{
+                                                mt: 0.5,
+                                                width: '100%',
+                                                textAlign: isHebrew ? 'right' : 'left',
+                                                fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                                            }}
+                                        >
+                                            {fieldErrors.city}
+                                        </Typography>
+                                    )}
+                                </Grid>
+                            </Grid>
+                        </>
+                    )}
+                </Box>
 
                 {/* Order Summary Section */}
                 <Box sx={{ mb: 5 }}>
@@ -1059,7 +1211,7 @@ export default function GreenInvoicePayment() {
                         }}>
                             3
                         </Box>
-                        {isHebrew ? 'סיכום הזמנה' : 'Order Summary'}
+                        {t.orderSummary}
                     </Typography>
 
                     <Box sx={{
@@ -1069,7 +1221,7 @@ export default function GreenInvoicePayment() {
                         borderRadius: 3,
                         border: '1px solid rgba(229, 90, 61, 0.1)'
                     }}>
-                        {cart.map((item, index) => (
+                        {checkoutCart.map((item, index) => (
                             <Box
                                 key={item.uniqueId != null ? item.uniqueId : `${item.id}-${index}`}
                                 sx={{
@@ -1093,7 +1245,7 @@ export default function GreenInvoicePayment() {
                                         minWidth: 0
                                     }}
                                 >
-                                    {getCheckoutLineLabel(item, isHebrew)} × {item.quantity}
+                                    {getCartItemDisplayName(item, isHebrew)} × {item.quantity}
                                 </Typography>
                                 <Typography
                                     sx={{
@@ -1108,9 +1260,83 @@ export default function GreenInvoicePayment() {
                             </Box>
                         ))}
 
+                        {discount > 0 && (
+                            <Box sx={{
+                                display: 'flex',
+                                flexDirection: isHebrew ? 'row-reverse' : 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 1.5,
+                                px: 2
+                            }}>
+                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr', color: 'success.main' }}>
+                                    {t.discount}
+                                </Typography>
+                                <Typography sx={{ color: 'success.main', direction: 'ltr' }}>
+                                    -₪{discount.toFixed(2)}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {deliveryFee > 0 && (
+                            <Box sx={{
+                                display: 'flex',
+                                flexDirection: isHebrew ? 'row-reverse' : 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 1.5,
+                                px: 2
+                            }}>
+                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                                    {t.homeDelivery}
+                                </Typography>
+                                <Typography sx={{ direction: 'ltr' }}>
+                                    ₪{deliveryFee.toFixed(2)}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {isHomeDelivery && qualifiesForFreeShipping && (
+                            <Box sx={{
+                                display: 'flex',
+                                flexDirection: isHebrew ? 'row-reverse' : 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 1.5,
+                                px: 2
+                            }}>
+                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
+                                    {t.homeDelivery}
+                                </Typography>
+                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr', color: 'success.main' }}>
+                                    {t.free}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {!isHomeDelivery && (
+                            <Box sx={{
+                                display: 'flex',
+                                flexDirection: isHebrew ? 'row-reverse' : 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 1.5,
+                                px: 2
+                            }}>
+                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr', color: 'text.secondary' }}>
+                                    {t.selfPickup}
+                                </Typography>
+                                <Typography sx={{ direction: isHebrew ? 'rtl' : 'ltr', color: 'text.secondary' }}>
+                                    {t.noCharge}
+                                </Typography>
+                            </Box>
+                        )}
+
                         <Box sx={{
                             display: 'flex',
+                            flexDirection: isHebrew ? 'row-reverse' : 'row',
                             justifyContent: 'space-between',
+                            alignItems: 'center',
                             p: 1,
                             pt: { xs: 1, sm: 2, md: 3 },
                             pb: 0,
@@ -1118,19 +1344,21 @@ export default function GreenInvoicePayment() {
                         }}>
                             <Typography variant="h6" sx={{
                                 direction: isHebrew ? 'rtl' : 'ltr',
+                                textAlign: isHebrew ? 'right' : 'left',
                                 fontWeight: 700,
                                 color: 'rgba(229, 90, 61, 1)',
                                 fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' }
                             }}>
-                                {isHebrew ? '₪' + displayTotal.toFixed(2) : 'Total to Pay'}
+                                {t.totalToPay}
                             </Typography>
                             <Typography variant="h6" sx={{
-                                direction: isHebrew ? 'rtl' : 'ltr',
+                                direction: 'ltr',
+                                textAlign: isHebrew ? 'left' : 'right',
                                 fontWeight: 700,
                                 color: 'rgba(229, 90, 61, 1)',
                                 fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' }
                             }}>
-                                {isHebrew ? 'סה"כ לתשלום' : '₪' + displayTotal.toFixed(2)}
+                                ₪{displayTotal.toFixed(2)}
                             </Typography>
                         </Box>
                     </Box>
@@ -1419,10 +1647,10 @@ export default function GreenInvoicePayment() {
                         {isLoading ? (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <CircularProgress size={20} color="inherit" />
-                                <span>{isHebrew ? 'מעבד...' : 'Processing...'}</span>
+                                <span>{t.processing}</span>
                             </Box>
                         ) : (
-                            `${isHebrew ? 'לשלם עכשיו' : 'Pay Now'} ₪${displayTotal.toFixed(2)}`
+                            `${t.payNow} ₪${displayTotal.toFixed(2)}`
                         )}
                     </Button>
                     <Button
@@ -1449,7 +1677,7 @@ export default function GreenInvoicePayment() {
                             alignSelf: 'center'
                         }}
                     >
-                        {isHebrew ? 'חזרה לעגלה' : 'Back to Cart'}
+                        {t.backToCart}
                     </Button>
                 </Box>
 
@@ -1459,6 +1687,6 @@ export default function GreenInvoicePayment() {
                     </Typography>
                 </Box>
             </Paper>
-        </Container>
+        </Container >
     );
 }

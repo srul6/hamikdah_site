@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
         <Container maxWidth="md" sx={{ py: 4, mt: 8 }}>
             <Paper elevation={3} sx={{ p: 4, borderRadius: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                 <Typography color="rgb(229, 90, 61)" variant="h4" component="h1" align="center" sx={legalTitleSx}>
-                    {t.privacyPageTitle}
+                    {t.privacyPolicy}
                 </Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacyIntro}</Typography>
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={{ ...legalSectionHeadingSx, mt: 1 }}>{t.privacy1Title}</Typography>

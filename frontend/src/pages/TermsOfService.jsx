@@ -16,7 +16,7 @@ export default function TermsOfService() {
         <Container maxWidth="md" sx={{ py: 4, mt: 8 }}>
             <Paper elevation={3} sx={{ p: 4, borderRadius: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                 <Typography color="rgb(229, 90, 61)" variant="h3" component="h1" align="center" sx={legalTitleSx}>
-                    {t.termsTitle}
+                    {t.termsOfService}
                 </Typography>
 
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={{ ...legalSectionHeadingSx, mt: 1 }}>
@@ -62,7 +62,7 @@ export default function TermsOfService() {
                 <Typography paragraph sx={legalBodySx}>
                     <strong>{isHebrew ? 'אימייל:' : 'Email:'}</strong> {t.termsEmail}<br />
                     <strong>{isHebrew ? 'טלפון:' : 'Phone:'}</strong> {t.termsPhone}<br />
-                    <strong>{isHebrew ? 'כתובת:' : 'Address:'}</strong> {t.termsAddress}
+                    <strong>{isHebrew ? 'כתובת:' : 'Address:'}</strong> {t.storeAddress}
                 </Typography>
             </Paper>
         </Container>
