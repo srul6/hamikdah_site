@@ -64,7 +64,7 @@ const allowedOrigins = [
     process.env.FRONTEND_URL,
     process.env.BACKEND_URL?.replace(/\/api\/?$/, ''),
     'https://hamikdash.onrender.com',
-    'https://hamikdash-frontend.onrender.com',
+    'https://hamikdah-site-fronteand.onrender.com',
     'https://hamikdah-site.onrender.com'
 ].filter(Boolean);
 
