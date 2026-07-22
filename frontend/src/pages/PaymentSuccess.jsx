@@ -53,9 +53,19 @@ export default function PaymentSuccess() {
     const [error, setError] = useState(null);
     const { clearCart } = useCart();
     const mountRef = useRef(null);
+    // Keep latest clearCart without putting it in effect deps (extra safety)
+    const clearCartRef = useRef(clearCart);
+    clearCartRef.current = clearCart;
 
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+
+    // Primitive URL params — stable deps (avoid searchParams / location.state object identity)
+    const state = location.state || {};
+    const orderId = searchParams.get('orderId') || state.orderId || null;
+    const amountParam = searchParams.get('amount') ?? state.amount ?? null;
+    const currency = searchParams.get('currency') || state.currency || 'ILS';
+    const documentId = searchParams.get('documentId') || state.documentId || null;
 
     // 1. Mount diagnostics (runs once per component instance)
     if (mountRef.current == null) {
@@ -65,10 +75,9 @@ export default function PaymentSuccess() {
             isFirstRender: true,
             mountAt: new Date().toISOString()
         };
-        const orderIdAtMount = searchParams.get('orderId') || (location.state && location.state.orderId) || null;
         console.info(`${ADS_LOG} PaymentSuccess mounted`, {
             mountSeq: mountRef.current.mountSeq,
-            orderId: orderIdAtMount,
+            orderId,
             isFirstRender: true,
             url: typeof window !== 'undefined' ? window.location.href : null,
             timestamp: mountRef.current.mountAt
@@ -85,58 +94,59 @@ export default function PaymentSuccess() {
             mountRef.current.isFirstRender = false;
         }
 
-        // 2. Every useEffect execution
         console.info(`${req.tag} useEffect run`, {
             effectRun,
             mountSeq: mountRef.current?.mountSeq,
             isFirstRender,
             dependencies: {
-                searchParams: searchParams.toString(),
-                locationState: location.state || null,
-                clearCartType: typeof clearCart
+                orderId,
+                amountParam,
+                currency,
+                documentId
             },
             url: typeof window !== 'undefined' ? window.location.href : null,
             timestamp: new Date().toISOString()
         });
 
         const run = async () => {
-            const state = location.state || {};
-            const orderId = searchParams.get('orderId') || state.orderId;
-            const amount = searchParams.get('amount') ?? state.amount;
-            const currency = searchParams.get('currency') || state.currency || 'ILS';
-            const documentId = searchParams.get('documentId') || state.documentId;
-
             console.info(`${req.tag} Parsed payment params`, {
                 orderId,
-                amount,
+                amount: amountParam,
                 currency,
                 documentId
             });
 
             if (!orderId) {
                 console.warn(`${req.tag} Stopping — missing orderId`);
-                setError('Payment details not found');
-                setIsLoading(false);
+                if (!cancelled) {
+                    setError('Payment details not found');
+                    setIsLoading(false);
+                }
                 return;
             }
 
-            const displayAmount = amount != null && amount !== ''
-                ? parseFloat(amount)
+            const displayAmount = amountParam != null && amountParam !== ''
+                ? parseFloat(amountParam)
                 : null;
 
-            setPaymentDetails({
-                orderId,
-                amount: displayAmount,
-                currency,
-                documentId
-            });
+            if (!cancelled) {
+                setPaymentDetails({
+                    orderId,
+                    amount: displayAmount,
+                    currency,
+                    documentId
+                });
+            }
 
             // Server is source of truth for paid status + conversion dedup.
             // sessionStorage is only an optimistic UX guard.
             // Claim only when advertising consent is granted — otherwise we'd burn
             // the server-side flag without firing Ads.
+            //
+            // IMPORTANT: once the server returns alreadySent: false, the claim is
+            // consumed. Fire gtag even if this effect was cleaned up (cancelled),
+            // otherwise the conversion is lost forever with no retry path.
             try {
-                // 3. Before checking local sessionStorage
                 const locallyTracked = wasPurchaseTrackedLocally(String(orderId));
                 console.info(`${req.tag} sessionStorage check wasPurchaseTrackedLocally`, {
                     orderId: String(orderId),
@@ -144,7 +154,6 @@ export default function PaymentSuccess() {
                 });
 
                 if (!locallyTracked) {
-                    // 4. After loading consent
                     const consent = bootstrapConsent();
                     const advertisingGranted = hasConsent(CATEGORY_IDS.ADVERTISING);
                     console.info(`${req.tag} Consent loaded`, {
@@ -153,7 +162,6 @@ export default function PaymentSuccess() {
                     });
 
                     if (advertisingGranted) {
-                        // 5. Before claimAdsConversion
                         console.info(`${req.tag} Before claimAdsConversion`, {
                             orderId,
                             timestamp: new Date().toISOString()
@@ -161,7 +169,6 @@ export default function PaymentSuccess() {
 
                         const claim = await claimAdsConversion(orderId, { requestId: req });
 
-                        // 6. After claimAdsConversion returns
                         console.info(`${req.tag} After claimAdsConversion`, {
                             claim,
                             alreadySent: claim?.alreadySent ?? null,
@@ -171,25 +178,24 @@ export default function PaymentSuccess() {
                             cancelled
                         });
 
-                        if (!cancelled && claim && claim.alreadySent === false) {
+                        if (claim && claim.alreadySent === false) {
                             const conversionPayload = {
                                 value: claim.value,
                                 currency: claim.currency,
                                 transactionId: claim.transactionId
                             };
-                            // 7. Before trackPurchaseConversion
                             console.info(`${req.tag} Before trackPurchaseConversion`, {
-                                payload: conversionPayload
+                                payload: conversionPayload,
+                                effectCancelled: cancelled
                             });
 
                             trackPurchaseConversion(conversionPayload, { requestId: req });
                             markPurchaseTrackedLocally(String(claim.transactionId));
 
-                            // 11. After marking locally
                             console.info(`${req.tag} Marked transaction in sessionStorage`, {
                                 transactionId: String(claim.transactionId)
                             });
-                        } else if (!cancelled && claim && claim.alreadySent) {
+                        } else if (claim && claim.alreadySent) {
                             markPurchaseTrackedLocally(String(orderId));
                             console.info(`${req.tag} Claim alreadySent — marked orderId locally, skipped gtag`, {
                                 orderId: String(orderId)
@@ -211,7 +217,7 @@ export default function PaymentSuccess() {
             }
 
             try {
-                clearCart();
+                clearCartRef.current();
                 clearCheckoutDeliveryPreferences();
             } catch (_) {
                 // Non-fatal
@@ -235,7 +241,8 @@ export default function PaymentSuccess() {
                 timestamp: new Date().toISOString()
             });
         };
-    }, [searchParams, location.state, clearCart]);
+        // Intentionally primitive deps only — clearCart is via ref (was causing infinite loop)
+    }, [orderId, amountParam, currency, documentId]);
 
     const handleContinueShopping = () => {
         navigate('/');
@@ -243,7 +250,6 @@ export default function PaymentSuccess() {
 
     const handleViewInvoice = () => {
         if (paymentDetails?.documentId) {
-            // Open invoice in new tab (GreenInvoice will provide the URL)
             window.open(`https://www.greeninvoice.co.il/documents/${paymentDetails.documentId}`, '_blank');
         }
     };
@@ -281,7 +287,6 @@ export default function PaymentSuccess() {
     return (
         <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
             <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-                {/* Success Icon */}
                 <CheckCircle
                     sx={{
                         fontSize: 80,
@@ -290,7 +295,6 @@ export default function PaymentSuccess() {
                     }}
                 />
 
-                {/* Success Message */}
                 <Typography
                     variant="h3"
                     gutterBottom
@@ -318,7 +322,6 @@ export default function PaymentSuccess() {
                     {t.thankYouPurchaseDescription2}
                 </Typography>
 
-                {/* Payment Details */}
                 {paymentDetails && (
                     <Box sx={{
                         backgroundColor: 'rgba(245, 240, 227, 0.5)',
@@ -345,7 +348,9 @@ export default function PaymentSuccess() {
                                 {t.total}:
                             </Typography>
                             <Typography fontWeight="bold">
-                                ₪{paymentDetails.amount.toFixed(2)}
+                                ₪{paymentDetails.amount != null && !Number.isNaN(paymentDetails.amount)
+                                    ? paymentDetails.amount.toFixed(2)
+                                    : '—'}
                             </Typography>
                         </Box>
 
@@ -372,7 +377,6 @@ export default function PaymentSuccess() {
                     </Box>
                 )}
 
-                {/* Action Buttons */}
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                     {paymentDetails?.documentId && (
                         <Button
@@ -404,7 +408,6 @@ export default function PaymentSuccess() {
                     </Button>
                 </Box>
 
-                {/* Additional Information */}
                 <Box sx={{ mt: 4, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
                         {t.paymentSuccessNote}

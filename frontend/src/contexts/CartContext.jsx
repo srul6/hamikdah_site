@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { saveCartToCookie, getCartFromCookie, clearCartCookie } from '../utils/cookieManager';
 
 const CartContext = createContext();
@@ -46,7 +46,7 @@ export function CartProvider({ children }) {
     }, [cart, isLoading]);
 
     // Add item to cart
-    const addToCart = (product, quantity = 1, selectedColor = null) => {
+    const addToCart = useCallback((product, quantity = 1, selectedColor = null) => {
         setCart(prevCart => {
             // Create uniqueId (compatible with existing code)
             const colorId = selectedColor ? selectedColor.name || selectedColor.name_en : null;
@@ -77,10 +77,10 @@ export function CartProvider({ children }) {
                 return [...prevCart, newItem];
             }
         });
-    };
+    }, []);
 
     // Remove item from cart (supports both uniqueId and productId + color)
-    const removeFromCart = (productIdOrUniqueId, selectedColor = null) => {
+    const removeFromCart = useCallback((productIdOrUniqueId, selectedColor = null) => {
         setCart(prevCart => {
             // Try to match by uniqueId first, then by id + color
             const newCart = prevCart.filter(item => {
@@ -94,10 +94,10 @@ export function CartProvider({ children }) {
             });
             return newCart;
         });
-    };
+    }, []);
 
     // Update item quantity (supports both uniqueId and productId + color)
-    const updateQuantity = (productIdOrUniqueId, quantity, selectedColor = null) => {
+    const updateQuantity = useCallback((productIdOrUniqueId, quantity, selectedColor = null) => {
         setCart(prevCart => {
             const newCart = prevCart.map(item => {
                 // Match by uniqueId or id + color
@@ -109,35 +109,35 @@ export function CartProvider({ children }) {
             });
             return newCart;
         });
-    };
+    }, []);
 
-    // Clear entire cart
-    const clearCart = () => {
+    // Clear entire cart — stable identity so consumers can safely put it in effect deps
+    const clearCart = useCallback(() => {
         setCart([]);
         clearCartCookie();
-    };
+    }, []);
 
     // Get cart total
-    const getCartTotal = () => {
+    const getCartTotal = useCallback(() => {
         return cart.reduce((total, item) => total + (Number(item.price || 0) * item.quantity), 0);
-    };
+    }, [cart]);
 
     // Get cart item count
-    const getCartItemCount = () => {
+    const getCartItemCount = useCallback(() => {
         return cart.reduce((count, item) => count + item.quantity, 0);
-    };
+    }, [cart]);
 
     // Check if product is in cart
-    const isInCart = (productId, selectedColor = null) => {
+    const isInCart = useCallback((productId, selectedColor = null) => {
         return cart.some(item => item.id === productId && item.selectedColor === selectedColor);
-    };
+    }, [cart]);
 
     // Get specific cart item
-    const getCartItem = (productId, selectedColor = null) => {
+    const getCartItem = useCallback((productId, selectedColor = null) => {
         return cart.find(item => item.id === productId && item.selectedColor === selectedColor);
-    };
+    }, [cart]);
 
-    const value = {
+    const value = useMemo(() => ({
         cart,
         isLoading,
         addToCart,
@@ -148,7 +148,18 @@ export function CartProvider({ children }) {
         getCartItemCount,
         isInCart,
         getCartItem
-    };
+    }), [
+        cart,
+        isLoading,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+        getCartTotal,
+        getCartItemCount,
+        isInCart,
+        getCartItem
+    ]);
 
     return (
         <CartContext.Provider value={value}>
@@ -158,4 +169,3 @@ export function CartProvider({ children }) {
 }
 
 export default CartContext;
-
