@@ -65,7 +65,9 @@ const allowedOrigins = [
     process.env.BACKEND_URL?.replace(/\/api\/?$/, ''),
     'https://hamikdash.onrender.com',
     'https://hamikdah-site-fronteand.onrender.com',
-    'https://hamikdah-site.onrender.com'
+    'https://hamikdah-site.onrender.com',
+    'https://www.google.co.il',
+    'https://google.co.il'
 ].filter(Boolean);
 
 app.use(cors({

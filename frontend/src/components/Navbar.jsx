@@ -299,16 +299,49 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                     flexDirection: isHebrew ? 'row-reverse' : 'row'
                 }}>
                     {/* Logo */}
-                    <Link to="/" style={{ textDecoration: 'none', marginTop: '8px', color: 'inherit' }} onClick={handleLogoClick}>
-                        <img
-                            src="/logo.png"
-                            alt="Store"
-                            style={{
-                                height: '30px',
-                                width: '70px',
-                                objectFit: 'cover'
+                    <Link
+                        to="/"
+                        onClick={handleLogoClick}
+                        style={{ textDecoration: 'none', color: 'inherit', marginTop: '8px' }}
+                    >
+                        <Box
+                            component="span"
+                            sx={{
+                                display: 'inline-block',
+                                position: 'relative',
+                                pb: '4px',
+                                lineHeight: 0,
+                                '&::after': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    height: '2px',
+                                    backgroundColor: 'rgba(199, 61, 34, 1)',
+                                    transform: 'scaleX(0)',
+                                    transformOrigin: isHebrew ? '100% 50%' : '0% 50%',
+                                    transition: 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+                                    pointerEvents: 'none'
+                                },
+                                '&:hover::after': {
+                                    transform: 'scaleX(1)'
+                                }
                             }}
-                        />
+                        >
+                            <Box
+                                component="img"
+                                src="/logo.png"
+                                alt="Store"
+                                sx={{
+                                    height: '30px',
+                                    width: '70px',
+                                    objectFit: 'cover',
+                                    display: 'block',
+                                    verticalAlign: 'middle'
+                                }}
+                            />
+                        </Box>
                     </Link>
 
                     {/* Desktop: Products Menu and Language Switcher */}
