@@ -479,11 +479,14 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                             isMobile ? (
                                 <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     <IconButton
+                                        disableRipple
                                         sx={{
                                             color: 'rgba(173, 153, 103, 0.9)',
+                                            backgroundColor: 'transparent',
                                             transition: 'color 0.2s ease',
                                             '&:hover': {
-                                                color: 'rgba(199, 61, 34, 1)'
+                                                color: 'rgba(199, 61, 34, 1)',
+                                                backgroundColor: 'transparent'
                                             }
                                         }}
                                     >
@@ -500,11 +503,14 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     style={{ textDecoration: 'none', color: 'inherit' }}
                                 >
                                     <IconButton
+                                        disableRipple
                                         sx={{
                                             color: 'rgba(173, 153, 103, 0.9)',
+                                            backgroundColor: 'transparent',
                                             transition: 'color 0.2s ease',
                                             '&:hover': {
-                                                color: 'rgba(199, 61, 34, 1)'
+                                                color: 'rgba(199, 61, 34, 1)',
+                                                backgroundColor: 'transparent'
                                             }
                                         }}
                                     >

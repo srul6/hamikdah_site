@@ -338,7 +338,10 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         size="small"
                                                         sx={{
                                                             color: '#d8472a',
-                                                            '&:hover': { backgroundColor: '#d8472a' }
+                                                            '&:hover': {
+                                                                backgroundColor: 'rgba(229, 90, 61, 1)',
+                                                                color: 'rgb(236, 230, 229)',
+                                                            }
                                                         }}
                                                     >
                                                         <DeleteIcon />

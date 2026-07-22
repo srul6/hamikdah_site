@@ -287,13 +287,48 @@ export default function PaymentSuccess() {
     return (
         <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
             <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-                <CheckCircle
+                <Box
                     sx={{
-                        fontSize: 80,
-                        color: 'success.main',
-                        mb: 3
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mb: { xs: -7, sm: -7 },
+                        width: { xs: 300, sm: 400 },
+                        height: { xs: 300, sm: 400 }
                     }}
-                />
+                >
+                    <Box
+                        component="img"
+                        src={`${process.env.PUBLIC_URL || ''}/confetti.png`}
+                        alt=""
+                        aria-hidden
+                        sx={{
+                            position: 'absolute',
+                            // Negative top moves confetti up behind the checkmark
+                            top: { xs: -52, sm: -16 },
+                            left: 0,
+                            right: 0,
+                            bottom: 'auto',
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain',
+                            pointerEvents: 'none',
+                            userSelect: 'none',
+                            zIndex: 0,
+                            opacity: 0.95
+                        }}
+                    />
+                    <CheckCircle
+                        sx={{
+                            position: 'relative',
+                            zIndex: 1,
+                            fontSize: 80,
+                            color: 'success.main',
+                            filter: 'drop-shadow(0 1px 2px rgba(255,255,255,0.85))'
+                        }}
+                    />
+                </Box>
 
                 <Typography
                     variant="h3"
@@ -301,7 +336,7 @@ export default function PaymentSuccess() {
                     sx={{
                         color: 'success.main',
                         direction: isHebrew ? 'rtl' : 'ltr',
-                        mb: 2
+                        mb: 5
                     }}
                 >
                     {t.paymentSuccess}
@@ -312,7 +347,7 @@ export default function PaymentSuccess() {
                     sx={{
                         color: 'text.secondary',
                         direction: isHebrew ? 'rtl' : 'ltr',
-                        mb: 4
+                        mb: 5
                     }}
                 >
                     {t.thankYouPurchaseTitle}
@@ -327,7 +362,7 @@ export default function PaymentSuccess() {
                         backgroundColor: 'rgba(245, 240, 227, 0.5)',
                         borderRadius: 2,
                         p: 3,
-                        mb: 4,
+                        mb: 10,
                         textAlign: isHebrew ? 'right' : 'left'
                     }}>
                         <Typography variant="h6" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr' }}>
@@ -378,29 +413,21 @@ export default function PaymentSuccess() {
                 )}
 
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {paymentDetails?.documentId && (
-                        <Button
-                            variant="outlined"
-                            startIcon={<Receipt />}
-                            onClick={handleViewInvoice}
-                            sx={{
-                                direction: isHebrew ? 'rtl' : 'ltr',
-                                '& .MuiButton-startIcon': {
-                                    marginLeft: isHebrew ? '6px' : '-6px',
-                                    marginRight: isHebrew ? '-6px' : '6px'
-                                }
-                            }}
-                        >
-                            {t.viewInvoice}
-                        </Button>
-                    )}
 
                     <Button
                         variant="contained"
                         onClick={handleContinueShopping}
+                        size='large'
                         sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
-                            '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
+                            // Keep border width constant so hover doesn't resize the button
+                            border: '1px solid transparent',
+                            boxSizing: 'border-box',
+                            '&:hover': {
+                                backgroundColor: 'rgba(253, 252, 252, 0.9)',
+                                color: 'rgba(229, 90, 61, 1)',
+                                border: '1px solid rgba(229, 90, 61, 0.9)'
+                            },
                             direction: isHebrew ? 'rtl' : 'ltr'
                         }}
                     >

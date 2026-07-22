@@ -140,6 +140,9 @@ function Banner({ open, onAcceptAll, onCustomize, t, isHebrew }) {
                         boxShadow: '0 -4px 32px rgba(0,0,0,0.18)',
                         border: '1px solid rgba(0,0,0,0.06)',
                         p: { xs: 2, sm: 2.5 },
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: { xs: 2.5, sm: 3 },
                         direction: isHebrew ? 'rtl' : 'ltr',
                         textAlign: isHebrew ? 'right' : 'left'
                     }}
@@ -150,7 +153,6 @@ function Banner({ open, onAcceptAll, onCustomize, t, isHebrew }) {
                         sx={{
                             fontWeight: 700,
                             fontSize: { xs: '1.05rem', sm: '1.15rem' },
-                            mb: 0.75,
                             color: INK
                         }}
                     >
@@ -161,8 +163,7 @@ function Banner({ open, onAcceptAll, onCustomize, t, isHebrew }) {
                         sx={{
                             fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                             lineHeight: 1.55,
-                            color: 'rgba(0,0,0,0.72)',
-                            mb: 2
+                            color: 'rgba(0,0,0,0.72)'
                         }}
                     >
                         {t.cookieBannerText}{' '}
@@ -228,7 +229,7 @@ function EssentialCategory({ t, isHebrew }) {
     return (
         <Box
             sx={{
-                py: 1.5,
+                py: 3,
                 direction: isHebrew ? 'rtl' : 'ltr',
             }}
         >
@@ -276,7 +277,7 @@ function CategoryRow({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.5,
-                py: 1.5,
+                py: 4,
                 flexDirection: isHebrew ? 'row' : 'row-reverse'
             }}
         >
@@ -386,42 +387,52 @@ function PreferencesModal({
                 </IconButton>
             </DialogTitle>
             <DialogContent dividers sx={{ borderColor: 'rgba(0,0,0,0.08)' }}>
-                <Typography
+                <Box
                     sx={{
-                        fontSize: '0.9375rem',
-                        color: 'rgba(0,0,0,0.7)',
-                        mb: 1.5,
-                        direction: isHebrew ? 'rtl' : 'ltr',
-                        textAlign: isHebrew ? 'right' : 'left'
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2.5,
+                        mt: { xs: 1, sm: 3 },
                     }}
                 >
-                    {t.cookiePreferencesIntro}{' '}
-                    {t.cookiePrivacyLinkPrefix}
-                    <PrivacyPolicyLink t={t} onClick={onClose} />
-                    {t.cookiePrivacyLinkSuffix}
-                </Typography>
+                    <Typography
+                        sx={{
+                            fontSize: '0.9375rem',
+                            color: 'rgba(0,0,0,0.7)',
+                            direction: isHebrew ? 'rtl' : 'ltr',
+                            textAlign: isHebrew ? 'right' : 'left'
+                        }}
+                    >
+                        {t.cookiePreferencesIntro}{' '}
+                        {t.cookiePrivacyLinkPrefix}
+                        <PrivacyPolicyLink t={t} onClick={onClose} />
+                        {t.cookiePrivacyLinkSuffix}
+                    </Typography>
 
-                <EssentialCategory t={t} isHebrew={isHebrew} />
-                <Divider />
-                <CategoryRow
-                    title={t.cookieAnalyticsTitle}
-                    description={t.cookieAnalyticsDesc}
-                    servicesPrefix={t.cookieServicesIncludes}
-                    services={ANALYTICS_SERVICES}
-                    checked={analytics}
-                    onChange={(e) => setAnalytics(e.target.checked)}
-                    isHebrew={isHebrew}
-                />
-                <Divider />
-                <CategoryRow
-                    title={t.cookieAdvertisingTitle}
-                    description={t.cookieAdvertisingDesc}
-                    servicesPrefix={t.cookieServicesIncludes}
-                    services={ADVERTISING_SERVICES}
-                    checked={advertising}
-                    onChange={(e) => setAdvertising(e.target.checked)}
-                    isHebrew={isHebrew}
-                />
+                    <Box>
+                        <EssentialCategory t={t} isHebrew={isHebrew} />
+                        <Divider sx={{ my: 0.5 }} />
+                        <CategoryRow
+                            title={t.cookieAnalyticsTitle}
+                            description={t.cookieAnalyticsDesc}
+                            servicesPrefix={t.cookieServicesIncludes}
+                            services={ANALYTICS_SERVICES}
+                            checked={analytics}
+                            onChange={(e) => setAnalytics(e.target.checked)}
+                            isHebrew={isHebrew}
+                        />
+                        <Divider sx={{ my: 0.5 }} />
+                        <CategoryRow
+                            title={t.cookieAdvertisingTitle}
+                            description={t.cookieAdvertisingDesc}
+                            servicesPrefix={t.cookieServicesIncludes}
+                            services={ADVERTISING_SERVICES}
+                            checked={advertising}
+                            onChange={(e) => setAdvertising(e.target.checked)}
+                            isHebrew={isHebrew}
+                        />
+                    </Box>
+                </Box>
             </DialogContent>
             <DialogActions
                 sx={{

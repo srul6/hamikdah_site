@@ -797,7 +797,7 @@ class DatabaseController {
         const existing = await pool.query(
             `SELECT id, status, amount, currency, checkout_session_id, ads_conversion_sent
              FROM orders
-             WHERE checkout_session_id = $1`,
+             WHERE checkout_session_id::text = $1`,
             [sessionId]
         );
 
@@ -856,7 +856,7 @@ class DatabaseController {
         const claimed = await pool.query(
             `UPDATE orders
              SET ads_conversion_sent = true, updated_at = NOW()
-             WHERE checkout_session_id = $1
+             WHERE checkout_session_id::text = $1
                AND ads_conversion_sent = false
              RETURNING id, amount, currency, checkout_session_id, ads_conversion_sent`,
             [sessionId]

@@ -75,7 +75,7 @@ export async function deleteOrder(id) {
  *
  * @returns {Promise<{ alreadySent: true } | { alreadySent: false, value: number, currency: string, transactionId: string } | null>}
  */
-export async function claimAdsConversion(orderId, { retries = 5, delayMs = 800, requestId } = {}) {
+export async function claimAdsConversion(orderId, { retries = 12, delayMs = 1000, requestId } = {}) {
     const req = resolveRequestTag(requestId);
     const id = encodeURIComponent(String(orderId));
     let lastStatus = null;

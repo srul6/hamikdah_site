@@ -216,10 +216,13 @@ export default function Footer() {
                                     href="https://www.facebook.com/share/1CGo7JT8ka/"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    disableRipple
                                     sx={{
                                         color: 'rgb(245, 240, 227)',
+                                        backgroundColor: 'transparent',
                                         '&:hover': {
                                             color: '#1877f2',
+                                            backgroundColor: 'transparent'
                                         }
                                     }}
                                 >
@@ -230,10 +233,13 @@ export default function Footer() {
                                     href="https://www.instagram.com/b_mikdash/profilecard/?igsh=enMwZ21yZ3h4MGpt"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    disableRipple
                                     sx={{
                                         color: 'rgb(245, 240, 227)',
+                                        backgroundColor: 'transparent',
                                         '&:hover': {
                                             color: '#e4405f',
+                                            backgroundColor: 'transparent'
                                         }
                                     }}
                                 >
@@ -272,9 +278,12 @@ export default function Footer() {
                     <Box
                         sx={{
                             display: 'flex',
-                            gap: 3,
                             flexWrap: 'wrap',
-                            justifyContent: { xs: 'center', md: isHebrew ? 'flex-start' : 'flex-end' }
+                            // Tighter vertical gap when Cookie Preferences wraps on mobile
+                            columnGap: { xs: 2, md: 3 },
+                            rowGap: { xs: 0.75, md: 1.5 },
+                            justifyContent: { xs: 'center', md: isHebrew ? 'flex-start' : 'flex-end' },
+                            alignItems: 'baseline'
                         }}
                     >
                         <Link
