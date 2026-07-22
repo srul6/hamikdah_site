@@ -19,37 +19,61 @@ export default function PrivacyPolicy() {
                     {t.privacyPolicy}
                 </Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacyIntro}</Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={{ ...legalSectionHeadingSx, mt: 1 }}>{t.privacy1Title}</Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy1Intro}</Typography>
                 <Typography component="ul" sx={legalListSx}>
                     {t.privacy1List.map((item, i) => <li key={i}>{item}</li>)}
                 </Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy1Outro}</Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy2Title}</Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy2Intro}</Typography>
                 <Typography component="ul" sx={legalListSx}>
                     {t.privacy2List.map((item, i) => <li key={i}>{item}</li>)}
                 </Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy3Title}</Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy3Text}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy3Text2}</Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy4Title}</Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy4Intro}</Typography>
                 <Typography component="ul" sx={legalListSx}>
                     {t.privacy4List.map((item, i) => <li key={i}>{item}</li>)}
                 </Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy5Title}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy5Intro}</Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy5Text}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy5ListIntro}</Typography>
+                <Typography component="ul" sx={legalListSx}>
+                    {t.privacy5List.map((item, i) => <li key={i}>{item}</li>)}
+                </Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy5Outro}</Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy6Title}</Typography>
-                <Typography paragraph sx={legalBodySx}>{t.privacy6Text}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy6Intro}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy6ListIntro}</Typography>
+                <Typography component="ul" sx={legalListSx}>
+                    {t.privacy6List.map((item, i) => <li key={i}>{item}</li>)}
+                </Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy6Outro}</Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy7Title}</Typography>
                 <Typography paragraph sx={legalBodySx}>{t.privacy7Text}</Typography>
+
                 <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy8Title}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy8Text}</Typography>
+
+                <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy9Title}</Typography>
                 <Typography paragraph sx={legalBodySx}>
-                    {t.privacy8Contact}{' '}
+                    {t.privacy9Contact}{' '}
                     <Link href="mailto:hamikdash.today@gmail.com" color="primary" sx={{ fontSize: 'inherit' }}>{t.siteTermsEmail}</Link>
                 </Typography>
-                <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy9Title}</Typography>
-                <Typography paragraph sx={legalBodySx}>{t.privacy9Text}</Typography>
+
+                <Typography color="rgb(229, 90, 61)" variant="h5" sx={legalSectionHeadingSx}>{t.privacy10Title}</Typography>
+                <Typography paragraph sx={legalBodySx}>{t.privacy10Text}</Typography>
             </Paper>
         </Container>
     );

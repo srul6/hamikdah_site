@@ -19,11 +19,13 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { WHATSAPP_URL } from '../config';
 import { translations } from '../translations/translations';
 import { Link as RouterLink } from 'react-router-dom';
+import { useConsent } from '../consent/ConsentContext';
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
     const { language, isHebrew } = useLanguage();
     const t = translations[language]; // Use current language translations
+    const { openPreferences } = useConsent();
 
     // Footer link labels
     const termsText = isHebrew ? 'תנאי שימוש' : t.termsOfService;
@@ -322,6 +324,33 @@ export default function Footer() {
                             }}
                         >
                             {returnsText}
+                        </Link>
+                        <Link
+                            component="button"
+                            type="button"
+                            underline="none"
+                            onClick={openPreferences}
+                            sx={{
+                                color: 'rgb(245, 240, 227)',
+                                textDecoration: 'none',
+                                fontSize: '0.875rem',
+                                fontWeight: 400,
+                                fontFamily: 'inherit',
+                                lineHeight: 'inherit',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: 0,
+                                verticalAlign: 'baseline',
+                                '&:hover': {
+                                    color: '#222222',
+                                    fontWeight: 400,
+                                    backgroundColor: 'transparent',
+                                    textDecoration: 'none'
+                                }
+                            }}
+                        >
+                            {t.cookiePreferences}
                         </Link>
                     </Box>
                 </Box>

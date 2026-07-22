@@ -2,16 +2,19 @@
 <html lang="he">
 
 <head>
-    <!-- Google Tag Manager -->
-    <script>(function (w, d, s, l, i) {
-            w[l] = w[l] || []; w[l].push({
-                'gtm.start':
-                    new Date().getTime(), event: 'gtm.js'
-            }); var f = d.getElementsByTagName(s)[0],
-                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
-                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
-        })(window, document, 'script', 'dataLayer', 'GTM-N8G5ZP2F');</script>
-    <!-- End Google Tag Manager -->
+    <!-- Google Consent Mode defaults: denied until the visitor grants consent -->
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('consent', 'default', {
+            ad_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied',
+            analytics_storage: 'denied',
+            wait_for_update: 500
+        });
+    </script>
+    <!-- GTM / GA4 / Ads / Clarity load only after consent via the React consent manager -->
     <meta charset="utf-8" />
     <link rel="preconnect" href="https://cdn.bmikdash.com" crossorigin />
     <link rel="preconnect" href="https://hamikdah-site.onrender.com" crossorigin />
@@ -22,23 +25,22 @@
         content="default-src 'self';
                  base-uri 'self';
                  object-src 'none';
-                 frame-ancestors 'none';
                  form-action 'self';
                  upgrade-insecure-requests;
-                 script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://api.greeninvoice.co.il https://www.greeninvoice.co.il https://www.youtube.com https://www.youtube-nocookie.com https://www.google-analytics.com;
+                 script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google-analytics.com https://www.clarity.ms https://scripts.clarity.ms https://api.greeninvoice.co.il https://www.greeninvoice.co.il https://sandbox.d.greeninvoice.co.il https://www.youtube.com https://www.youtube-nocookie.com;
                  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;
                  font-src 'self' data: https://fonts.gstatic.com;
                  img-src 'self' data: https:;
                  media-src 'self' data: https:;
-                 connect-src 'self' http://localhost:5001 http://127.0.0.1:5001 https://hamikdah-site.onrender.com https://api.greeninvoice.co.il https://www.greeninvoice.co.il https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://stats.g.doubleclick.net;
-                 frame-src 'self' https://www.googletagmanager.com https://api.greeninvoice.co.il https://www.greeninvoice.co.il https://www.youtube.com https://www.youtube-nocookie.com;" />
+                 connect-src 'self' http://localhost:5001 http://127.0.0.1:5001 https://hamikdah-site.onrender.com https://hamikdah-site-fronteand.onrender.com https://api.greeninvoice.co.il https://www.greeninvoice.co.il https://sandbox.d.greeninvoice.co.il https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://stats.g.doubleclick.net https://ad.doubleclick.net https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://*.clarity.ms https://c.bing.com;
+                 frame-src 'self' https://www.googletagmanager.com https://api.greeninvoice.co.il https://www.greeninvoice.co.il https://sandbox.d.greeninvoice.co.il https://www.youtube.com https://www.youtube-nocookie.com https://bid.g.doubleclick.net;" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0070f3" />
     <title>חנות המקדש | ערכות לילדים ומוצרים יהודיים</title>
 
     <!-- Basic SEO -->
-    <meta name="description" content="ערכות בית המקדש לילדים, מיני מקדש, קופות צדקה, פמוט לשבת ועוד. משלוח לכל הארץ." />
+    <meta name="description" content="ערכת בית המקדש לילדים, מיני מקדש, קופות צדקה, פמוט לשבת ועוד. משלוח לכל הארץ." />
     <meta name="keywords"
         content="חנות המקדש, ערכת המקדש, בית המקדש לילדים, קופת צדקה, פמוט לשבת, מיני מקדש, ערכות יהודיות" />
     <meta name="author" content="חנות המקדש" />
@@ -57,7 +59,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="חנות המקדש | ערכות לילדים ומוצרים יהודיים" />
     <meta name="twitter:description"
-        content="ערכות בית המקדש לילדים, מיני מקדש, קופות צדקה, פמוט לשבת ועוד. משלוח לכל הארץ." />
+        content="ערכת בית המקדש לילדים, מיני מקדש, קופות צדקה, פמוט לשבת ועוד. משלוח לכל הארץ." />
     <meta name="twitter:image" content="https://cdn.bmikdash.com/mikdash.jpg" />
 
     <!-- Canonical -->
@@ -66,10 +68,6 @@
 </head>
 
 <body>
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N8G5ZP2F" height="0" width="0"
-            style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
 </body>

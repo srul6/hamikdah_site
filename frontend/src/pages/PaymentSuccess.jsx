@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Container, Typography, Box, Paper, Button, Alert,
     CircularProgress, Divider
@@ -9,9 +9,31 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useCart } from '../contexts/CartContext';
 import { translations } from '../translations/translations';
 import { clearCheckoutDeliveryPreferences } from '../utils/cookieManager';
+import { trackPurchaseConversion } from '../consent/trackPurchaseConversion';
+import { claimAdsConversion } from '../api/orders';
+import { bootstrapConsent, hasConsent, CATEGORY_IDS } from '../consent';
+
+const PURCHASE_DEDUP_PREFIX = 'gads_purchase_';
+
+function wasPurchaseTrackedLocally(transactionId) {
+    try {
+        return Boolean(sessionStorage.getItem(`${PURCHASE_DEDUP_PREFIX}${transactionId}`));
+    } catch {
+        return false;
+    }
+}
+
+function markPurchaseTrackedLocally(transactionId) {
+    try {
+        sessionStorage.setItem(`${PURCHASE_DEDUP_PREFIX}${transactionId}`, '1');
+    } catch {
+        // Ignore
+    }
+}
 
 export default function PaymentSuccess() {
     const [searchParams] = useSearchParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [paymentDetails, setPaymentDetails] = useState(null);
@@ -22,29 +44,77 @@ export default function PaymentSuccess() {
     const t = translations[language];
 
     useEffect(() => {
-        // Extract payment details from URL parameters
-        const orderId = searchParams.get('orderId');
-        const amount = searchParams.get('amount');
-        const currency = searchParams.get('currency') || 'ILS';
-        const documentId = searchParams.get('documentId');
+        let cancelled = false;
 
-        if (orderId && amount) {
+        const run = async () => {
+            const state = location.state || {};
+            const orderId = searchParams.get('orderId') || state.orderId;
+            const amount = searchParams.get('amount') ?? state.amount;
+            const currency = searchParams.get('currency') || state.currency || 'ILS';
+            const documentId = searchParams.get('documentId') || state.documentId;
+
+            if (!orderId) {
+                setError('Payment details not found');
+                setIsLoading(false);
+                return;
+            }
+
+            const displayAmount = amount != null && amount !== ''
+                ? parseFloat(amount)
+                : null;
+
             setPaymentDetails({
                 orderId,
-                amount: parseFloat(amount),
+                amount: displayAmount,
                 currency,
                 documentId
             });
 
-            // Clear the cart after successful payment
-            clearCart();
-            clearCheckoutDeliveryPreferences();
-        } else {
-            setError('Payment details not found');
-        }
+            // Server is source of truth for paid status + conversion dedup.
+            // sessionStorage is only an optimistic UX guard.
+            // Claim only when advertising consent is granted — otherwise we'd burn
+            // the server-side flag without firing Ads.
+            try {
+                if (!wasPurchaseTrackedLocally(String(orderId))) {
+                    bootstrapConsent();
+                    if (hasConsent(CATEGORY_IDS.ADVERTISING)) {
+                        const claim = await claimAdsConversion(orderId);
+                        if (!cancelled && claim && claim.alreadySent === false) {
+                            trackPurchaseConversion({
+                                value: claim.value,
+                                currency: claim.currency,
+                                transactionId: claim.transactionId
+                            });
+                            markPurchaseTrackedLocally(String(claim.transactionId));
+                        } else if (!cancelled && claim && claim.alreadySent) {
+                            markPurchaseTrackedLocally(String(orderId));
+                        }
+                    }
+                }
+            } catch (err) {
+                if (process.env.NODE_ENV === 'development') {
+                    // eslint-disable-next-line no-console
+                    console.warn('[Google Ads] Conversion claim/track threw:', err);
+                }
+            }
 
-        setIsLoading(false);
-    }, [searchParams, clearCart]);
+            try {
+                clearCart();
+                clearCheckoutDeliveryPreferences();
+            } catch (_) {
+                // Non-fatal
+            }
+
+            if (!cancelled) {
+                setIsLoading(false);
+            }
+        };
+
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [searchParams, location.state, clearCart]);
 
     const handleContinueShopping = () => {
         navigate('/');

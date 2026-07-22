@@ -3,13 +3,55 @@ const axios = require('axios');
 /** Verbose logs (PII, tokens, full API payloads) — off in production only */
 const logDetails = process.env.NODE_ENV === 'production' ? false : true;
 
+const PRODUCTION_BASE_URL = 'https://api.greeninvoice.co.il/api/v1';
+const SANDBOX_BASE_URL = 'https://sandbox.d.greeninvoice.co.il/api/v1';
+
+/**
+ * Production deployments (NODE_ENV === 'production') use the existing
+ * GREENINVOICE_* credentials, base URL, and CARDCOM_PLUGIN_ID.
+ * Local / non-production use GREENINVOICE_SANDBOX_* credentials, the sandbox API,
+ * and CARDCOM_SANDBOX_PLUGIN_ID.
+ */
+function resolveGreenInvoiceConfig() {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+        return {
+            environment: 'production',
+            apiKeyId: process.env.GREENINVOICE_API_KEY_ID,
+            apiKeySecret: process.env.GREENINVOICE_API_KEY_SECRET,
+            // Existing production behavior — unchanged
+            baseUrl: process.env.GREENINVOICE_BASE_URL || PRODUCTION_BASE_URL,
+            pluginId: process.env.CARDCOM_PLUGIN_ID
+        };
+    }
+
+    return {
+        environment: 'sandbox',
+        apiKeyId: process.env.GREENINVOICE_SANDBOX_API_KEY_ID,
+        apiKeySecret: process.env.GREENINVOICE_SANDBOX_API_KEY_SECRET,
+        baseUrl: process.env.GREENINVOICE_SANDBOX_BASE_URL || SANDBOX_BASE_URL,
+        pluginId: process.env.CARDCOM_SANDBOX_PLUGIN_ID
+    };
+}
+
 class GreenInvoiceService {
     constructor() {
-        this.apiKeyId = process.env.GREENINVOICE_API_KEY_ID;
-        this.apiKeySecret = process.env.GREENINVOICE_API_KEY_SECRET;
-        this.baseUrl = process.env.GREENINVOICE_BASE_URL || 'https://api.greeninvoice.co.il/api/v1';
+        const config = resolveGreenInvoiceConfig();
+        this.environment = config.environment;
+        this.apiKeyId = config.apiKeyId;
+        this.apiKeySecret = config.apiKeySecret;
+        this.baseUrl = config.baseUrl;
+        this.pluginId = config.pluginId;
         this.token = null;
         this.tokenExpiry = null;
+
+        if (logDetails) {
+            console.log(
+                `GreenInvoice: using ${this.environment} API at ${this.baseUrl}` +
+                (this.pluginId ? ` (pluginId=${this.pluginId})` : ' (pluginId missing)')
+            );
+        }
     }
 
     async getToken() {

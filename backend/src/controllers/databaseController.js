@@ -8,6 +8,44 @@ const pool = new Pool({
     }
 });
 
+/** Paid / completed purchase statuses stored by the payment webhook */
+const PAID_ORDER_STATUSES = new Set(['completed', 'paid', 'approved']);
+
+let ordersConversionSchemaReady = null;
+
+/**
+ * Ensure ads conversion / checkout-session columns exist (idempotent).
+ * checkout_session_id is the public orderId from success URLs (Date.now() at checkout).
+ */
+function ensureOrdersConversionSchema() {
+    if (!ordersConversionSchemaReady) {
+        ordersConversionSchemaReady = (async () => {
+            await pool.query(`
+                ALTER TABLE orders
+                    ADD COLUMN IF NOT EXISTS checkout_session_id TEXT;
+            `);
+            await pool.query(`
+                ALTER TABLE orders
+                    ADD COLUMN IF NOT EXISTS ads_conversion_sent BOOLEAN NOT NULL DEFAULT false;
+            `);
+            await pool.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS orders_checkout_session_id_uidx
+                ON orders (checkout_session_id)
+                WHERE checkout_session_id IS NOT NULL;
+            `);
+        })().catch((err) => {
+            ordersConversionSchemaReady = null;
+            throw err;
+        });
+    }
+    return ordersConversionSchemaReady;
+}
+
+function normalizeCheckoutSessionId(value) {
+    if (value == null || value === '') return null;
+    return String(value);
+}
+
 /** Ensure extraImages is always an array of strings (for storage and API). */
 function normalizeExtraImagesList(value) {
     if (value == null) return [];
@@ -550,6 +588,8 @@ class DatabaseController {
 
     async createOrder(orderData) {
         try {
+            await ensureOrdersConversionSchema();
+
             let parsedTimestamp = new Date();
 
             if (orderData.purchaseTimestamp) {
@@ -582,6 +622,8 @@ class DatabaseController {
                 throw new Error('items must be an array');
             }
 
+            const checkoutSessionId = normalizeCheckoutSessionId(orderData.checkoutSessionId);
+
             // First, check if order with this form_id already exists
             const existingOrder = await pool.query(
                 'SELECT id FROM orders WHERE form_id = $1',
@@ -589,7 +631,7 @@ class DatabaseController {
             );
 
             if (existingOrder.rows.length > 0) {
-                // Order exists, update it
+                // Order exists, update it (do not reset ads_conversion_sent)
                 console.log('ℹ️  Order with form_id already exists, updating...');
                 const updateResult = await pool.query(
                     `UPDATE orders SET
@@ -608,11 +650,12 @@ class DatabaseController {
                         customer_city = $13,
                         customer_country = $14,
                         items = $15,
-                    marketing_consent = $16,
-                    dedication = $17,
-                    purchase_timestamp = $18,
+                        marketing_consent = $16,
+                        dedication = $17,
+                        purchase_timestamp = $18,
+                        checkout_session_id = COALESCE($19, checkout_session_id),
                         updated_at = NOW()
-                    WHERE form_id = $19
+                    WHERE form_id = $20
                     RETURNING *`,
                     [
                         orderData.documentId || null,
@@ -633,6 +676,7 @@ class DatabaseController {
                         orderData.marketingConsent || false,
                         orderData.dedication || null,
                         parsedTimestamp,
+                        checkoutSessionId,
                         orderData.formId
                     ]
                 );
@@ -648,8 +692,9 @@ class DatabaseController {
                     customer_name, customer_email, customer_phone,
                     customer_street, customer_house_number, customer_apartment_number,
                     customer_floor, customer_city, customer_country,
-                    items, marketing_consent, dedication, purchase_timestamp
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                    items, marketing_consent, dedication, purchase_timestamp,
+                    checkout_session_id, ads_conversion_sent
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, false)
                 ON CONFLICT (form_id) 
                 DO UPDATE SET
                     document_id = EXCLUDED.document_id,
@@ -670,6 +715,7 @@ class DatabaseController {
                     marketing_consent = EXCLUDED.marketing_consent,
                     dedication = EXCLUDED.dedication,
                     purchase_timestamp = EXCLUDED.purchase_timestamp,
+                    checkout_session_id = COALESCE(EXCLUDED.checkout_session_id, orders.checkout_session_id),
                     updated_at = NOW()
                 RETURNING *`,
                 [
@@ -691,7 +737,8 @@ class DatabaseController {
                     JSON.stringify(orderData.items || []),
                     orderData.marketingConsent || false,
                     orderData.dedication || null,
-                    parsedTimestamp
+                    parsedTimestamp,
+                    checkoutSessionId
                 ]
             );
 
@@ -706,6 +753,60 @@ class DatabaseController {
             console.error('   Order data that failed:', JSON.stringify(orderData, null, 2));
             throw error;
         }
+    }
+
+    /**
+     * Atomically claim Google Ads conversion for a paid order looked up by public
+     * checkout_session_id (the orderId in success URLs).
+     *
+     * @returns {{ notFound: true } | { unpaid: true, status: string } | { alreadySent: true } | { alreadySent: false, value, currency, transactionId }}
+     */
+    async markAdsConversionSent(checkoutSessionId) {
+        await ensureOrdersConversionSchema();
+        const sessionId = normalizeCheckoutSessionId(checkoutSessionId);
+        if (!sessionId) {
+            return { notFound: true };
+        }
+
+        const existing = await pool.query(
+            `SELECT id, status, amount, currency, checkout_session_id, ads_conversion_sent
+             FROM orders
+             WHERE checkout_session_id = $1`,
+            [sessionId]
+        );
+
+        if (!existing.rows[0]) {
+            return { notFound: true };
+        }
+
+        const order = existing.rows[0];
+        const status = String(order.status || '').toLowerCase();
+        if (!PAID_ORDER_STATUSES.has(status)) {
+            return { unpaid: true, status: order.status };
+        }
+
+        // Atomic check-and-set — only one concurrent caller wins
+        const claimed = await pool.query(
+            `UPDATE orders
+             SET ads_conversion_sent = true, updated_at = NOW()
+             WHERE checkout_session_id = $1
+               AND ads_conversion_sent = false
+             RETURNING id, amount, currency, checkout_session_id`,
+            [sessionId]
+        );
+
+        if (claimed.rows.length === 0) {
+            return { alreadySent: true };
+        }
+
+        const row = claimed.rows[0];
+        return {
+            alreadySent: false,
+            value: Number(row.amount),
+            currency: row.currency || 'ILS',
+            // Public transaction id = checkout session id (matches success URL orderId)
+            transactionId: String(row.checkout_session_id)
+        };
     }
 
     async updateOrder(id, orderData) {

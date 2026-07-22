@@ -78,7 +78,8 @@ class GreenInvoiceController {
                 Math.min(MAX_INSTALLMENTS, Math.floor(totalNumeric / MIN_PER_PAYMENT))
             );
 
-            // Build invoice request according to GreenInvoice payments/form schema
+            // Build invoice request according to GreenInvoice payments/form schema.
+            // pluginId: CARDCOM_PLUGIN_ID in production, CARDCOM_SANDBOX_PLUGIN_ID in development.
             const invoiceRequest = {
                 description: `תשלום על הזמנה #${checkoutSessionId}`,
                 type: 320,
@@ -89,7 +90,7 @@ class GreenInvoiceController {
                 vatType: 0,
                 amount: totalAmount,
                 maxPayments: numberOfPayments,
-                pluginId: process.env.CARDCOM_PLUGIN_ID,
+                pluginId: this.greenInvoiceService.pluginId,
                 group: 100,
                 client: {
                     name: customerInfo.name || 'אורח',
@@ -466,6 +467,8 @@ class GreenInvoiceController {
                 customerInfo: fullCustomerInfo,
                 items: Array.isArray(items) ? items : [],
                 marketingConsent: marketingConsent,
+                // Public orderId from checkout success URL / custom payload
+                checkoutSessionId: customData.orderId != null ? String(customData.orderId) : null,
                 purchaseTimestamp: new Date().toLocaleString('he-IL', {
                     timeZone: 'Asia/Jerusalem',
                     year: 'numeric',

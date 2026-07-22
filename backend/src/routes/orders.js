@@ -40,6 +40,50 @@ function requireInternalOrderSecret(req, res, next) {
     next();
 }
 
+// POST — claim Google Ads conversion (public; auth is paid-status + atomic DB flag)
+// Must be registered before generic /:id routes that expect admin auth for other methods.
+router.post('/:orderId/mark-conversion-sent', async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const result = await databaseController.markAdsConversionSent(orderId);
+
+        if (result.notFound) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        if (result.unpaid) {
+            return res.status(403).json({
+                success: false,
+                message: 'Order is not paid'
+            });
+        }
+
+        if (result.alreadySent) {
+            return res.json({
+                success: true,
+                alreadySent: true
+            });
+        }
+
+        return res.json({
+            success: true,
+            alreadySent: false,
+            value: result.value,
+            currency: result.currency,
+            transactionId: result.transactionId
+        });
+    } catch (error) {
+        console.error('❌ Error marking ads conversion sent:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to mark conversion'
+        });
+    }
+});
+
 // GET endpoint to retrieve all orders (admin only)
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
     try {

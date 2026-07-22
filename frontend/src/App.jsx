@@ -20,6 +20,9 @@ import PaymentCancel from './pages/PaymentCancel';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ClarityAnalytics from './analytics/ClarityAnalytics';
+import { ConsentProvider } from './consent/ConsentContext';
+import CookieConsentUI from './consent/CookieConsentUI';
 
 // Inner component that uses cart context
 function AppContent() {
@@ -83,13 +86,17 @@ function AppContent() {
 export default function App() {
     return (
         <LanguageProvider>
-            <CartProvider>
-                <FormDataProvider>
-                    <Router>
-                        <AppContent />
-                    </Router>
-                </FormDataProvider>
-            </CartProvider>
+            <ConsentProvider>
+                <CartProvider>
+                    <FormDataProvider>
+                        <Router>
+                            <ClarityAnalytics />
+                            <AppContent />
+                            <CookieConsentUI />
+                        </Router>
+                    </FormDataProvider>
+                </CartProvider>
+            </ConsentProvider>
         </LanguageProvider>
     );
 }

@@ -396,9 +396,13 @@ export default function GreenInvoicePayment() {
     useEffect(() => {
         // Listen for messages from the payment form iframe
         const handleMessage = (event) => {
-            // Verify the message is from GreenInvoice/CardCom
-            if (event.origin !== 'https://api.greeninvoice.co.il' &&
-                event.origin !== 'https://www.greeninvoice.co.il') {
+            // Verify the message is from GreenInvoice/CardCom (production or sandbox)
+            const allowedOrigins = [
+                'https://api.greeninvoice.co.il',
+                'https://www.greeninvoice.co.il',
+                'https://sandbox.d.greeninvoice.co.il'
+            ];
+            if (!allowedOrigins.includes(event.origin)) {
                 return;
             }
 
