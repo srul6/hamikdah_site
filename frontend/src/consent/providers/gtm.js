@@ -77,10 +77,7 @@ export function initGtm() {
 
     gtmLoaded = true;
 
-    if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.info('[Consent] GTM loaded:', GTM_ID);
-    }
+    console.info('[Consent] GTM loaded:', GTM_ID);
 
     return true;
 }

@@ -2,6 +2,7 @@ const GOOGLE_ADS_ID = process.env.REACT_APP_GOOGLE_ADS_ID;
 const GOOGLE_ADS_CONVERSION_LABEL = process.env.REACT_APP_GOOGLE_ADS_CONVERSION_LABEL;
 
 const PURCHASE_DEDUP_PREFIX = 'gads_purchase_';
+const ADS_LOG = '[Google Ads]';
 
 function ensureGtag() {
     window.dataLayer = window.dataLayer || [];
@@ -44,10 +45,7 @@ export function initGoogleAds() {
 
     window.__googleAdsInitialized = true;
 
-    if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.info('[Google Ads] gtag configured for', GOOGLE_ADS_ID);
-    }
+    console.info(`${ADS_LOG} gtag configured for`, GOOGLE_ADS_ID);
 
     return true;
 }
@@ -72,34 +70,47 @@ function markPurchaseTracked(transactionId) {
  * Fire a Google Ads purchase conversion once per transaction_id.
  * Returns true if the event was sent.
  */
-export function trackPurchaseConversion({ value, currency = 'ILS', transactionId }) {
+export function trackPurchaseConversion({ value, currency = 'ILS', transactionId }, { requestId } = {}) {
+    const tag = requestId?.tag || ADS_LOG;
+    const sendTo = GOOGLE_ADS_ID && GOOGLE_ADS_CONVERSION_LABEL
+        ? `${GOOGLE_ADS_ID}/${GOOGLE_ADS_CONVERSION_LABEL}`
+        : null;
+
+    console.info(`${tag} ${ADS_LOG} trackPurchaseConversion entered`, {
+        googleAdsId: GOOGLE_ADS_ID || null,
+        conversionLabel: GOOGLE_ADS_CONVERSION_LABEL || null,
+        finalSendTo: sendTo,
+        payload: { value, currency, transactionId },
+        sessionStorageAlreadyHadTransaction: transactionId
+            ? wasPurchaseTracked(String(transactionId))
+            : null,
+        timestamp: new Date().toISOString()
+    });
+
     if (!GOOGLE_ADS_ID || !GOOGLE_ADS_CONVERSION_LABEL) {
-        if (process.env.NODE_ENV === 'development') {
-            // eslint-disable-next-line no-console
-            console.warn(
-                '[Google Ads] Skipping conversion — set REACT_APP_GOOGLE_ADS_ID and REACT_APP_GOOGLE_ADS_CONVERSION_LABEL'
-            );
-        }
+        console.warn(
+            `${tag} ${ADS_LOG} Skipping conversion — set REACT_APP_GOOGLE_ADS_ID and REACT_APP_GOOGLE_ADS_CONVERSION_LABEL`
+        );
         return false;
     }
 
     if (!transactionId || value == null || Number.isNaN(Number(value))) {
-        if (process.env.NODE_ENV === 'development') {
-            // eslint-disable-next-line no-console
-            console.warn('[Google Ads] Skipping conversion — missing value or transactionId', {
-                value,
-                transactionId
-            });
-        }
+        console.warn(`${tag} ${ADS_LOG} Skipping conversion — missing value or transactionId`, {
+            value,
+            transactionId
+        });
         return false;
     }
 
     const id = String(transactionId);
-    if (wasPurchaseTracked(id)) {
-        if (process.env.NODE_ENV === 'development') {
-            // eslint-disable-next-line no-console
-            console.info('[Google Ads] Conversion already sent for', id);
-        }
+    const alreadyInSession = wasPurchaseTracked(id);
+    console.info(`${tag} ${ADS_LOG} sessionStorage dedup check`, {
+        transactionId: id,
+        alreadyContained: alreadyInSession
+    });
+
+    if (alreadyInSession) {
+        console.info(`${tag} ${ADS_LOG} Conversion already sent for`, id);
         return false;
     }
 
@@ -112,13 +123,20 @@ export function trackPurchaseConversion({ value, currency = 'ILS', transactionId
         transaction_id: id
     };
 
+    console.info(`${tag} ${ADS_LOG} Sending conversion event`, payload);
+
     gtag('event', 'conversion', payload);
+
+    console.info(`${tag} ${ADS_LOG} Conversion event dispatched`, {
+        payload,
+        timestamp: new Date().toISOString()
+    });
+
     markPurchaseTracked(id);
 
-    if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.info('[Google Ads] Purchase conversion fired', payload);
-    }
+    console.info(`${tag} ${ADS_LOG} Marked transaction in sessionStorage`, {
+        transactionId: id
+    });
 
     return true;
 }

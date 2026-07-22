@@ -13,10 +13,7 @@ export function initMetaPixel() {
     }
 
     // Placeholder: load fbevents.js and fbq('init', META_PIXEL_ID) when implementing.
-    if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.info('[Consent] Meta Pixel not configured yet (REACT_APP_META_PIXEL_ID)');
-    }
+    console.info('[Consent] Meta Pixel not configured yet (REACT_APP_META_PIXEL_ID)');
     return false;
 }
 

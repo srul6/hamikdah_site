@@ -23,16 +23,10 @@ export function initClarity() {
     try {
         Clarity.init(CLARITY_PROJECT_ID);
         clarityInitialized = true;
-        if (process.env.NODE_ENV === 'development') {
-            // eslint-disable-next-line no-console
-            console.info('[Consent] Clarity initialized');
-        }
+        console.info('[Consent] Clarity initialized');
         return true;
     } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-            // eslint-disable-next-line no-console
-            console.warn('[Consent] Clarity init failed:', error);
-        }
+        console.warn('[Consent] Clarity init failed:', error);
         return false;
     }
 }

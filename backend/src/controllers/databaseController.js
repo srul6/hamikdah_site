@@ -760,12 +760,38 @@ class DatabaseController {
      * checkout_session_id (the orderId in success URLs).
      *
      * @returns {{ notFound: true } | { unpaid: true, status: string } | { alreadySent: true } | { alreadySent: false, value, currency, transactionId }}
+     * Diagnostic fields (logging only): dbStatus, adsConversionSentBefore/After, rowUpdated
      */
-    async markAdsConversionSent(checkoutSessionId) {
+    async markAdsConversionSent(checkoutSessionId, { requestId } = {}) {
+        const tag = requestId?.tag || '[Ads Conversion]';
+        const timestamp = new Date().toISOString();
+        const isDev = process.env.NODE_ENV === 'development';
+        const devLog = (...args) => {
+            if (isDev) {
+                console.info(...args);
+            }
+        };
+
+        devLog(`${tag} markAdsConversionSent entered`, {
+            timestamp,
+            checkoutSessionId,
+            requestId: requestId?.uuid || null
+        });
+
         await ensureOrdersConversionSchema();
         const sessionId = normalizeCheckoutSessionId(checkoutSessionId);
         if (!sessionId) {
-            return { notFound: true };
+            devLog(`${tag} markAdsConversionSent — empty session id → notFound`, {
+                timestamp: new Date().toISOString(),
+                checkoutSessionId
+            });
+            return {
+                notFound: true,
+                dbStatus: null,
+                adsConversionSentBefore: null,
+                adsConversionSentAfter: null,
+                rowUpdated: false
+            };
         }
 
         const existing = await pool.query(
@@ -776,13 +802,54 @@ class DatabaseController {
         );
 
         if (!existing.rows[0]) {
-            return { notFound: true };
+            devLog(`${tag} markAdsConversionSent — no row for checkout_session_id`, {
+                timestamp: new Date().toISOString(),
+                sessionId,
+                dbStatus: null,
+                adsConversionSentBefore: null,
+                adsConversionSentAfter: null,
+                rowUpdated: false
+            });
+            return {
+                notFound: true,
+                dbStatus: null,
+                adsConversionSentBefore: null,
+                adsConversionSentAfter: null,
+                rowUpdated: false
+            };
         }
 
         const order = existing.rows[0];
+        const adsBefore = Boolean(order.ads_conversion_sent);
         const status = String(order.status || '').toLowerCase();
+
+        devLog(`${tag} markAdsConversionSent — DB row found`, {
+            timestamp: new Date().toISOString(),
+            sessionId,
+            orderPk: order.id,
+            dbStatus: order.status,
+            adsConversionSentBefore: adsBefore,
+            amount: order.amount,
+            currency: order.currency
+        });
+
         if (!PAID_ORDER_STATUSES.has(status)) {
-            return { unpaid: true, status: order.status };
+            devLog(`${tag} markAdsConversionSent — unpaid, refusing claim`, {
+                timestamp: new Date().toISOString(),
+                sessionId,
+                dbStatus: order.status,
+                adsConversionSentBefore: adsBefore,
+                adsConversionSentAfter: adsBefore,
+                rowUpdated: false
+            });
+            return {
+                unpaid: true,
+                status: order.status,
+                dbStatus: order.status,
+                adsConversionSentBefore: adsBefore,
+                adsConversionSentAfter: adsBefore,
+                rowUpdated: false
+            };
         }
 
         // Atomic check-and-set — only one concurrent caller wins
@@ -791,21 +858,52 @@ class DatabaseController {
              SET ads_conversion_sent = true, updated_at = NOW()
              WHERE checkout_session_id = $1
                AND ads_conversion_sent = false
-             RETURNING id, amount, currency, checkout_session_id`,
+             RETURNING id, amount, currency, checkout_session_id, ads_conversion_sent`,
             [sessionId]
         );
 
         if (claimed.rows.length === 0) {
-            return { alreadySent: true };
+            devLog(`${tag} markAdsConversionSent — UPDATE matched 0 rows (already claimed)`, {
+                timestamp: new Date().toISOString(),
+                sessionId,
+                dbStatus: order.status,
+                adsConversionSentBefore: adsBefore,
+                adsConversionSentAfter: true,
+                rowUpdated: false
+            });
+            return {
+                alreadySent: true,
+                dbStatus: order.status,
+                adsConversionSentBefore: adsBefore,
+                adsConversionSentAfter: true,
+                rowUpdated: false
+            };
         }
 
         const row = claimed.rows[0];
+        const adsAfter = Boolean(row.ads_conversion_sent);
+        devLog(`${tag} markAdsConversionSent — row claimed (updated)`, {
+            timestamp: new Date().toISOString(),
+            sessionId,
+            dbStatus: order.status,
+            adsConversionSentBefore: adsBefore,
+            adsConversionSentAfter: adsAfter,
+            rowUpdated: true,
+            value: Number(row.amount),
+            currency: row.currency || 'ILS',
+            transactionId: String(row.checkout_session_id)
+        });
+
         return {
             alreadySent: false,
             value: Number(row.amount),
             currency: row.currency || 'ILS',
             // Public transaction id = checkout session id (matches success URL orderId)
-            transactionId: String(row.checkout_session_id)
+            transactionId: String(row.checkout_session_id),
+            dbStatus: order.status,
+            adsConversionSentBefore: adsBefore,
+            adsConversionSentAfter: adsAfter,
+            rowUpdated: true
         };
     }
 

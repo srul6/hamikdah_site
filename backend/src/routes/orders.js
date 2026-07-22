@@ -1,9 +1,39 @@
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 const { databaseController } = require('../config/database');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { validateOrderCreatePayload } = require('../utils/checkoutValidation');
 const clientMessages = require('../utils/clientFacingMessages');
+
+let adsConversionRequestSeq = 0;
+const isDev = process.env.NODE_ENV === 'development';
+
+function devLog(...args) {
+    if (!isDev) return;
+    console.info(...args);
+}
+
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || null;
+}
+
+function resolveAdsRequestId(req) {
+    adsConversionRequestSeq += 1;
+    const fromHeader = req.headers['x-ads-conversion-request-id'];
+    const uuid = (typeof fromHeader === 'string' && fromHeader.trim())
+        ? fromHeader.trim()
+        : crypto.randomUUID();
+    return {
+        seq: adsConversionRequestSeq,
+        uuid,
+        tag: `[Ads Conversion][Request #${adsConversionRequestSeq}][UUID=${uuid}]`
+    };
+}
 
 function requireAdmin(req, res, next) {
     if (!req.admin) {
@@ -43,44 +73,91 @@ function requireInternalOrderSecret(req, res, next) {
 // POST — claim Google Ads conversion (public; auth is paid-status + atomic DB flag)
 // Must be registered before generic /:id routes that expect admin auth for other methods.
 router.post('/:orderId/mark-conversion-sent', async (req, res) => {
+    const reqId = resolveAdsRequestId(req);
+    const { orderId } = req.params;
+    const clientIp = getClientIp(req);
+    const timestamp = new Date().toISOString();
+
+    devLog(`${reqId.tag} mark-conversion-sent request received`, {
+        timestamp,
+        orderId,
+        requestId: reqId.uuid,
+        requestSeq: reqId.seq,
+        clientIp,
+        method: req.method,
+        path: req.originalUrl || req.url,
+        userAgent: req.headers['user-agent'] || null
+    });
+
     try {
-        const { orderId } = req.params;
-        const result = await databaseController.markAdsConversionSent(orderId);
+        const result = await databaseController.markAdsConversionSent(orderId, { requestId: reqId });
+
+        devLog(`${reqId.tag} markAdsConversionSent result`, {
+            timestamp: new Date().toISOString(),
+            orderId,
+            requestId: reqId.uuid,
+            clientIp,
+            dbStatus: result.dbStatus ?? null,
+            adsConversionSentBefore: result.adsConversionSentBefore ?? null,
+            adsConversionSentAfter: result.adsConversionSentAfter ?? null,
+            rowUpdated: result.rowUpdated ?? null,
+            outcome: result.notFound
+                ? 'notFound'
+                : result.unpaid
+                    ? 'unpaid'
+                    : result.alreadySent
+                        ? 'alreadySent'
+                        : 'claimed'
+        });
 
         if (result.notFound) {
-            return res.status(404).json({
+            const body = {
                 success: false,
                 message: 'Order not found'
-            });
+            };
+            devLog(`${reqId.tag} Final JSON response`, { status: 404, body });
+            return res.status(404).json(body);
         }
 
         if (result.unpaid) {
-            return res.status(403).json({
+            const body = {
                 success: false,
                 message: 'Order is not paid'
-            });
+            };
+            devLog(`${reqId.tag} Final JSON response`, { status: 403, body });
+            return res.status(403).json(body);
         }
 
         if (result.alreadySent) {
-            return res.json({
+            const body = {
                 success: true,
                 alreadySent: true
-            });
+            };
+            devLog(`${reqId.tag} Final JSON response`, { status: 200, body });
+            return res.json(body);
         }
 
-        return res.json({
+        const body = {
             success: true,
             alreadySent: false,
             value: result.value,
             currency: result.currency,
             transactionId: result.transactionId
-        });
+        };
+        devLog(`${reqId.tag} Final JSON response`, { status: 200, body });
+        return res.json(body);
     } catch (error) {
-        console.error('❌ Error marking ads conversion sent:', error);
-        return res.status(500).json({
+        if (isDev) {
+            console.error(`${reqId.tag} Error marking ads conversion sent:`, error);
+        } else {
+            console.error('Error marking ads conversion sent');
+        }
+        const body = {
             success: false,
             message: 'Failed to mark conversion'
-        });
+        };
+        devLog(`${reqId.tag} Final JSON response`, { status: 500, body });
+        return res.status(500).json(body);
     }
 });
 
