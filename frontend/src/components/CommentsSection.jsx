@@ -158,180 +158,181 @@ export default function CommentsSection() {
                                 {isHebrew ? 'אין תגובות זמינות כרגע' : 'No comments available yet'}
                             </Typography>
                         </Box>
-                    ) : comments.map((comment) => (
+                    ) : comments.map((comment) => {
+                        const customerName = isHebrew ? comment.name_he : comment.name_en;
+                        const showName = comment.type === 'text' || comment.type === 'image';
+
+                        return (
                         <Card
                             key={comment.id}
                             sx={{
-                                minWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 }, // Increased width
-                                maxWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 }, // Increased width
-                                height: { xs: 390, sm: 390, md: 390, lg: 420, xl: 490 }, // Increased height
+                                minWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 },
+                                maxWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 },
+                                height: { xs: 390, sm: 390, md: 390, lg: 420, xl: 490 },
                                 flexShrink: 0,
-                                borderRadius: 3, // Increased from 3 to 4 for more rounded corners
-                                border: '2px solid #d8472a', // Black border
+                                borderRadius: 3,
+                                border: '2px solid #d8472a',
                                 backgroundColor: 'transparent',
+                                backgroundImage: 'none',
                                 boxShadow: 'none',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'flex-start',
                                 alignItems: 'center',
-                                p: comment.type === 'text' ? 3 : 0, // Conditional padding - only for text frames
-                                pt: comment.type === 'text' ? 3 : 0, // Top padding for text comments
+                                p: comment.type === 'text' ? 3 : 0,
+                                pb: comment.type === 'text' ? 7 : comment.type === 'image' ? 7 : 0,
                                 textAlign: 'center',
-                                overflow: 'hidden', // Prevent content from overflowing the card
+                                overflow: 'hidden',
                                 transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                                 cursor: 'pointer',
                                 position: 'relative',
+                                '&.MuiPaper-root': {
+                                    backgroundColor: 'transparent',
+                                    backgroundImage: 'none',
+                                },
                                 '&:hover': {
                                     borderColor: 'white',
                                     transform: 'translateY(-8px) scale(1.02)',
-                                    // Removed boxShadow from hover effect
                                 }
                             }}
                         >
                             {comment.type === 'text' ? (
-                                // Text Comment
-                                <>
-                                    <Box
-                                        sx={{
-                                            flex: 1,
-                                            overflowY: 'auto',
-                                            overflowX: 'hidden',
-                                            width: '100%',
-                                            mb: 2,
-                                            px: 1,
-                                            // Custom scrollbar styling
-                                            '&::-webkit-scrollbar': {
-                                                width: '6px',
+                                <Box
+                                    sx={{
+                                        flex: 1,
+                                        overflowY: 'auto',
+                                        overflowX: 'hidden',
+                                        width: '100%',
+                                        px: 1,
+                                        '&::-webkit-scrollbar': {
+                                            width: '6px',
+                                        },
+                                        '&::-webkit-scrollbar-track': {
+                                            background: 'transparent',
+                                        },
+                                        '&::-webkit-scrollbar-thumb': {
+                                            background: '#d8472a',
+                                            borderRadius: '3px',
+                                            '&:hover': {
+                                                background: '#b8381f',
                                             },
-                                            '&::-webkit-scrollbar-track': {
-                                                background: 'transparent',
-                                            },
-                                            '&::-webkit-scrollbar-thumb': {
-                                                background: '#d8472a',
-                                                borderRadius: '3px',
-                                                '&:hover': {
-                                                    background: '#b8381f',
-                                                },
-                                            },
-                                            scrollbarWidth: 'thin',
-                                            scrollbarColor: '#d8472a transparent',
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="body1"
-                                            sx={{
-                                                color: '#1d1d1f',
-                                                fontSize: '1.1rem',
-                                                lineHeight: 1.6,
-                                                fontWeight: 400,
-                                                direction: isHebrew ? 'rtl' : 'ltr',
-                                                wordBreak: 'break-word',
-                                            }}
-                                        >
-                                            "{isHebrew ? comment.text_he : comment.text_en}"
-                                        </Typography>
-                                    </Box>
-
+                                        },
+                                        scrollbarWidth: 'thin',
+                                        scrollbarColor: '#d8472a transparent',
+                                    }}
+                                >
                                     <Typography
-                                        variant="h6"
+                                        variant="body1"
                                         sx={{
-                                            color: '#d8472a',
-                                            fontWeight: 600,
-                                            mb: 1,
+                                            color: '#1d1d1f',
+                                            fontSize: '1.1rem',
+                                            lineHeight: 1.6,
+                                            fontWeight: 400,
                                             direction: isHebrew ? 'rtl' : 'ltr',
-                                            flexShrink: 0,
+                                            wordBreak: 'break-word',
                                         }}
                                     >
-                                        {isHebrew ? comment.name_he : comment.name_en}
+                                        "{isHebrew ? comment.text_he : comment.text_en}"
                                     </Typography>
-                                </>
+                                </Box>
                             ) : comment.type === 'video' ? (
-                                // Video Comment
-                                <>
-                                    <Box
-                                        sx={{
+                                <Box
+                                    sx={{
+                                        width: '100%',
+                                        height: '100%',
+                                        position: 'relative',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                                    <video
+                                        src={comment.videoUrl}
+                                        style={{
                                             width: '100%',
                                             height: '100%',
-                                            position: 'relative',
-                                            borderRadius: '8px',
-                                            overflow: 'hidden'
+                                            objectFit: 'cover',
+                                            borderRadius: '8px'
                                         }}
-                                    >
-                                        <video
-                                            src={comment.videoUrl}
-                                            style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                borderRadius: '8px'
-                                            }}
-                                            onClick={() => handleVideoClick(comment.id)}
-                                            onEnded={() => handleVideoEnded(comment.id)}
-                                            muted={!playingVideos[comment.id]}
-                                            playsInline
-                                            controls={false}
-                                            ref={(el) => {
-                                                if (el) {
-                                                    videoRefs.current[comment.id] = el;
-                                                    if (playingVideos[comment.id]) {
-                                                        el.play();
-                                                    } else {
-                                                        el.pause();
-                                                    }
+                                        onClick={() => handleVideoClick(comment.id)}
+                                        onEnded={() => handleVideoEnded(comment.id)}
+                                        muted={!playingVideos[comment.id]}
+                                        playsInline
+                                        controls={false}
+                                        ref={(el) => {
+                                            if (el) {
+                                                videoRefs.current[comment.id] = el;
+                                                if (playingVideos[comment.id]) {
+                                                    el.play();
+                                                } else {
+                                                    el.pause();
                                                 }
-                                            }}
-                                        />
+                                            }
+                                        }}
+                                    />
 
-                                        {/* Play/Pause Overlay Button */}
-                                        <IconButton
-                                            onClick={() => handleVideoClick(comment.id)}
-                                            sx={{
-                                                position: 'absolute',
-                                                top: '50%',
-                                                left: '50%',
-                                                transform: 'translate(-50%, -50%)',
-                                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                                color: 'white',
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(0, 0, 0, 0.8)'
-                                                }
-                                            }}
-                                        >
-                                            {playingVideos[comment.id] ? <PauseIcon /> : <PlayArrowIcon />}
-                                        </IconButton>
-                                    </Box>
-                                </>
-                            ) : (
-                                // Image Comment
-                                <>
-                                    <Box
+                                    <IconButton
+                                        onClick={() => handleVideoClick(comment.id)}
                                         sx={{
-                                            width: '100%',
-                                            height: '100%',
-                                            position: 'relative',
-                                            borderRadius: '8px',
-                                            overflow: 'hidden',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            backgroundColor: '#f5f5f5'
+                                            position: 'absolute',
+                                            top: '50%',
+                                            left: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                            color: 'white',
+                                            '&:hover': {
+                                                backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                                            }
                                         }}
                                     >
-                                        <img
-                                            src={comment.imageUrl}
-                                            alt={isHebrew ? comment.name_he : comment.name_en}
-                                            style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                borderRadius: '8px'
-                                            }}
-                                        />
-                                    </Box>
-                                </>
+                                        {playingVideos[comment.id] ? <PauseIcon /> : <PlayArrowIcon />}
+                                    </IconButton>
+                                </Box>
+                            ) : (
+                                <Box
+                                    sx={{
+                                        flex: 1,
+                                        width: '100%',
+                                        minHeight: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        overflow: 'hidden',
+                                        pb: 7,
+                                    }}
+                                >
+                                    <Box
+                                        component="img"
+                                        src={comment.imageUrl}
+                                        alt={customerName}
+                                        sx={{
+                                            width: '100%',
+                                            height: 'auto',
+                                            display: 'block',
+                                        }}
+                                    />
+                                </Box>
+                            )}
+
+                            {showName && (
+                                <Typography
+                                    variant="h6"
+                                    sx={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 24,
+                                        color: '#d8472a',
+                                        fontWeight: 600,
+                                        m: 0,
+                                        px: 3,
+                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                    }}
+                                >
+                                    {customerName}
+                                </Typography>
                             )}
                         </Card>
-                    ))}
+                        );
+                    })}
                 </Box>
             </Box>
         </Box>
