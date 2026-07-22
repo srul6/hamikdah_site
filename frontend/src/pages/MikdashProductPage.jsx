@@ -923,11 +923,27 @@ export default function MikdashProductPage({ onAddToCart }) {
     const productGalleryRef = useRef(null);
     const kitAdvantagesRef = useRef(null);
 
-    // GSAP animation refs for desktop
-    const desktopLeftBoxRef = useRef(null);
-    const desktopRightBoxRef = useRef(null);
-    const desktopLeftImageRef = useRef(null);
-    const desktopRightImageRef = useRef(null);
+    // GSAP animation refs for desktop hero
+    const desktopHeroCardRef = useRef(null);
+    const desktopHeroBgRef = useRef(null);
+    const desktopHeroImageRef = useRef(null);
+    const desktopHeroLogoRef = useRef(null);
+
+    // Snake border around the gil / "Every home..." image
+    const gilSnakeWrapRef = useRef(null);
+    const [gilSnakeSize, setGilSnakeSize] = useState({ w: 0, h: 0 });
+
+    useEffect(() => {
+        const el = gilSnakeWrapRef.current;
+        if (!el) return undefined;
+
+        const ro = new ResizeObserver(([entry]) => {
+            const { width, height } = entry.contentRect;
+            setGilSnakeSize({ w: width, h: height });
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [product, loading]);
 
     useEffect(() => {
         const loadProduct = async () => {
@@ -1397,41 +1413,33 @@ export default function MikdashProductPage({ onAddToCart }) {
 
         const timer = setTimeout(() => {
             const ctx = gsap.context(() => {
-                // Desktop hero backgrounds - gentle fade in
-                if (desktopLeftBoxRef.current) {
-                    gsap.from(desktopLeftBoxRef.current, {
+                // Desktop hero — background + side assets
+                if (desktopHeroBgRef.current) {
+                    gsap.from(desktopHeroBgRef.current, {
                         opacity: 0,
-                        duration: 1.2,
+                        scale: 1.05,
+                        duration: 1.5,
                         ease: 'power2.out'
                     });
                 }
 
-                if (desktopRightBoxRef.current) {
-                    gsap.from(desktopRightBoxRef.current, {
+                if (desktopHeroImageRef.current) {
+                    gsap.from(desktopHeroImageRef.current, {
+                        x: isHebrew ? 60 : -60,
                         opacity: 0,
-                        duration: 1.2,
-                        ease: 'power2.out'
+                        duration: 1.3,
+                        ease: 'power3.out',
+                        delay: 0.3
                     });
                 }
 
-                // Desktop hero images - slide in from opposite sides
-                if (desktopLeftImageRef.current) {
-                    gsap.from(desktopLeftImageRef.current, {
-                        x: 80,
+                if (desktopHeroLogoRef.current) {
+                    gsap.from(desktopHeroLogoRef.current, {
+                        x: isHebrew ? -60 : 60,
                         opacity: 0,
-                        duration: 1.4,
+                        duration: 1.3,
                         ease: 'power3.out',
-                        delay: 0.4
-                    });
-                }
-
-                if (desktopRightImageRef.current) {
-                    gsap.from(desktopRightImageRef.current, {
-                        x: -80,
-                        opacity: 0,
-                        duration: 1.4,
-                        ease: 'power3.out',
-                        delay: 0.4
+                        delay: 0.3
                     });
                 }
 
@@ -1484,7 +1492,7 @@ export default function MikdashProductPage({ onAddToCart }) {
         }, 100);
 
         return () => clearTimeout(timer);
-    }, [product]);
+    }, [product, isHebrew]);
 
     const handleBackClick = () => {
         navigate('/');
@@ -1518,6 +1526,12 @@ export default function MikdashProductPage({ onAddToCart }) {
         );
     }
 
+    const GIL_SNAKE_RADIUS = 10;
+    const GIL_SNAKE_STROKE = 2;
+    const gilSnakeInset = GIL_SNAKE_STROKE / 2;
+    const gilSnakeRectW = Math.max(0, gilSnakeSize.w - GIL_SNAKE_STROKE);
+    const gilSnakeRectH = Math.max(0, gilSnakeSize.h - GIL_SNAKE_STROKE);
+    const gilSnakeRx = Math.max(0, GIL_SNAKE_RADIUS - gilSnakeInset);
 
     return (
         <Box sx={{
@@ -1563,13 +1577,12 @@ export default function MikdashProductPage({ onAddToCart }) {
                     }}
                 />
 
-                {/* Desktop: Two Square Backgrounds Side by Side */}
+                {/* Desktop: Single hero card */}
                 <Box
                     sx={{
                         display: { xs: 'none', md: 'flex' },
                         justifyContent: 'center',
                         alignItems: 'center',
-                        gap: 3,
                         width: '100%',
                         height: 'auto',
                         mt: 2,
@@ -1577,70 +1590,89 @@ export default function MikdashProductPage({ onAddToCart }) {
                         px: 3
                     }}
                 >
-                    {/* Left Square - First desktop hero image */}
-                    {product.desktopHeroImages && product.desktopHeroImages[0] && (
+                    <Box
+                        ref={desktopHeroCardRef}
+                        sx={{
+                            width: '100%',
+                            height: 'calc(100vh - 140px)',
+                            borderRadius: 4.5,
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                        }}
+                    >
                         <Box
-                            ref={desktopLeftBoxRef}
+                            component="img"
+                            ref={desktopHeroBgRef}
+                            src="/mikdash_2_page_background.webp"
+                            alt=""
                             sx={{
-                                width: 'calc(50vw - 24px)',
-                                height: 'calc(100vh - 140px)',
-                                backgroundColor: '#d8472a',
-                                borderRadius: 4.5,
-                                backdropFilter: 'blur(10px)',
-                                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                objectPosition: 'center',
+                                pointerEvents: 'none',
+                            }}
+                        />
+
+                        <Box
+                            sx={{
                                 position: 'relative',
+                                zIndex: 1,
+                                height: '100%',
                                 overflow: 'hidden',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                flex: '1 1 0'
                             }}
                         >
-                            <img
-                                ref={desktopLeftImageRef}
-                                src={product.desktopHeroImages[0]}
+                            <Box
+                                component="img"
+                                ref={desktopHeroImageRef}
+                                src="/mikdash_2_page_image.webp"
                                 alt={isHebrew ? 'המקדש השני' : 'The Second Temple'}
-                                style={{
-                                    maxWidth: '80%',
-                                    maxHeight: '80%',
-                                    objectFit: 'cover',
-                                    borderRadius: '18px'
-                                }}
-                            />
-                        </Box>
-                    )}
-                    {/* Right Square - Second desktop hero image */}
-                    {product.desktopHeroImages && product.desktopHeroImages[1] && (
-                        <Box
-                            ref={desktopRightBoxRef}
-                            sx={{
-                                width: 'calc(50vw - 24px)',
-                                height: 'calc(100vh - 140px)',
-                                backgroundColor: '#d8472a',
-                                borderRadius: 4.5,
-                                backdropFilter: 'blur(10px)',
-                                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                flex: '1 1 0'
-                            }}
-                        >
-                            <img
-                                ref={desktopRightImageRef}
-                                src={product.desktopHeroImages[1]}
-                                alt={isHebrew ? 'לוגו המקדש השני' : 'Second Temple Logo'}
-                                style={{
-                                    width: '120%',
-                                    height: '120%',
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    bottom: 0,
+                                    ...(isHebrew ? { right: 0 } : { left: 0 }),
+                                    height: '100%',
+                                    width: 'auto',
+                                    maxWidth: 'none',
                                     objectFit: 'contain',
-                                    borderRadius: '18px'
+                                    objectPosition: isHebrew ? 'right center' : 'left center',
+                                    display: 'block',
                                 }}
                             />
+                            {/* Absolute logo — use left/right % to move toward center (margin can't fight space-between + wide image) */}
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    zIndex: 2,
+                                    ...(isHebrew
+                                        ? { left: { md: '3%', lg: '8%' } }
+                                        : { right: { md: '3%', lg: '5%' } }),
+                                    maxWidth: { md: '22%', lg: '24%' },
+                                    maxHeight: '42%',
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    ref={desktopHeroLogoRef}
+                                    src="/mikdash_hero_2.webp"
+                                    alt={isHebrew ? 'לוגו המקדש השני' : 'Second Temple Logo'}
+                                    sx={{
+                                        width: '100%',
+                                        height: 'auto',
+                                        maxHeight: '42vh',
+                                        objectFit: 'contain',
+                                        display: 'block',
+                                    }}
+                                />
+                            </Box>
                         </Box>
-                    )}
+                    </Box>
                 </Box>
 
                 <Container maxWidth="lg" sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
@@ -1703,18 +1735,87 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 justifyContent: 'center',
                                 alignItems: 'center'
                             }}>
-                            <img
-                                src="/gil_image.jpg"
-                                alt={isHebrew ? 'ילד משחק עם דגם המקדש' : 'Child playing with Temple model'}
-                                style={{
+                            <Box
+                                ref={gilSnakeWrapRef}
+                                sx={{
+                                    position: 'relative',
+                                    display: 'inline-block',
                                     maxWidth: '100%',
-                                    height: 'auto',
-                                    borderRadius: '10px',
-                                    border: '2px solid rgb(229, 90, 61)',
-                                    padding: '25px',
-                                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+                                    borderRadius: `${GIL_SNAKE_RADIUS}px`,
+                                    overflow: 'visible',
+                                    cursor: 'pointer',
+                                    '& .gil-snake-img': {
+                                        borderColor: 'rgb(229, 90, 61)',
+                                        transition: 'border-color 0.08s linear'
+                                    },
+                                    '&:hover .gil-snake-img': {
+                                        borderColor: 'transparent'
+                                    },
+                                    '& .gil-snake-path': {
+                                        strokeDasharray: 1,
+                                        strokeDashoffset: 1,
+                                        opacity: 0,
+                                        transition: 'stroke-dashoffset 1.15s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.01s linear 1.15s'
+                                    },
+                                    '&:hover .gil-snake-path': {
+                                        strokeDashoffset: 0,
+                                        opacity: 1,
+                                        transition: 'stroke-dashoffset 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.08s, opacity 0s linear 0.08s'
+                                    }
                                 }}
-                            />
+                            >
+                                <Box
+                                    component="img"
+                                    className="gil-snake-img"
+                                    src="/gil_image.jpg"
+                                    alt={isHebrew ? 'ילד משחק עם דגם המקדש' : 'Child playing with Temple model'}
+                                    sx={{
+                                        display: 'block',
+                                        maxWidth: '100%',
+                                        height: 'auto',
+                                        borderRadius: `${GIL_SNAKE_RADIUS}px`,
+                                        border: `${GIL_SNAKE_STROKE}px solid rgb(229, 90, 61)`,
+                                        boxSizing: 'border-box',
+                                        padding: '25px',
+                                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+                                    }}
+                                />
+                                {gilSnakeSize.w > 0 && gilSnakeSize.h > 0 && (
+                                    <Box
+                                        component="svg"
+                                        aria-hidden
+                                        width={gilSnakeSize.w}
+                                        height={gilSnakeSize.h}
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: gilSnakeSize.w,
+                                            height: gilSnakeSize.h,
+                                            zIndex: 2,
+                                            pointerEvents: 'none',
+                                            overflow: 'visible',
+                                            transform: isHebrew ? 'scaleX(-1)' : 'none'
+                                        }}
+                                    >
+                                        <rect
+                                            className="gil-snake-path"
+                                            x={gilSnakeInset}
+                                            y={gilSnakeInset}
+                                            width={gilSnakeRectW}
+                                            height={gilSnakeRectH}
+                                            rx={gilSnakeRx}
+                                            ry={gilSnakeRx}
+                                            pathLength={1}
+                                            fill="none"
+                                            stroke="rgb(229, 90, 61)"
+                                            strokeWidth={GIL_SNAKE_STROKE}
+                                            strokeLinecap="butt"
+                                            strokeLinejoin="round"
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
                         </Box>
 
                         {/* Text side */}
