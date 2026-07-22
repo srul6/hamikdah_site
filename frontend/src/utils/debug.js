@@ -3,11 +3,11 @@
  *
  * Enabled when:
  * - local CRA / development build, OR
- * - the Render preview host (hamikdah-site.onrender.com)
+ * - the Render frontend static host below
  *
  * Muted on the real production domain (e.g. bmikdash.com).
  */
-const RENDER_DEBUG_HOST = 'hamikdah-site.onrender.com';
+const RENDER_DEBUG_HOST = 'hamikdah-site-fronteand.onrender.com';
 
 export function isBrowserDebugEnabled() {
     if (process.env.NODE_ENV === 'development') {
