@@ -1,5 +1,20 @@
 /**
- * Browser-side debugging (console, Ads flow diagnostics, consent, etc.).
- * Enabled only in development — production builds mute console via silenceConsoleInProduction.
+ * Browser-side debugging (console, Ads flow, consent, etc.).
+ *
+ * Enabled when:
+ * - local CRA / development build, OR
+ * - the Render preview host (hamikdah-site.onrender.com)
+ *
+ * Muted on the real production domain (e.g. bmikdash.com).
  */
-export const BROWSER_DEBUG = process.env.NODE_ENV === 'development';
+const RENDER_DEBUG_HOST = 'hamikdah-site.onrender.com';
+
+export function isBrowserDebugEnabled() {
+    if (process.env.NODE_ENV === 'development') {
+        return true;
+    }
+    if (typeof window === 'undefined') {
+        return false;
+    }
+    return window.location.hostname === RENDER_DEBUG_HOST;
+}

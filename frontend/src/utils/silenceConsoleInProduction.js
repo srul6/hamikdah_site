@@ -1,10 +1,13 @@
-import { BROWSER_DEBUG } from './debug';
+import { isBrowserDebugEnabled } from './debug';
 
 /**
- * Mute all browser console output when BROWSER_DEBUG is off.
+ * Mute all browser console output when debug is off
+ * (production domain like bmikdash.com).
  * Import this first from index.js so every console.* call is gated.
+ *
+ * Logs stay enabled on localhost (dev) and hamikdah-site.onrender.com.
  */
-if (!BROWSER_DEBUG) {
+if (!isBrowserDebugEnabled()) {
     const noop = () => {};
     const methods = [
         'log',
