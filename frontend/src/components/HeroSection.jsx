@@ -1,11 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { Card, CardMedia, Button, Box } from '@mui/material';
+import { Card, Button, Box, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { translations } from '../translations/translations';
 
 export default function HeroSection() {
     const cardRef = useRef(null);
-    const { isHebrew } = useLanguage();
+    const { language, isHebrew } = useLanguage();
+    const t = translations[language];
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -102,6 +104,30 @@ export default function HeroSection() {
                     }}
                 />
             </Box>
+
+            {/* Mobile: delivery note below hero slogan */}
+            <Typography
+                sx={{
+                    display: { xs: 'block', md: 'none' },
+                    position: 'absolute',
+                    top: '72%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 10,
+                    color: '#fff',
+                    fontSize: { xs: '0.9rem', sm: '0.95rem' },
+                    fontWeight: 300,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '8px',
+                    direction: isHebrew ? 'rtl' : 'ltr',
+                    pointerEvents: 'none',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.25)'
+                }}
+            >
+                {t.deliveryWithin7Days}
+            </Typography>
 
             {/* Button Overlay - Positioned in lower quarter */}
             <Box

@@ -346,25 +346,142 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
 
                     {/* Desktop: Products Menu and Language Switcher */}
                     {!isMobile && (
-                        <Box
-                            sx={{
-                                position: 'absolute',
-                                left: '50%',
-                                top: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                height: '100%',
-                                gap: { xs: 1, sm: 2, md: 3, lg: 5 }
-                            }}
-                        >
+                        <>
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    right: { md: 'calc(50% + 210px)', lg: 'calc(50% + 280px)' },
+                                    transform: 'translateY(-50%)',
+                                    color: 'rgba(229, 90, 61, 1)',
+                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                    fontWeight: 400,
+                                    whiteSpace: 'nowrap',
+                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                    pointerEvents: 'none'
+                                }}
+                            >
+                                {t.deliveryWithin7Days}
+                            </Typography>
 
                             <Box
-                                ref={buttonRef}
-                                onMouseEnter={handleProductsHover}
-                                onClick={handleProductsClick}
+                                sx={{
+                                    position: 'absolute',
+                                    left: '50%',
+                                    top: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    height: '100%',
+                                    gap: { xs: 1, sm: 2, md: 3, lg: 5 }
+                                }}
                             >
+                                <Box
+                                    ref={buttonRef}
+                                    onMouseEnter={handleProductsHover}
+                                    onClick={handleProductsClick}
+                                >
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            color: '#1d1d1f',
+                                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                            fontWeight: 400,
+                                            cursor: 'pointer',
+                                            transition: 'color 0.2s ease',
+                                            '&:hover': {
+                                                color: 'rgba(199, 61, 34, 1)'
+                                            }
+                                        }}
+                                    >
+                                        {t.products}
+                                    </Typography>
+                                </Box>
+
+                                {/* Separator */}
                                 <Typography
+                                    variant="body1"
+                                    sx={{
+                                        color: '#86868b',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        mx: 0,
+                                        display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                    }}
+                                >
+                                    |
+                                </Typography>
+
+                                {/* About Us */}
+                                <Link to="/about" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            color: '#1d1d1f',
+                                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                            fontWeight: 400,
+                                            cursor: 'pointer',
+                                            transition: 'color 0.2s ease',
+                                            '&:hover': {
+                                                color: 'rgba(199, 61, 34, 1)'
+                                            }
+                                        }}
+                                    >
+                                        {t.aboutUs}
+                                    </Typography>
+                                </Link>
+
+                                {/* Separator */}
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        color: '#86868b',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        mx: 0,
+                                        display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                    }}
+                                >
+                                    |
+                                </Typography>
+
+                                {/* Home */}
+                                <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }} onClick={handleLogoClick}>
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            color: '#1d1d1f',
+                                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                            fontWeight: 400,
+                                            cursor: 'pointer',
+                                            transition: 'color 0.2s ease',
+                                            '&:hover': {
+                                                color: 'rgba(199, 61, 34, 1)'
+                                            }
+                                        }}
+                                    >
+                                        {t.home || 'Home'}
+                                    </Typography>
+                                </Link>
+
+                                {/* Separator */}
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        color: '#86868b',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        mx: 0,
+                                        display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                    }}
+                                >
+                                    |
+                                </Typography>
+
+                                {/* Language Switcher */}
+                                <Typography
+                                    onClick={toggleLanguage}
                                     variant="body1"
                                     sx={{
                                         color: '#1d1d1f',
@@ -377,108 +494,10 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                         }
                                     }}
                                 >
-                                    {t.products}
+                                    {language}
                                 </Typography>
                             </Box>
-
-                            {/* Separator */}
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    color: '#86868b',
-                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                    fontWeight: 400,
-                                    mx: 0,
-                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
-                                }}
-                            >
-                                |
-                            </Typography>
-
-                            {/* About Us */}
-                            <Link to="/about" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                <Typography
-                                    variant="body1"
-                                    sx={{
-                                        color: '#1d1d1f',
-                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                        fontWeight: 400,
-                                        cursor: 'pointer',
-                                        transition: 'color 0.2s ease',
-                                        '&:hover': {
-                                            color: 'rgba(199, 61, 34, 1)'
-                                        }
-                                    }}
-                                >
-                                    {t.aboutUs}
-                                </Typography>
-                            </Link>
-
-                            {/* Separator */}
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    color: '#86868b',
-                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                    fontWeight: 400,
-                                    mx: 0,
-                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
-                                }}
-                            >
-                                |
-                            </Typography>
-
-                            {/* Home */}
-                            <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }} onClick={handleLogoClick}>
-                                <Typography
-                                    variant="body1"
-                                    sx={{
-                                        color: '#1d1d1f',
-                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                        fontWeight: 400,
-                                        cursor: 'pointer',
-                                        transition: 'color 0.2s ease',
-                                        '&:hover': {
-                                            color: 'rgba(199, 61, 34, 1)'
-                                        }
-                                    }}
-                                >
-                                    {t.home || 'Home'}
-                                </Typography>
-                            </Link>
-
-                            {/* Separator */}
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    color: '#86868b',
-                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                    fontWeight: 400,
-                                    mx: 0,
-                                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
-                                }}
-                            >
-                                |
-                            </Typography>
-
-                            {/* Language Switcher */}
-                            <Typography
-                                onClick={toggleLanguage}
-                                variant="body1"
-                                sx={{
-                                    color: '#1d1d1f',
-                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
-                                    fontWeight: 400,
-                                    cursor: 'pointer',
-                                    transition: 'color 0.2s ease',
-                                    '&:hover': {
-                                        color: 'rgba(199, 61, 34, 1)'
-                                    }
-                                }}
-                            >
-                                {language}
-                            </Typography>
-                        </Box>
+                        </>
                     )}
 
                     {/* Cart and Mobile Menu */}

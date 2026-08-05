@@ -20,6 +20,7 @@ import PaymentCancel from './pages/PaymentCancel';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import WhatsAppFloatingButton from './components/WhatsAppFloatingButton';
 import ClarityAnalytics from './analytics/ClarityAnalytics';
 import { ConsentProvider } from './consent/ConsentContext';
 import CookieConsentUI from './consent/CookieConsentUI';
@@ -78,6 +79,7 @@ function AppContent() {
                 <Route path="/payment/cancel" element={<PaymentCancel />} />
             </Routes>
             <Footer />
+            <WhatsAppFloatingButton />
         </Box>
     );
 }

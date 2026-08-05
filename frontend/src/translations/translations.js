@@ -44,6 +44,7 @@ export const translations = {
         // Home Page
         heroTitle: 'חנות המקדש',
         heroSubtitle: 'מוצרים יהודיים אותנטיים וחפצי קודש',
+        deliveryWithin7Days: 'משלוח תוך 7 ימי עסקים',
         addToCart: 'הוסף לעגלה',
         loadingProducts: '...טוען מוצרים',
         mainTitle: 'מוצרים איכותיים לבית היהודי',
@@ -385,6 +386,7 @@ export const translations = {
 
         // Home Page
         heroSubtitle: 'Authentic Jewish Religious Items and Spiritual Artifacts',
+        deliveryWithin7Days: 'Delivery within 7 business days',
         addToCart: 'Add to Cart',
         loadingProducts: 'Loading products...',
         mainTitle: 'High-quality products for the Jewish home',

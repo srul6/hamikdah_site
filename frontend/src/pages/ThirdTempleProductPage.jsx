@@ -315,7 +315,7 @@ const StaticGallerySection = React.forwardRef(({ product, selectedColor, isHebre
         <Box
             ref={ref}
             sx={{
-                backgroundColor: 'rgb(0, 26, 36)',
+                backgroundColor: '#162b26',
                 pt: 8,
                 pb: 6
             }}>
@@ -370,7 +370,7 @@ const StaticGallerySection = React.forwardRef(({ product, selectedColor, isHebre
                             mb: 4,
                             flexDirection: isHebrew ? 'row' : 'row',
                             '&:hover .gallery-divider': {
-                                borderColor: 'rgb(229, 90, 61)',
+                                borderColor: '#45bdcd',
                             }
                         }}>
                             {/* Text side */}
@@ -444,7 +444,7 @@ const StaticGallerySection = React.forwardRef(({ product, selectedColor, isHebre
                                         transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                                         '&:hover': {
                                             transform: 'scale(1.05)',
-                                            boxShadow: '0 10px 40px rgba(229, 90, 61, 0.4)',
+                                            boxShadow: '0 10px 40px rgba(69, 189, 205, 0.4)',
                                         }
                                     }}
                                 />
@@ -561,7 +561,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
         <Box
             ref={ref}
             sx={{
-                backgroundColor: 'rgb(0, 33, 46)',
+                backgroundColor: '#1e3932',
                 py: 6
             }}>
             <Container maxWidth="lg">
@@ -871,7 +871,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
 
 ProductFeaturesSection.displayName = 'ProductFeaturesSection';
 
-export default function MikdashProductPage({ onAddToCart }) {
+export default function ThirdTempleProductPage({ onAddToCart }) {
     const { id } = useParams();
     const navigate = useNavigate();
     const { language, isHebrew } = useLanguage();
@@ -891,14 +891,14 @@ export default function MikdashProductPage({ onAddToCart }) {
     const [currentAdvantageIndex, setCurrentAdvantageIndex] = useState(0);
     const [advantageScrollProgress, setAdvantageScrollProgress] = useState(0);
 
-    // Product gallery images - stored in public/2mikdash_product_images/
+    // Product gallery images - stored in public/3mikdash_product_images/
     const productGalleryImages = [
-        '/2mikdash_product_images/candle.png',
-        '/2mikdash_product_images/hamikdash.png',
-        '/2mikdash_product_images/kruvim.png',
-        '/2mikdash_product_images/lehem.png',
-        '/2mikdash_product_images/pnimi.png',
-        '/2mikdash_product_images/hamikdash2.png'
+        '/3mikdash_product_images/candle.png',
+        '/3mikdash_product_images/hamikdash.png',
+        '/3mikdash_product_images/kruvim.png',
+        '/3mikdash_product_images/lehem.png',
+        '/3mikdash_product_images/pnimi.png',
+        '/3mikdash_product_images/hamikdash2.png'
         // Add more images as needed
     ];
 
@@ -926,6 +926,11 @@ export default function MikdashProductPage({ onAddToCart }) {
     // GSAP animation refs for desktop hero video
     const desktopHeroVideoRef = useRef(null);
     const desktopHeroLogoRef = useRef(null);
+    const desktopHeroSnakeSvgRef = useRef(null);
+    const heroSnakeHoverRef = useRef(false);
+    const heroSnakeIntervalRef = useRef(null);
+    const [heroSnakePaths, setHeroSnakePaths] = useState([]);
+    const [heroSnakeClip, setHeroSnakeClip] = useState(null);
 
     // Snake border around the gil / "Every home..." image
     const gilSnakeWrapRef = useRef(null);
@@ -948,17 +953,17 @@ export default function MikdashProductPage({ onAddToCart }) {
             try {
                 setLoading(true);
                 const productData = await fetchProductById(id);
-                console.log('MikdashProductPage - Loaded product:', productData);
+                console.log('ThirdTempleProductPage - Loaded product:', productData);
                 setProduct(productData);
 
                 // Set default color if available
                 if (productData?.colors && Array.isArray(productData.colors) && productData.colors.length > 0) {
                     setSelectedColor(productData.colors[0]);
-                    console.log('MikdashProductPage - Set default color:', productData.colors[0]);
+                    console.log('ThirdTempleProductPage - Set default color:', productData.colors[0]);
                 }
             } catch (err) {
                 setError('Failed to load product details');
-                console.error('MikdashProductPage - Error loading product:', err);
+                console.error('ThirdTempleProductPage - Error loading product:', err);
             } finally {
                 setLoading(false);
             }
@@ -1504,21 +1509,157 @@ export default function MikdashProductPage({ onAddToCart }) {
         };
     }, [product]);
 
+    // Animate newly spawned snake lines (appear → disappear); keep looping while hovered
+    useEffect(() => {
+        if (!heroSnakePaths.length || !desktopHeroSnakeSvgRef.current) return undefined;
+
+        // Only start timelines for brand-new paths — do not kill older in-flight lines
+        const nodes = desktopHeroSnakeSvgRef.current.querySelectorAll('.hero-snake-line:not([data-animated])');
+
+        nodes.forEach((node) => {
+            node.setAttribute('data-animated', '1');
+            const pathId = node.getAttribute('data-id');
+            const len = node.getTotalLength();
+            gsap.set(node, {
+                strokeDasharray: len,
+                strokeDashoffset: len,
+                opacity: 1,
+            });
+
+            gsap.timeline({
+                onComplete: () => {
+                    setHeroSnakePaths((prev) => prev.filter((p) => p.id !== pathId));
+                },
+            })
+                .to(node, {
+                    strokeDashoffset: 0,
+                    duration: 0.9 + Math.random() * 0.4,
+                    ease: 'sine.inOut',
+                })
+                .to(node, {
+                    strokeDashoffset: -len,
+                    opacity: 0,
+                    duration: 0.75 + Math.random() * 0.35,
+                    ease: 'sine.inOut',
+                }, '+=0.2');
+        });
+
+        return undefined;
+    }, [heroSnakePaths]);
+
+    const getVideoContentRect = (video) => {
+        const { videoWidth, videoHeight, clientWidth, clientHeight } = video;
+        if (!videoWidth || !videoHeight || !clientWidth || !clientHeight) {
+            return { x: 0, y: 0, w: clientWidth || 0, h: clientHeight || 0 };
+        }
+        const scale = Math.min(clientWidth / videoWidth, clientHeight / videoHeight);
+        const w = videoWidth * scale;
+        const h = videoHeight * scale;
+        return {
+            x: (clientWidth - w) / 2,
+            y: (clientHeight - h) / 2,
+            w,
+            h,
+        };
+    };
+
+    const makePlayfulSnakePath = (rect) => {
+        const inset = 12;
+        const minX = rect.x + inset;
+        const maxX = rect.x + rect.w - inset;
+        const minY = rect.y + inset;
+        const maxY = rect.y + rect.h - inset;
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+        const randIn = (min, max) => min + Math.random() * Math.max(0, max - min);
+
+        // Long, gentle single curve — barely bent
+        const x0 = randIn(minX, maxX);
+        const y0 = randIn(minY, maxY);
+        const angle = Math.random() * Math.PI * 2;
+        const length = Math.min(rect.w, rect.h) * (0.35 + Math.random() * 0.3);
+        const x1 = clamp(x0 + Math.cos(angle) * length, minX, maxX);
+        const y1 = clamp(y0 + Math.sin(angle) * length, minY, maxY);
+        const softBend = length * (0.08 + Math.random() * 0.12);
+        const perp = angle + Math.PI / 2;
+        const sign = Math.random() > 0.5 ? 1 : -1;
+        const cx = clamp((x0 + x1) / 2 + Math.cos(perp) * softBend * sign, minX, maxX);
+        const cy = clamp((y0 + y1) / 2 + Math.sin(perp) * softBend * sign, minY, maxY);
+        return `M ${x0.toFixed(1)} ${y0.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+    };
+
+    const spawnHeroSnakeBatch = () => {
+        const video = desktopHeroVideoRef.current;
+        if (!video || !heroSnakeHoverRef.current) return;
+
+        const rect = getVideoContentRect(video);
+        if (rect.w < 40 || rect.h < 40) return;
+
+        setHeroSnakeClip(rect);
+
+        const lineColor = '#1e3932';
+        const count = Math.random() < 0.75 ? 1 : 2;
+        const paths = Array.from({ length: count }, (_, i) => ({
+            id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+            d: makePlayfulSnakePath(rect),
+            color: lineColor,
+            width: 1.4 + Math.random() * 0.8,
+        }));
+
+        setHeroSnakePaths((prev) => [...prev, ...paths].slice(-6));
+    };
+
+    const handleHeroVideoHoverEnter = () => {
+        heroSnakeHoverRef.current = true;
+        spawnHeroSnakeBatch();
+        if (heroSnakeIntervalRef.current) clearInterval(heroSnakeIntervalRef.current);
+        heroSnakeIntervalRef.current = setInterval(spawnHeroSnakeBatch, 700);
+    };
+
+    const handleHeroVideoHoverLeave = () => {
+        heroSnakeHoverRef.current = false;
+        if (heroSnakeIntervalRef.current) {
+            clearInterval(heroSnakeIntervalRef.current);
+            heroSnakeIntervalRef.current = null;
+        }
+
+        const nodes = desktopHeroSnakeSvgRef.current?.querySelectorAll('.hero-snake-line');
+        if (!nodes?.length) {
+            setHeroSnakePaths([]);
+            setHeroSnakeClip(null);
+            return;
+        }
+        gsap.killTweensOf(nodes);
+        gsap.to(nodes, {
+            opacity: 0,
+            duration: 0.2,
+            ease: 'power1.in',
+            onComplete: () => {
+                setHeroSnakePaths([]);
+                setHeroSnakeClip(null);
+            },
+        });
+    };
+
+    // Clear hover interval on unmount
+    useEffect(() => () => {
+        if (heroSnakeIntervalRef.current) clearInterval(heroSnakeIntervalRef.current);
+    }, []);
+
     const handleBackClick = () => {
         navigate('/');
     };
 
     const handleAddToCart = () => {
-        console.log('MikdashProductPage - Add to Cart clicked');
+        console.log('ThirdTempleProductPage - Add to Cart clicked');
         console.log('Product:', product);
         console.log('Selected Color:', selectedColor);
         console.log('onAddToCart function:', onAddToCart);
 
         if (onAddToCart && product) {
             onAddToCart(product, selectedColor);
-            console.log('MikdashProductPage - Successfully called onAddToCart');
+            console.log('ThirdTempleProductPage - Successfully called onAddToCart');
         } else {
-            console.error('MikdashProductPage - Missing onAddToCart or product');
+            console.error('ThirdTempleProductPage - Missing onAddToCart or product');
         }
     };
 
@@ -1545,7 +1686,7 @@ export default function MikdashProductPage({ onAddToCart }) {
 
     return (
         <Box sx={{
-            backgroundColor: '#00212e',
+            backgroundColor: '#1e3932',
             minHeight: '100vh',
             pt: { xs: 10, md: 12 },
             pb: 8,
@@ -1580,7 +1721,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                         margin: '16px auto',
                         width: 'calc(100% - 45px)',
                         height: { xs: '55vh', md: '100vh' },
-                        backgroundColor: '#d8472a',
+                        backgroundColor: '#45bdcd',
                         borderRadius: 4.5,
                         backdropFilter: 'blur(10px)',
                         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
@@ -1591,6 +1732,8 @@ export default function MikdashProductPage({ onAddToCart }) {
 
                 {/* Desktop hero — video (mobile unchanged) */}
                 <Box
+                    onMouseEnter={handleHeroVideoHoverEnter}
+                    onMouseLeave={handleHeroVideoHoverLeave}
                     sx={{
                         display: { xs: 'none', md: 'flex' },
                         justifyContent: 'center',
@@ -1601,13 +1744,13 @@ export default function MikdashProductPage({ onAddToCart }) {
                         mt: 2,
                         mb: 10,
                         position: 'relative',
-                        overflow: 'hidden',
+                        overflow: 'visible',
                     }}
                 >
                     <Box
                         ref={desktopHeroVideoRef}
                         component="video"
-                        src="/mikdash_2_hero.webm"
+                        src="/mikdash_3_hero.webm"
                         autoPlay
                         muted
                         playsInline
@@ -1621,6 +1764,51 @@ export default function MikdashProductPage({ onAddToCart }) {
                             backgroundColor: 'transparent',
                         }}
                     />
+                    {/* Playful snake lines — continuous while hovered, clipped to video frame */}
+                    <Box
+                        component="svg"
+                        ref={desktopHeroSnakeSvgRef}
+                        aria-hidden
+                        sx={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: '100%',
+                            height: '100%',
+                            pointerEvents: 'none',
+                            overflow: 'hidden',
+                            zIndex: 3,
+                        }}
+                    >
+                        {heroSnakeClip && (
+                            <defs>
+                                <clipPath id="hero-video-snake-clip">
+                                    <rect
+                                        x={heroSnakeClip.x}
+                                        y={heroSnakeClip.y}
+                                        width={heroSnakeClip.w}
+                                        height={heroSnakeClip.h}
+                                        rx={28}
+                                        ry={28}
+                                    />
+                                </clipPath>
+                            </defs>
+                        )}
+                        <g clipPath={heroSnakeClip ? 'url(#hero-video-snake-clip)' : undefined}>
+                            {heroSnakePaths.map((path) => (
+                                <path
+                                    key={path.id}
+                                    className="hero-snake-line"
+                                    data-id={path.id}
+                                    d={path.d}
+                                    fill="none"
+                                    stroke={path.color}
+                                    strokeWidth={path.width}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                            ))}
+                        </g>
+                    </Box>
                     {/* Slides in from the right 1s after video starts — tweak size/position on the wrapper */}
                     <Box
                         sx={{
@@ -1637,7 +1825,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                         <Box
                             component="img"
                             ref={desktopHeroLogoRef}
-                            src="/mikdash_2_logo.webp"
+                            src="/mikdash_3_logo.webp"
                             alt={isHebrew ? 'לוגו המקדש השני' : 'Second Temple Logo'}
                             sx={{
                                 width: '100%',
@@ -1667,7 +1855,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                         }}
                     >
                         <img
-                            src="/mikdash_logo_2.webp"
+                            src="/mikdash_3_logo.webp"
                             alt={isHebrew ? '   לוגו המקדש השני' : 'Second Temple Logo'}
                             fetchpriority="high"
                             style={{
@@ -1686,7 +1874,7 @@ export default function MikdashProductPage({ onAddToCart }) {
             <Box
                 ref={textSectionRef}
                 sx={{
-                    backgroundColor: 'rgb(1, 20, 29)',
+                    backgroundColor: '#162b26',
                     py: 6,
                     minHeight: { xs: 'auto', md: 'calc(100vh - 140px)' },
                     display: { xs: 'block', md: 'flex' },
@@ -1721,7 +1909,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                                     overflow: 'visible',
                                     cursor: 'pointer',
                                     '& .gil-snake-img': {
-                                        borderColor: 'rgb(229, 90, 61)',
+                                        borderColor: '#45bdcd',
                                         transition: 'border-color 0.08s linear'
                                     },
                                     '&:hover .gil-snake-img': {
@@ -1743,14 +1931,14 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 <Box
                                     component="img"
                                     className="gil-snake-img"
-                                    src="/gil_image.jpg"
+                                    src=""
                                     alt={isHebrew ? 'ילד משחק עם דגם המקדש' : 'Child playing with Temple model'}
                                     sx={{
                                         display: 'block',
                                         maxWidth: '100%',
                                         height: 'auto',
                                         borderRadius: `${GIL_SNAKE_RADIUS}px`,
-                                        border: `${GIL_SNAKE_STROKE}px solid rgb(229, 90, 61)`,
+                                        border: `${GIL_SNAKE_STROKE}px solid #45bdcd`,
                                         boxSizing: 'border-box',
                                         padding: '25px',
                                         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
@@ -1784,7 +1972,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                                             ry={gilSnakeRx}
                                             pathLength={1}
                                             fill="none"
-                                            stroke="rgb(229, 90, 61)"
+                                            stroke="#45bdcd"
                                             strokeWidth={GIL_SNAKE_STROKE}
                                             strokeLinecap="butt"
                                             strokeLinejoin="round"
@@ -1837,25 +2025,25 @@ export default function MikdashProductPage({ onAddToCart }) {
                             >
                                 {isHebrew ? (
                                     <>
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ובבית</span> שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>ובבית</span> שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
                                         <br />
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
                                         <br />
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
                                     </>
                                 ) : (
                                     <>
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{' '}
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{' '}
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{' '}
                                         <br />
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{' '}
                                         <br />
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{' '}
-                                        <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{' '}
+                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
                                     </>
                                 )}
                             </Typography>
@@ -1899,25 +2087,25 @@ export default function MikdashProductPage({ onAddToCart }) {
                         >
                             {isHebrew ? (
                                 <>
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ובבית שלנו</span> צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>ובבית שלנו</span> צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
                                     <br />
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
                                     <br />
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
                                 </>
                             ) : (
                                 <>
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{` `}
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{` `}
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{` `}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{` `}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{` `}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{` `}
                                     <br />
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{` `}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{` `}
                                     <br />
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{` `}
-                                    <span style={{ color: 'rgb(229, 90, 61)', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{` `}
+                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
                                 </>
                             )}
                         </Typography>
@@ -1997,7 +2185,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                 <Box
                     ref={childrenPlayingRef}
                     sx={{
-                        backgroundColor: 'rgb(5, 38, 51)',
+                        backgroundColor: '#234840',
                         minHeight: '100vh',
                         display: 'flex',
                         flexDirection: 'column',
@@ -2167,7 +2355,7 @@ export default function MikdashProductPage({ onAddToCart }) {
 
             {/* Horizontal Scrolling Video Gallery */}
             <Box sx={{
-                backgroundColor: 'rgb(5, 38, 51)',
+                backgroundColor: '#234840',
                 minHeight: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
@@ -2191,7 +2379,7 @@ export default function MikdashProductPage({ onAddToCart }) {
                 <Box
                     ref={productGalleryRef}
                     sx={{
-                        backgroundColor: 'rgb(5, 38, 51)',
+                        backgroundColor: '#234840',
                         minHeight: '100vh',
                         display: 'flex',
                         flexDirection: 'column',
@@ -2311,7 +2499,7 @@ export default function MikdashProductPage({ onAddToCart }) {
             <Box
                 ref={kitAdvantagesRef}
                 sx={{
-                    backgroundColor: 'rgb(0, 26, 36)',
+                    backgroundColor: '#162b26',
                     py: 6
                 }}>
                 {/* Section Title */}
@@ -2643,9 +2831,9 @@ export default function MikdashProductPage({ onAddToCart }) {
                                     border: '2px solid #f5f0e3',
                                     '&:hover': {
                                         backgroundColor: '#f5f0e3',
-                                        color: 'rgba(229, 90, 61, 1)',
+                                        color: 'rgba(69, 189, 205, 1)',
                                         transform: 'translateY(-4px)',
-                                        borderColor: 'rgba(229, 90, 61, 1)'
+                                        borderColor: 'rgba(69, 189, 205, 1)'
                                     },
                                     '&:disabled': {
                                         backgroundColor: '#666',
@@ -2699,9 +2887,9 @@ export default function MikdashProductPage({ onAddToCart }) {
                                 border: '2px solid #f5f0e3',
                                 '&:hover': {
                                     backgroundColor: '#f5f0e3',
-                                    color: 'rgba(229, 90, 61, 1)',
+                                    color: 'rgba(69, 189, 205, 1)',
                                     transform: 'translateY(-4px)',
-                                    borderColor: 'rgba(229, 90, 61, 1)'
+                                    borderColor: 'rgba(69, 189, 205, 1)'
                                 },
                                 '&:disabled': {
                                     backgroundColor: '#666',
