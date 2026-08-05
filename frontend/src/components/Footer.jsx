@@ -35,6 +35,7 @@ export default function Footer() {
 
     return (
         <Box
+            id="site-footer"
             sx={{
                 backgroundColor: 'rgba(229, 90, 61, 1)',
                 borderTop: '1px solid #e0e0e0',

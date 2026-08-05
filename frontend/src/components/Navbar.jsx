@@ -174,6 +174,16 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
         }
     };
 
+    const handleContactClick = (e) => {
+        e.preventDefault();
+        setIsExpanded(false);
+        setIsCartExpanded(false);
+        const footer = document.getElementById('site-footer');
+        if (footer) {
+            footer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     const handleMobileMenuToggle = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
         setIsMobileProductsPage(false);
@@ -352,7 +362,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                 sx={{
                                     position: 'absolute',
                                     top: '50%',
-                                    right: { md: 'calc(50% + 210px)', lg: 'calc(50% + 280px)' },
+                                    right: { md: 'calc(50% + 270px)', lg: 'calc(50% + 360px)' },
                                     transform: 'translateY(-50%)',
                                     color: 'rgba(229, 90, 61, 1)',
                                     fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
@@ -377,6 +387,41 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     gap: { xs: 1, sm: 2, md: 3, lg: 5 }
                                 }}
                             >
+                                {/* Contact */}
+                                <Typography
+                                    component="a"
+                                    href="#site-footer"
+                                    onClick={handleContactClick}
+                                    variant="body1"
+                                    sx={{
+                                        color: '#1d1d1f',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        cursor: 'pointer',
+                                        textDecoration: 'none',
+                                        transition: 'color 0.2s ease',
+                                        '&:hover': {
+                                            color: 'rgba(199, 61, 34, 1)'
+                                        }
+                                    }}
+                                >
+                                    {t.contact}
+                                </Typography>
+
+                                {/* Separator */}
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        color: '#86868b',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        mx: 0,
+                                        display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                    }}
+                                >
+                                    |
+                                </Typography>
+
                                 <Box
                                     ref={buttonRef}
                                     onMouseEnter={handleProductsHover}
