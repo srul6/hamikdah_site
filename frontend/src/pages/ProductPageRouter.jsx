@@ -8,6 +8,7 @@ import { Container, CircularProgress, Typography, Button } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { subscribe } from '../consent/consentManager';
 import { trackViewContent, resetViewContentDedupe } from '../analytics/metaTracking';
+import { trackGa4ViewItem, resetGa4ViewItemDedupe } from '../analytics/ga4Tracking';
 import {
     findProductBySlug,
     getProductPath,
@@ -36,6 +37,7 @@ export default function ProductPageRouter({ onAddToCart }) {
             setRedirectTo(null);
             setProduct(null);
             resetViewContentDedupe();
+            resetGa4ViewItemDedupe();
 
             try {
                 const products = await fetchProducts();
@@ -99,6 +101,11 @@ export default function ProductPageRouter({ onAddToCart }) {
         const tryTrack = () => {
             try {
                 trackViewContent(product);
+            } catch (_) {
+                // Tracking must never break product pages
+            }
+            try {
+                trackGa4ViewItem(product);
             } catch (_) {
                 // Tracking must never break product pages
             }

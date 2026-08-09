@@ -70,6 +70,65 @@ export async function deleteOrder(id) {
 }
 
 /**
+ * Fetch paid-order ecommerce summary for GA4 purchase (read-only; no PII).
+ * Retries on 404 while the webhook may still be creating the order.
+ *
+ * @returns {Promise<{ value: number, currency: string, transactionId: string, items: Array } | null>}
+ */
+export async function fetchPurchaseSummary(orderId, { retries = 12, delayMs = 1000 } = {}) {
+    const id = encodeURIComponent(String(orderId));
+    const url = `${API_ENDPOINTS.orders}/${id}/purchase-summary`;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { Accept: 'application/json' }
+            });
+
+            if (response.status === 404 && attempt < retries) {
+                await new Promise((r) => setTimeout(r, delayMs));
+                continue;
+            }
+
+            if (response.status === 403) {
+                // Order exists but not paid yet — retry briefly
+                if (attempt < retries) {
+                    await new Promise((r) => setTimeout(r, delayMs));
+                    continue;
+                }
+                return null;
+            }
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const data = await response.json();
+            if (!data?.success || !data.paid) {
+                return null;
+            }
+
+            return {
+                value: data.value,
+                currency: data.currency || 'ILS',
+                transactionId: data.transactionId || String(orderId),
+                items: Array.isArray(data.items) ? data.items : []
+            };
+        } catch (error) {
+            if (attempt < retries) {
+                await new Promise((r) => setTimeout(r, delayMs));
+                continue;
+            }
+            console.warn('Error fetching purchase summary:', error);
+            return null;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Atomically claim Ads conversion for a paid order (server is source of truth).
  * Retries briefly on 404 — webhook may create the order slightly after redirect.
  *

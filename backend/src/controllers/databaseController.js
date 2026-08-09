@@ -756,6 +756,57 @@ class DatabaseController {
     }
 
     /**
+     * Public ecommerce summary for a paid order (by checkout_session_id / success URL orderId).
+     * Read-only — does not touch ads_conversion_sent. No PII returned.
+     *
+     * @returns {{ notFound: true } | { unpaid: true, status: string } | { paid: true, value, currency, transactionId, items }}
+     */
+    async getPaidOrderPurchaseSummary(checkoutSessionId) {
+        await ensureOrdersConversionSchema();
+        const sessionId = normalizeCheckoutSessionId(checkoutSessionId);
+        if (!sessionId) {
+            return { notFound: true };
+        }
+
+        const existing = await pool.query(
+            `SELECT amount, currency, checkout_session_id, status, items
+             FROM orders
+             WHERE checkout_session_id::text = $1`,
+            [sessionId]
+        );
+
+        if (!existing.rows[0]) {
+            return { notFound: true };
+        }
+
+        const order = existing.rows[0];
+        const status = String(order.status || '').toLowerCase();
+        if (!PAID_ORDER_STATUSES.has(status)) {
+            return { unpaid: true, status: order.status };
+        }
+
+        let items = order.items;
+        if (typeof items === 'string') {
+            try {
+                items = JSON.parse(items);
+            } catch {
+                items = [];
+            }
+        }
+        if (!Array.isArray(items)) {
+            items = [];
+        }
+
+        return {
+            paid: true,
+            value: Number(order.amount),
+            currency: order.currency || 'ILS',
+            transactionId: String(order.checkout_session_id),
+            items
+        };
+    }
+
+    /**
      * Atomically claim Google Ads conversion for a paid order looked up by public
      * checkout_session_id (the orderId in success URLs).
      *

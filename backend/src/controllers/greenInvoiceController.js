@@ -185,6 +185,7 @@ class GreenInvoiceController {
             res.json({
                 success: true,
                 message: 'Payment form created successfully',
+                orderId: String(checkoutSessionId),
                 paymentFormUrl: paymentResult.url,
                 formId: paymentResult.formId || paymentResult.url.split('/').pop().split('?')[0],
                 status: 'created'

@@ -26,6 +26,7 @@ import {
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
 import { getProductPath } from '../utils/productSlug';
 import { trackInitiateCheckout } from '../analytics/metaTracking';
+import { trackGa4BeginCheckout } from '../analytics/ga4Tracking';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const navigate = useNavigate();
@@ -114,6 +115,16 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 items: cart,
                 value: finalTotal,
                 numItems
+            });
+        } catch (_) {
+            // Tracking must never block checkout
+        }
+
+        try {
+            trackGa4BeginCheckout({
+                items: cart,
+                value: finalTotal,
+                currency: 'ILS'
             });
         } catch (_) {
             // Tracking must never block checkout

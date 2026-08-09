@@ -56,6 +56,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Parse cookies
 app.set('trust proxy', 1);
 
+// Clickjacking protection (X-Frame-Options is ignored as a <meta> tag; must be an HTTP header)
+app.use((req, res, next) => {
+    res.setHeader('X-Frame-Options', 'DENY');
+    next();
+});
+
 // CORS configuration - set FRONTEND_URL / BACKEND_URL in env; optional hardcoded origins below
 const allowedOrigins = [
     'https://bmikdash.com',
@@ -205,6 +211,7 @@ app.all('/api/*', (req, res) => {
 // SPA routes: serve React app (always revalidate — fresh HTML after deploy)
 const indexPath = path.join(__dirname, '../../frontend/build/index.html');
 const sendIndex = (req, res) => {
+    res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

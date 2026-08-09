@@ -77,20 +77,29 @@ export function initMetaPixel() {
 
     if (metaInitialized) {
         metaTrackingEnabled = true;
-        metaLog('Re-enabled after consent grant');
+        metaLog('Re-enabled after consent grant', {
+            pixelId: META_PIXEL_ID,
+            advertisingConsentRequired: true,
+            trackingEnabled: true
+        });
         return true;
     }
 
     try {
         metaLog('Initializing', { pixelId: META_PIXEL_ID });
         if (!ensureFbq()) {
+            metaWarn('Init blocked — fbq bootstrap failed');
             return false;
         }
 
         window.fbq('init', META_PIXEL_ID);
         metaInitialized = true;
         metaTrackingEnabled = true;
-        metaLog('Initialized');
+        metaLog('Initialized', {
+            pixelId: META_PIXEL_ID,
+            fbqReady: typeof window.fbq === 'function',
+            note: 'PageView is emitted by MetaPixelAnalytics after consent/init'
+        });
         return true;
     } catch (error) {
         metaWarn('Init failed', error);
@@ -106,7 +115,10 @@ export function initMetaPixel() {
  */
 export function disableMetaPixel() {
     metaTrackingEnabled = false;
-    metaLog('Disabled (advertising consent withdrawn)');
+    metaLog('Disabled (advertising consent withdrawn)', {
+        metaInitialized,
+        trackingEnabled: false
+    });
 }
 
 export function isMetaPixelInitialized() {
@@ -121,7 +133,21 @@ export function getMetaPixelId() {
  * Low-level fbq track — used only by the centralized tracking layer.
  */
 export function fbqTrack(eventName, params = {}, { eventID } = {}) {
-    if (!isMetaPixelInitialized() || typeof window === 'undefined' || typeof window.fbq !== 'function') {
+    if (!isMetaPixelInitialized()) {
+        metaLog('fbqTrack blocked', {
+            eventName,
+            reason: 'pixel not initialized or tracking disabled',
+            metaInitialized,
+            metaTrackingEnabled
+        });
+        return false;
+    }
+
+    if (typeof window === 'undefined' || typeof window.fbq !== 'function') {
+        metaLog('fbqTrack blocked', {
+            eventName,
+            reason: 'window.fbq unavailable'
+        });
         return false;
     }
 
@@ -131,6 +157,11 @@ export function fbqTrack(eventName, params = {}, { eventID } = {}) {
         } else {
             window.fbq('track', eventName, params);
         }
+        metaLog('fbqTrack succeeded', {
+            eventName,
+            eventID: eventID || null,
+            hasParams: Boolean(params && Object.keys(params).length)
+        });
         return true;
     } catch (error) {
         metaWarn(`fbq track failed: ${eventName}`, error);

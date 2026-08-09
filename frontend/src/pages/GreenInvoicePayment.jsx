@@ -21,6 +21,10 @@ import {
 } from '../utils/cookieManager';
 import DOMPurify from 'dompurify';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
+import {
+    trackGa4AddPaymentInfo,
+    savePendingGa4Purchase
+} from '../analytics/ga4Tracking';
 
 /** Max lengths — matches backend `checkoutValidation` (defense in depth with input maxLength). */
 const FIELD_MAX_LEN = {
@@ -292,6 +296,31 @@ export default function GreenInvoicePayment() {
             });
 
             if (response.success) {
+                const checkoutOrderId = response.orderId != null ? String(response.orderId) : null;
+                if (checkoutOrderId) {
+                    try {
+                        savePendingGa4Purchase({
+                            orderId: checkoutOrderId,
+                            items: checkoutCart,
+                            value: displayTotal,
+                            currency: 'ILS'
+                        });
+                    } catch (_) {
+                        // Non-fatal
+                    }
+                }
+
+                try {
+                    trackGa4AddPaymentInfo({
+                        items: checkoutCart,
+                        value: displayTotal,
+                        currency: 'ILS',
+                        paymentType: 'CardCom'
+                    });
+                } catch (_) {
+                    // Tracking must never block payment
+                }
+
                 if (response.paymentFormUrl) {
                     // Redirect to GreenInvoice payment form
                     console.log('Redirecting to payment form URL:', response.paymentFormUrl);

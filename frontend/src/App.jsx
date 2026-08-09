@@ -23,9 +23,11 @@ import Footer from './components/Footer';
 import WhatsAppFloatingButton from './components/WhatsAppFloatingButton';
 import ClarityAnalytics from './analytics/ClarityAnalytics';
 import MetaPixelAnalytics from './analytics/MetaPixelAnalytics';
+import GA4Analytics from './analytics/GA4Analytics';
 import { ConsentProvider } from './consent/ConsentContext';
 import CookieConsentUI from './consent/CookieConsentUI';
 import { trackAddToCart } from './analytics/metaTracking';
+import { trackGa4AddToCart } from './analytics/ga4Tracking';
 
 // Inner component that uses cart context
 function AppContent() {
@@ -36,6 +38,11 @@ function AppContent() {
         addToCartContext(product, 1, selectedColor);
         try {
             trackAddToCart(product, 1);
+        } catch (_) {
+            // Tracking must never break shopping
+        }
+        try {
+            trackGa4AddToCart(product, 1);
         } catch (_) {
             // Tracking must never break shopping
         }
@@ -101,6 +108,7 @@ export default function App() {
                         <Router>
                             <ClarityAnalytics />
                             <MetaPixelAnalytics />
+                            <GA4Analytics />
                             <AppContent />
                             <CookieConsentUI />
                         </Router>

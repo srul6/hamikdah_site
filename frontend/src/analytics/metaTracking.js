@@ -18,14 +18,27 @@ const PURCHASE_STORAGE_PREFIX = 'meta_pixel_purchase_';
 let lastViewContentKey = null;
 /** In-memory dedupe for InitiateCheckout per cart signature. */
 let lastInitiateCheckoutKey = null;
+/**
+ * Last path that successfully received a Meta PageView.
+ * Only updated after fbqTrack('PageView') succeeds — failed/skipped attempts do not lock the route.
+ * Module-level so React Strict Mode remounts cannot double-fire the same path.
+ */
+let lastSuccessfulPageViewPath = null;
+
+function getTrackingGateState() {
+    bootstrapConsent();
+    const advertisingConsent = hasConsent(CATEGORY_IDS.ADVERTISING);
+    const pixelInitialized = isMetaPixelInitialized();
+    return {
+        advertisingConsent,
+        pixelInitialized,
+        canTrack: advertisingConsent && pixelInitialized
+    };
+}
 
 function canTrack() {
     try {
-        bootstrapConsent();
-        if (!hasConsent(CATEGORY_IDS.ADVERTISING)) {
-            return false;
-        }
-        return isMetaPixelInitialized();
+        return getTrackingGateState().canTrack;
     } catch (error) {
         metaWarn('canTrack check failed', error);
         return false;
@@ -76,17 +89,64 @@ function markPurchaseTracked(orderId) {
 }
 
 /**
- * PageView — call on consent + each SPA route change (caller dedupes by path).
+ * PageView — call on consent + each SPA route change.
+ * @param {string} [pagePath] - route key used for success-only dedupe
+ * @returns {boolean}
  */
-export function trackPageView() {
-    if (!canTrack()) {
+export function trackPageView(pagePath = '') {
+    const pathKey = pagePath || '';
+    const gate = getTrackingGateState();
+
+    metaLog('PageView attempt', {
+        pagePath: pathKey || '(unspecified)',
+        advertisingConsent: gate.advertisingConsent,
+        pixelInitialized: gate.pixelInitialized,
+        lastSuccessfulPageViewPath
+    });
+
+    if (!gate.canTrack) {
+        metaLog('PageView blocked', {
+            pagePath: pathKey || '(unspecified)',
+            reason: !gate.advertisingConsent
+                ? 'advertising consent not granted'
+                : 'Meta Pixel not initialized',
+            advertisingConsent: gate.advertisingConsent,
+            pixelInitialized: gate.pixelInitialized
+        });
         return false;
     }
+
+    if (pathKey && lastSuccessfulPageViewPath === pathKey) {
+        metaLog('PageView skipped — duplicate prevention', {
+            pagePath: pathKey,
+            reason: 'already sent successfully for this path'
+        });
+        return false;
+    }
+
     const ok = fbqTrack('PageView');
     if (ok) {
-        metaLog('PageView');
+        if (pathKey) {
+            lastSuccessfulPageViewPath = pathKey;
+        }
+        metaLog('PageView succeeded', {
+            pagePath: pathKey || '(unspecified)',
+            duplicatePreventionKey: lastSuccessfulPageViewPath
+        });
+    } else {
+        metaLog('PageView failed — fbqTrack did not send', {
+            pagePath: pathKey || '(unspecified)',
+            note: 'route NOT marked as processed; will retry on next opportunity'
+        });
     }
     return ok;
+}
+
+/** Clear PageView success dedupe (e.g. after advertising consent is withdrawn). */
+export function resetPageViewDedupe() {
+    const previous = lastSuccessfulPageViewPath;
+    lastSuccessfulPageViewPath = null;
+    metaLog('PageView dedupe reset', { previousSuccessfulPath: previous });
 }
 
 /**

@@ -11,7 +11,13 @@ import { translations } from '../translations/translations';
 import { clearCheckoutDeliveryPreferences } from '../utils/cookieManager';
 import { trackPurchaseConversion } from '../consent/trackPurchaseConversion';
 import { trackPurchase as trackMetaPurchase } from '../analytics/metaTracking';
-import { claimAdsConversion } from '../api/orders';
+import {
+    trackGa4Purchase,
+    hasGa4PurchaseBeenTracked,
+    loadPendingGa4Purchase,
+    clearPendingGa4Purchase
+} from '../analytics/ga4Tracking';
+import { claimAdsConversion, fetchPurchaseSummary } from '../api/orders';
 import { bootstrapConsent, getConsent, hasConsent, CATEGORY_IDS } from '../consent';
 
 const PURCHASE_DEDUP_PREFIX = 'gads_purchase_';
@@ -139,104 +145,168 @@ export default function PaymentSuccess() {
                 });
             }
 
-            // Server is source of truth for paid status + conversion dedup.
-            // sessionStorage is only an optimistic UX guard.
-            // Claim only when advertising consent is granted — otherwise we'd burn
-            // the server-side flag without firing Ads.
-            //
-            // IMPORTANT: once the server returns alreadySent: false, the claim is
-            // consumed. Fire gtag even if this effect was cleaned up (cancelled),
-            // otherwise the conversion is lost forever with no retry path.
-            try {
-                const locallyTracked = wasPurchaseTrackedLocally(String(orderId));
-                console.info(`${req.tag} sessionStorage check wasPurchaseTrackedLocally`, {
-                    orderId: String(orderId),
-                    alreadyTrackedLocally: locallyTracked
-                });
-
-                if (!locallyTracked) {
-                    const consent = bootstrapConsent();
-                    const advertisingGranted = hasConsent(CATEGORY_IDS.ADVERTISING);
-                    console.info(`${req.tag} Consent loaded`, {
-                        consent: consent || getConsent(),
-                        advertisingGranted
+            // Ads/Meta and GA4 purchase run independently (different consent categories).
+            // Run in parallel so webhook retries do not stack sequentially.
+            const adsAndMetaTask = (async () => {
+                try {
+                    const locallyTracked = wasPurchaseTrackedLocally(String(orderId));
+                    console.info(`${req.tag} sessionStorage check wasPurchaseTrackedLocally`, {
+                        orderId: String(orderId),
+                        alreadyTrackedLocally: locallyTracked
                     });
 
-                    if (advertisingGranted) {
-                        console.info(`${req.tag} Before claimAdsConversion`, {
-                            orderId,
-                            timestamp: new Date().toISOString()
+                    if (!locallyTracked) {
+                        const consent = bootstrapConsent();
+                        const advertisingGranted = hasConsent(CATEGORY_IDS.ADVERTISING);
+                        console.info(`${req.tag} Consent loaded`, {
+                            consent: consent || getConsent(),
+                            advertisingGranted
                         });
 
-                        const claim = await claimAdsConversion(orderId, { requestId: req });
-
-                        console.info(`${req.tag} After claimAdsConversion`, {
-                            claim,
-                            alreadySent: claim?.alreadySent ?? null,
-                            transactionId: claim?.transactionId ?? null,
-                            value: claim?.value ?? null,
-                            currency: claim?.currency ?? null,
-                            cancelled
-                        });
-
-                        if (claim && claim.alreadySent === false) {
-                            const conversionPayload = {
-                                value: claim.value,
-                                currency: claim.currency,
-                                transactionId: claim.transactionId
-                            };
-                            console.info(`${req.tag} Before trackPurchaseConversion`, {
-                                payload: conversionPayload,
-                                effectCancelled: cancelled
+                        if (advertisingGranted) {
+                            console.info(`${req.tag} Before claimAdsConversion`, {
+                                orderId,
+                                timestamp: new Date().toISOString()
                             });
 
-                            trackPurchaseConversion(conversionPayload, { requestId: req });
-                            markPurchaseTrackedLocally(String(claim.transactionId));
+                            const claim = await claimAdsConversion(orderId, { requestId: req });
 
-                            try {
-                                trackMetaPurchase({
-                                    orderId: claim.transactionId || orderId,
+                            console.info(`${req.tag} After claimAdsConversion`, {
+                                claim,
+                                alreadySent: claim?.alreadySent ?? null,
+                                transactionId: claim?.transactionId ?? null,
+                                value: claim?.value ?? null,
+                                currency: claim?.currency ?? null,
+                                cancelled
+                            });
+
+                            if (claim && claim.alreadySent === false) {
+                                const conversionPayload = {
                                     value: claim.value,
-                                    currency: claim.currency || currency
+                                    currency: claim.currency,
+                                    transactionId: claim.transactionId
+                                };
+                                console.info(`${req.tag} Before trackPurchaseConversion`, {
+                                    payload: conversionPayload,
+                                    effectCancelled: cancelled
                                 });
-                            } catch (metaErr) {
-                                console.warn(`${req.tag} Meta Purchase tracking threw:`, metaErr);
-                            }
 
-                            console.info(`${req.tag} Marked transaction in sessionStorage`, {
-                                transactionId: String(claim.transactionId)
-                            });
-                        } else if (claim && claim.alreadySent) {
-                            markPurchaseTrackedLocally(String(orderId));
-                            console.info(`${req.tag} Claim alreadySent — marked orderId locally, skipped gtag`, {
-                                orderId: String(orderId)
-                            });
+                                trackPurchaseConversion(conversionPayload, { requestId: req });
+                                markPurchaseTrackedLocally(String(claim.transactionId));
 
-                            // Meta has its own localStorage dedupe — still attempt once if never sent
-                            try {
-                                trackMetaPurchase({
-                                    orderId,
-                                    value: displayAmount,
-                                    currency
+                                try {
+                                    trackMetaPurchase({
+                                        orderId: claim.transactionId || orderId,
+                                        value: claim.value,
+                                        currency: claim.currency || currency
+                                    });
+                                } catch (metaErr) {
+                                    console.warn(`${req.tag} Meta Purchase tracking threw:`, metaErr);
+                                }
+
+                                console.info(`${req.tag} Marked transaction in sessionStorage`, {
+                                    transactionId: String(claim.transactionId)
                                 });
-                            } catch (metaErr) {
-                                console.warn(`${req.tag} Meta Purchase tracking threw:`, metaErr);
+                            } else if (claim && claim.alreadySent) {
+                                markPurchaseTrackedLocally(String(orderId));
+                                console.info(`${req.tag} Claim alreadySent — marked orderId locally, skipped gtag`, {
+                                    orderId: String(orderId)
+                                });
+
+                                try {
+                                    trackMetaPurchase({
+                                        orderId,
+                                        value: displayAmount,
+                                        currency
+                                    });
+                                } catch (metaErr) {
+                                    console.warn(`${req.tag} Meta Purchase tracking threw:`, metaErr);
+                                }
+                            } else {
+                                console.info(`${req.tag} Skipping trackPurchaseConversion`, {
+                                    cancelled,
+                                    claim
+                                });
                             }
                         } else {
-                            console.info(`${req.tag} Skipping trackPurchaseConversion`, {
-                                cancelled,
-                                claim
-                            });
+                            console.info(`${req.tag} Skipping claim — advertising consent not granted`);
                         }
                     } else {
-                        console.info(`${req.tag} Skipping claim — advertising consent not granted`);
+                        console.info(`${req.tag} Skipping claim — already tracked locally in sessionStorage`);
                     }
-                } else {
-                    console.info(`${req.tag} Skipping claim — already tracked locally in sessionStorage`);
+                } catch (err) {
+                    console.warn(`${req.tag} Conversion claim/track threw:`, err);
                 }
-            } catch (err) {
-                console.warn(`${req.tag} Conversion claim/track threw:`, err);
-            }
+            })();
+
+            const ga4PurchaseTask = (async () => {
+                try {
+                    bootstrapConsent();
+                    const analyticsGranted = hasConsent(CATEGORY_IDS.ANALYTICS);
+                    if (!analyticsGranted) {
+                        console.info(`${req.tag} Skipping GA4 purchase — analytics consent not granted`);
+                        return;
+                    }
+                    if (hasGa4PurchaseBeenTracked(String(orderId))) {
+                        console.info(`${req.tag} Skipping GA4 purchase — already tracked`, {
+                            orderId: String(orderId)
+                        });
+                        return;
+                    }
+
+                    let summary = null;
+                    try {
+                        summary = await fetchPurchaseSummary(orderId);
+                    } catch (summaryErr) {
+                        console.warn(`${req.tag} GA4 purchase-summary fetch threw:`, summaryErr);
+                    }
+
+                    const pending = loadPendingGa4Purchase(orderId);
+                    const transactionId = summary?.transactionId
+                        || pending?.transaction_id
+                        || String(orderId);
+                    const purchaseValue = summary?.value != null
+                        ? summary.value
+                        : (pending?.value != null ? pending.value : displayAmount);
+                    const purchaseCurrency = summary?.currency
+                        || pending?.currency
+                        || currency
+                        || 'ILS';
+                    const purchaseItems = (summary?.items && summary.items.length)
+                        ? summary.items
+                        : (pending?.items || []);
+
+                    const canFire = Boolean(summary?.transactionId)
+                        || (pending && purchaseValue != null && !Number.isNaN(Number(purchaseValue)));
+
+                    if (canFire && purchaseValue != null && !Number.isNaN(Number(purchaseValue))) {
+                        trackGa4Purchase({
+                            transactionId,
+                            value: purchaseValue,
+                            currency: purchaseCurrency,
+                            items: purchaseItems
+                        });
+                        clearPendingGa4Purchase(orderId);
+                        console.info(`${req.tag} GA4 purchase dispatched`, {
+                            transactionId,
+                            value: purchaseValue,
+                            currency: purchaseCurrency,
+                            itemCount: purchaseItems.length,
+                            source: summary ? 'purchase-summary' : 'pending-checkout'
+                        });
+                    } else {
+                        console.info(`${req.tag} Skipping GA4 purchase — no paid summary or pending items`, {
+                            orderId: String(orderId),
+                            hasSummary: Boolean(summary),
+                            hasPending: Boolean(pending)
+                        });
+                    }
+                } catch (ga4Err) {
+                    console.warn(`${req.tag} GA4 purchase tracking threw:`, ga4Err);
+                }
+            })();
+
+            await Promise.all([adsAndMetaTask, ga4PurchaseTask]);
 
             try {
                 clearCartRef.current();

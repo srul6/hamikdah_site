@@ -70,6 +70,48 @@ function requireInternalOrderSecret(req, res, next) {
     next();
 }
 
+// GET — paid order ecommerce summary for GA4 purchase (public; no PII; read-only)
+// Must be registered before generic /:id admin routes.
+router.get('/:orderId/purchase-summary', async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        const result = await databaseController.getPaidOrderPurchaseSummary(orderId);
+
+        if (result.notFound) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        if (result.unpaid) {
+            return res.status(403).json({
+                success: false,
+                message: 'Order is not paid'
+            });
+        }
+
+        return res.json({
+            success: true,
+            paid: true,
+            value: result.value,
+            currency: result.currency,
+            transactionId: result.transactionId,
+            items: result.items
+        });
+    } catch (error) {
+        if (isDev) {
+            console.error('Error fetching purchase summary:', error);
+        } else {
+            console.error('Error fetching purchase summary');
+        }
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch purchase summary'
+        });
+    }
+});
+
 // POST — claim Google Ads conversion (public; auth is paid-status + atomic DB flag)
 // Must be registered before generic /:id routes that expect admin auth for other methods.
 router.post('/:orderId/mark-conversion-sent', async (req, res) => {
