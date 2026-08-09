@@ -24,6 +24,8 @@ import {
     saveHomeDeliveryPreference
 } from '../utils/cookieManager';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
+import { getProductPath } from '../utils/productSlug';
+import { trackInitiateCheckout } from '../analytics/metaTracking';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const navigate = useNavigate();
@@ -104,6 +106,19 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
         saveHomeDeliveryPreference(homeDelivery);
 
+        const finalTotal = total + (homeDelivery && subtotal < 350 ? 35 : 0);
+        const numItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+        try {
+            trackInitiateCheckout({
+                items: cart,
+                value: finalTotal,
+                numItems
+            });
+        } catch (_) {
+            // Tracking must never block checkout
+        }
+
         navigate('/payment', {
             state: {
                 cart: cart,
@@ -112,7 +127,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 total: total,
                 appliedCoupon: appliedCoupon,
                 homeDelivery: homeDelivery,
-                finalTotal: total + (homeDelivery && subtotal < 350 ? 35 : 0)
+                finalTotal
             }
         });
     };
@@ -186,7 +201,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                 <Grid container sx={{ width: '100%' }}>
                                     {/* Product Image */}
                                     <Grid item xs={12} sm={4} md={3}>
-                                        <Link to={`/product/${item.id}`} style={{ textDecoration: 'none' }}>
+                                        <Link to={getProductPath(item)} style={{ textDecoration: 'none' }}>
                                             <CardMedia
                                                 component="img"
                                                 height={{ xs: 200, sm: 220, md: 240 }}

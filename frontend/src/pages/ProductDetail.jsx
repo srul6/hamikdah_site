@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { fetchProductById, fetchProducts } from '../api/products';
+import { useNavigate } from 'react-router-dom';
+import { fetchProducts } from '../api/products';
 import {
   Container, Typography, Button, Grid, Card, CardMedia, Box, IconButton, CardContent
 } from '@mui/material';
@@ -18,11 +18,16 @@ import Lightbox from '../components/Lightbox';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
+import { getProductPath, isMikdashProduct as checkIsMikdashProduct } from '../utils/productSlug';
 
-export default function ProductDetail({ onAddToCart }) {
-  const { id } = useParams();
+export default function ProductDetail({
+  onAddToCart,
+  product: productProp = null,
+  allProducts: allProductsProp = null
+}) {
   const navigate = useNavigate();
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState(productProp || null);
+  const [allProducts, setAllProducts] = useState(allProductsProp || []);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [galleryScroll, setGalleryScroll] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -39,14 +44,19 @@ export default function ProductDetail({ onAddToCart }) {
   const productName = product ? (isHebrew ? product.name_he : product.name_en) : '';
   const productDescription = product ? (isHebrew ? product.description_he : product.description_en) : '';
 
-  // Check if this is THE Mikdash product for special styling (exact match only)
-  const isMikdashProduct = product && (
-    (product.name_he && product.name_he.trim() === 'המקדש') ||
-    (product.name_en && product.name_en.trim().toLowerCase() === 'the temple')
-  );
+  // Styling flag only — page choice is made by ProductPageRouter from product data
+  const isMikdashProduct = checkIsMikdashProduct(product);
 
   // Color functionality
   const hasMultipleColors = product?.colors && Array.isArray(product.colors) && product.colors.length > 0;
+
+  // Sync product from router (avoids duplicate fetchProductById)
+  useEffect(() => {
+    if (productProp) {
+      setProduct(productProp);
+      setSelectedColor(null);
+    }
+  }, [productProp]);
 
   // Initialize selected color when product loads
   useEffect(() => {
@@ -82,14 +92,28 @@ export default function ProductDetail({ onAddToCart }) {
     setSelectedColor(color);
   };
 
+  // Related products only (main product comes from router)
   useEffect(() => {
-    fetchProductById(id).then(setProduct);
-    fetchProducts().then(products => {
-      // Filter out the current product and get up to 4 related products
-      const filtered = products.filter(p => p.id !== id && p.id !== parseInt(id)).slice(0, 4);
+    if (!product?.id) return undefined;
+
+    const applyRelated = (products) => {
+      const list = Array.isArray(products) ? products : [];
+      setAllProducts(list);
+      const currentId = product.id;
+      const filtered = list
+        .filter((p) => p.id !== currentId && p.id !== parseInt(currentId, 10))
+        .slice(0, 4);
       setRelatedProducts(filtered);
-    });
-  }, [id]);
+    };
+
+    if (Array.isArray(allProductsProp) && allProductsProp.length > 0) {
+      applyRelated(allProductsProp);
+      return undefined;
+    }
+
+    fetchProducts().then(applyRelated);
+    return undefined;
+  }, [product?.id, allProductsProp]);
 
   // Scroll tracking for sticky button behavior
   useEffect(() => {
@@ -137,10 +161,10 @@ export default function ProductDetail({ onAddToCart }) {
     }
   };
 
-  const handleRelatedProductClick = (productId) => {
-    // Scroll to top and navigate to new product
+  const handleRelatedProductClick = (relatedProduct) => {
+    // Scroll to top and navigate to new product (Hebrew slug URL)
     window.scrollTo(0, 0);
-    navigate(`/product/${productId}`);
+    navigate(getProductPath(relatedProduct, allProducts));
   };
 
   const openLightbox = (index) => {
@@ -871,7 +895,7 @@ export default function ProductDetail({ onAddToCart }) {
               {relatedProducts.map(relatedProduct => (
                 <Card
                   key={relatedProduct.id}
-                  onClick={() => handleRelatedProductClick(relatedProduct.id)}
+                  onClick={() => handleRelatedProductClick(relatedProduct)}
                   sx={{
                     minWidth: { xs: 240, sm: 280 },
                     maxWidth: { xs: 240, sm: 280 },

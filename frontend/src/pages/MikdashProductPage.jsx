@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
     Container, Typography, Box, Button, Grid, Card, CardMedia,
     CircularProgress, Alert, Divider
@@ -10,7 +10,6 @@ import StraightenIcon from '@mui/icons-material/Straighten';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import { fetchProductById } from '../api/products';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
@@ -871,14 +870,13 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
 
 ProductFeaturesSection.displayName = 'ProductFeaturesSection';
 
-export default function MikdashProductPage({ onAddToCart }) {
-    const { id } = useParams();
+export default function MikdashProductPage({ onAddToCart, product: productProp = null }) {
     const navigate = useNavigate();
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
 
-    const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [product, setProduct] = useState(productProp || null);
+    const [loading, setLoading] = useState(!productProp);
     const [error, setError] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
     const [isSticky, setIsSticky] = useState(true); // Start as sticky (at bottom)
@@ -944,30 +942,21 @@ export default function MikdashProductPage({ onAddToCart }) {
     }, [product, loading]);
 
     useEffect(() => {
-        const loadProduct = async () => {
-            try {
-                setLoading(true);
-                const productData = await fetchProductById(id);
-                console.log('MikdashProductPage - Loaded product:', productData);
-                setProduct(productData);
-
-                // Set default color if available
-                if (productData?.colors && Array.isArray(productData.colors) && productData.colors.length > 0) {
-                    setSelectedColor(productData.colors[0]);
-                    console.log('MikdashProductPage - Set default color:', productData.colors[0]);
-                }
-            } catch (err) {
-                setError('Failed to load product details');
-                console.error('MikdashProductPage - Error loading product:', err);
-            } finally {
-                setLoading(false);
+        if (productProp) {
+            setProduct(productProp);
+            setLoading(false);
+            setError(null);
+            if (productProp?.colors && Array.isArray(productProp.colors) && productProp.colors.length > 0) {
+                setSelectedColor(productProp.colors[0]);
             }
-        };
-
-        if (id) {
-            loadProduct();
+            return undefined;
         }
-    }, [id]);
+
+        // Fallback if mounted without a resolved product (should not happen via router)
+        setError('Failed to load product details');
+        setLoading(false);
+        return undefined;
+    }, [productProp]);
 
     // Scroll to top when component mounts
     useEffect(() => {

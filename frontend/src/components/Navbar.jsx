@@ -16,6 +16,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
+import { getProductPath } from '../utils/productSlug';
 
 // Add CSS animation for smooth slide-down
 const slideDownAnimation = `
@@ -692,7 +693,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     <Box key={product.id} sx={{ position: 'relative', minWidth: 0 }}>
                                         <Box
                                             component={Link}
-                                            to={`/product/${product.id}`}
+                                            to={getProductPath(product, products)}
                                             sx={{
                                                 textDecoration: 'none',
                                                 color: 'inherit',
@@ -1188,7 +1189,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     {products.map((product, index) => (
                                         <Link
                                             key={product.id}
-                                            to={`/product/${product.id}`}
+                                            to={getProductPath(product, products)}
                                             style={{ textDecoration: 'none', color: 'inherit' }}
                                             onClick={handleProductClick}
                                         >

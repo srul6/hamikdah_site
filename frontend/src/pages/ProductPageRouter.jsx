@@ -1,38 +1,116 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { fetchProductById } from '../api/products';
+import { useParams, Navigate } from 'react-router-dom';
+import { fetchProductById, fetchProducts } from '../api/products';
 import ProductDetail from './ProductDetail';
 import MikdashProductPage from './MikdashProductPage';
-import { Container, Typography, CircularProgress } from '@mui/material';
+import ProductSeo from '../components/ProductSeo';
+import { Container, CircularProgress, Typography, Button } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
+import { subscribe } from '../consent/consentManager';
+import { trackViewContent, resetViewContentDedupe } from '../analytics/metaTracking';
+import {
+    findProductBySlug,
+    getProductPath,
+    isMikdashProduct,
+    isNumericProductParam
+} from '../utils/productSlug';
 
+/**
+ * Central gatekeeper for product pages.
+ * Resolves Hebrew SEO slug (or legacy numeric ID) → product → UI.
+ */
 export default function ProductPageRouter({ onAddToCart }) {
-    const { id } = useParams();
+    const { productSlug } = useParams();
+    const [allProducts, setAllProducts] = useState([]);
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
+    const [redirectTo, setRedirectTo] = useState(null);
 
     useEffect(() => {
-        const loadProduct = async () => {
+        let cancelled = false;
+
+        const resolve = async () => {
+            setLoading(true);
+            setNotFound(false);
+            setRedirectTo(null);
+            setProduct(null);
+            resetViewContentDedupe();
+
             try {
-                setLoading(true);
-                const productData = await fetchProductById(id);
-                setProduct(productData);
+                const products = await fetchProducts();
+                if (cancelled) return;
+                const list = Array.isArray(products) ? products : [];
+                setAllProducts(list);
+
+                if (!productSlug) {
+                    setNotFound(true);
+                    return;
+                }
+
+                // Legacy numeric URLs → canonical Hebrew slug (client-side; Express also 301s in prod)
+                if (isNumericProductParam(productSlug)) {
+                    let byId = list.find((p) => String(p.id) === String(productSlug));
+                    if (!byId) {
+                        try {
+                            byId = await fetchProductById(productSlug);
+                        } catch {
+                            byId = null;
+                        }
+                    }
+                    if (cancelled) return;
+                    if (!byId) {
+                        setNotFound(true);
+                        return;
+                    }
+                    setRedirectTo(getProductPath(byId, list.length ? list : [byId]));
+                    return;
+                }
+
+                const matched = findProductBySlug(list, productSlug);
+                if (cancelled) return;
+
+                if (!matched) {
+                    setNotFound(true);
+                    return;
+                }
+
+                setProduct(matched);
             } catch (err) {
-                console.error('Error loading product:', err);
+                console.error('Error resolving product slug:', err);
+                if (!cancelled) setNotFound(true);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
-        if (id) {
-            loadProduct();
-        }
-    }, [id]);
+        resolve();
+        return () => {
+            cancelled = true;
+        };
+    }, [productSlug]);
 
-    // Check if this is THE Mikdash product (exact match only)
-    const isMikdashProduct = product && (
-        (product.name_he && product.name_he.trim() === 'המקדש') ||
-        (product.name_en && product.name_en.trim().toLowerCase() === 'the temple')
-    );
+    // ViewContent after product resolves; retry when advertising consent is granted later
+    useEffect(() => {
+        if (loading || !product || product.id == null) {
+            return undefined;
+        }
+
+        const tryTrack = () => {
+            try {
+                trackViewContent(product);
+            } catch (_) {
+                // Tracking must never break product pages
+            }
+        };
+
+        tryTrack();
+        return subscribe(tryTrack);
+    }, [loading, product]);
+
+    if (redirectTo) {
+        return <Navigate to={redirectTo} replace />;
+    }
 
     if (loading) {
         return (
@@ -48,10 +126,33 @@ export default function ProductPageRouter({ onAddToCart }) {
         );
     }
 
-    // Route to appropriate component based on product type
-    if (isMikdashProduct) {
-        return <MikdashProductPage onAddToCart={onAddToCart} />;
-    } else {
-        return <ProductDetail onAddToCart={onAddToCart} />;
+    if (notFound || !product) {
+        return (
+            <Container sx={{ pt: 16, pb: 8, textAlign: 'center' }}>
+                <Typography variant="h5" sx={{ mb: 2 }}>
+                    המוצר לא נמצא
+                </Typography>
+                <Button component={RouterLink} to="/" variant="contained">
+                    חזרה לדף הבית
+                </Button>
+            </Container>
+        );
     }
+
+    const showMikdash = isMikdashProduct(product);
+
+    return (
+        <>
+            <ProductSeo product={product} allProducts={allProducts} />
+            {showMikdash ? (
+                <MikdashProductPage product={product} onAddToCart={onAddToCart} />
+            ) : (
+                <ProductDetail
+                    product={product}
+                    allProducts={allProducts}
+                    onAddToCart={onAddToCart}
+                />
+            )}
+        </>
+    );
 }

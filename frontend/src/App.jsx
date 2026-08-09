@@ -22,8 +22,10 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WhatsAppFloatingButton from './components/WhatsAppFloatingButton';
 import ClarityAnalytics from './analytics/ClarityAnalytics';
+import MetaPixelAnalytics from './analytics/MetaPixelAnalytics';
 import { ConsentProvider } from './consent/ConsentContext';
 import CookieConsentUI from './consent/CookieConsentUI';
+import { trackAddToCart } from './analytics/metaTracking';
 
 // Inner component that uses cart context
 function AppContent() {
@@ -32,6 +34,11 @@ function AppContent() {
     // Wrapper function to maintain compatibility with existing addToCart signature
     const handleAddToCart = (product, selectedColor = null) => {
         addToCartContext(product, 1, selectedColor);
+        try {
+            trackAddToCart(product, 1);
+        } catch (_) {
+            // Tracking must never break shopping
+        }
     };
 
     // Wrapper for removeFromCart to use uniqueId
@@ -65,7 +72,7 @@ function AppContent() {
             />
             <Routes>
                 <Route path="/" element={<Home onAddToCart={handleAddToCart} />} />
-                <Route path="/product/:id" element={<ProductPageRouter onAddToCart={handleAddToCart} />} />
+                <Route path="/product/:productSlug" element={<ProductPageRouter onAddToCart={handleAddToCart} />} />
                 <Route path="/cart" element={<CartPage cart={cart} onRemove={handleRemoveFromCart} onUpdateQuantity={handleUpdateQuantity} />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/admin" element={<AdminPanel />} />
@@ -93,6 +100,7 @@ export default function App() {
                     <FormDataProvider>
                         <Router>
                             <ClarityAnalytics />
+                            <MetaPixelAnalytics />
                             <AppContent />
                             <CookieConsentUI />
                         </Router>

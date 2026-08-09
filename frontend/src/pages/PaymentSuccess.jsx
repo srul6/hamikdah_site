@@ -10,6 +10,7 @@ import { useCart } from '../contexts/CartContext';
 import { translations } from '../translations/translations';
 import { clearCheckoutDeliveryPreferences } from '../utils/cookieManager';
 import { trackPurchaseConversion } from '../consent/trackPurchaseConversion';
+import { trackPurchase as trackMetaPurchase } from '../analytics/metaTracking';
 import { claimAdsConversion } from '../api/orders';
 import { bootstrapConsent, getConsent, hasConsent, CATEGORY_IDS } from '../consent';
 
@@ -192,6 +193,16 @@ export default function PaymentSuccess() {
                             trackPurchaseConversion(conversionPayload, { requestId: req });
                             markPurchaseTrackedLocally(String(claim.transactionId));
 
+                            try {
+                                trackMetaPurchase({
+                                    orderId: claim.transactionId || orderId,
+                                    value: claim.value,
+                                    currency: claim.currency || currency
+                                });
+                            } catch (metaErr) {
+                                console.warn(`${req.tag} Meta Purchase tracking threw:`, metaErr);
+                            }
+
                             console.info(`${req.tag} Marked transaction in sessionStorage`, {
                                 transactionId: String(claim.transactionId)
                             });
@@ -200,6 +211,17 @@ export default function PaymentSuccess() {
                             console.info(`${req.tag} Claim alreadySent — marked orderId locally, skipped gtag`, {
                                 orderId: String(orderId)
                             });
+
+                            // Meta has its own localStorage dedupe — still attempt once if never sent
+                            try {
+                                trackMetaPurchase({
+                                    orderId,
+                                    value: displayAmount,
+                                    currency
+                                });
+                            } catch (metaErr) {
+                                console.warn(`${req.tag} Meta Purchase tracking threw:`, metaErr);
+                            }
                         } else {
                             console.info(`${req.tag} Skipping trackPurchaseConversion`, {
                                 cancelled,

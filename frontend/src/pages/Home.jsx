@@ -147,7 +147,7 @@ export default function Home({ onAddToCart }) {
             margin: '0 auto',
             px: 0 // Remove horizontal padding to match navbar width exactly
           }}>
-            <HeroSection />
+            <HeroSection products={products} />
           </Box>
 
           {/* Text Section - Title and description */}
@@ -199,7 +199,7 @@ export default function Home({ onAddToCart }) {
             <Grid container spacing={3} justifyContent="center">
               {products.slice(0, 2).map(product => (
                 <Grid item xs={12} md={6} key={product.id}>
-                  <ProductCard product={product} onAddToCart={onAddToCart} />
+                  <ProductCard product={product} allProducts={products} onAddToCart={onAddToCart} />
                 </Grid>
               ))}
             </Grid>
@@ -263,7 +263,7 @@ export default function Home({ onAddToCart }) {
             <Grid container spacing={3} justifyContent="center">
               {products.slice(2).map(product => (
                 <Grid item xs={12} md={6} key={product.id}>
-                  <ProductCard product={product} onAddToCart={onAddToCart} />
+                  <ProductCard product={product} allProducts={products} onAddToCart={onAddToCart} />
                 </Grid>
               ))}
             </Grid>

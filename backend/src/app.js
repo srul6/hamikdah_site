@@ -108,6 +108,90 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/feedback', require('./routes/feedback'));
 
+const { databaseController } = require('./config/database');
+const {
+    getProductSlug,
+    isNumericProductParam,
+    buildProductSlugMap
+} = require('./utils/productSlug');
+
+const SITE_ORIGIN = (process.env.FRONTEND_URL || 'https://bmikdash.com').replace(/\/$/, '');
+
+/**
+ * Legacy numeric product URLs → HTTP 301 to Hebrew SEO slug.
+ * Hebrew slug paths fall through to the SPA.
+ */
+app.get('/product/:param', async (req, res, next) => {
+    const param = req.params.param;
+    if (!isNumericProductParam(param)) {
+        return next();
+    }
+
+    try {
+        const [product, allProducts] = await Promise.all([
+            databaseController.getProductById(param),
+            databaseController.getAllProducts()
+        ]);
+
+        if (!product) {
+            return next();
+        }
+
+        const list = Array.isArray(allProducts) ? allProducts : [product];
+        const slug = getProductSlug(product, list);
+        if (!slug) {
+            return next();
+        }
+
+        const location = `/product/${encodeURIComponent(slug)}`;
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.redirect(301, location);
+    } catch (error) {
+        console.warn('Legacy product ID redirect failed:', error?.message || error);
+        return next();
+    }
+});
+
+/** Dynamic sitemap with Hebrew product slug URLs (canonical). */
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        const products = await databaseController.getAllProducts();
+        const list = Array.isArray(products) ? products : [];
+        const slugMap = buildProductSlugMap(list);
+
+        const staticPaths = ['/', '/about', '/cart', '/terms', '/site-terms', '/privacy', '/returns'];
+        const urls = staticPaths.map((p) => ({
+            loc: `${SITE_ORIGIN}${p === '/' ? '' : p}`,
+            priority: p === '/' ? '1.0' : '0.6'
+        }));
+
+        for (const product of list) {
+            const slug = slugMap.get(Number(product.id)) || slugMap.get(String(product.id));
+            if (!slug) continue;
+            urls.push({
+                loc: `${SITE_ORIGIN}/product/${encodeURIComponent(slug)}`,
+                priority: '0.8'
+            });
+        }
+
+        const body = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `  <url>
+    <loc>${u.loc}</loc>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')}
+</urlset>
+`;
+
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.status(200).send(body);
+    } catch (error) {
+        console.error('sitemap.xml error:', error);
+        return res.status(500).send('<!-- sitemap error -->');
+    }
+});
+
 // Serve static files from the React build (hashed JS/CSS long cache; HTML no cache)
 app.use(express.static(path.join(__dirname, '../../frontend/build'), {
     setHeaders: setSpaBuildCacheHeaders

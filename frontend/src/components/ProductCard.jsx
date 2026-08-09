@@ -7,12 +7,13 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
+import { getProductPath } from '../utils/productSlug';
 
 const SNAKE_COLOR = 'rgb(250, 250, 250)';
 const CARD_RADIUS = 15;
 const STROKE_WIDTH = 2;
 
-export default function ProductCard({ product, onAddToCart }) {
+export default function ProductCard({ product, onAddToCart, allProducts = null }) {
   const wrapRef = useRef(null);
   const navigate = useNavigate();
   const { language, isHebrew } = useLanguage();
@@ -62,12 +63,12 @@ export default function ProductCard({ product, onAddToCart }) {
   }, []);
 
   const handleCardClick = () => {
-    navigate(`/product/${product.id}`);
+    navigate(getProductPath(product, allProducts));
   };
 
   const handleLearnMoreClick = (e) => {
     e.stopPropagation(); // Prevent card click when clicking Learn More
-    navigate(`/product/${product.id}`);
+    navigate(getProductPath(product, allProducts));
   };
 
   // Stroke is centered on the path — place path so the stroke sits on the card edge

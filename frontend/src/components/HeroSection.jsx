@@ -1,13 +1,23 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Card, Button, Box, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
+import { getProductPath, isMikdashProduct } from '../utils/productSlug';
 
-export default function HeroSection() {
+export default function HeroSection({ products = [] }) {
     const cardRef = useRef(null);
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+
+    const mikdashProduct = useMemo(
+        () => (Array.isArray(products) ? products.find((p) => isMikdashProduct(p)) : null),
+        [products]
+    );
+
+    const mikdashPath = mikdashProduct
+        ? getProductPath(mikdashProduct, products)
+        : '/';
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -120,7 +130,7 @@ export default function HeroSection() {
                     textAlign: 'center',
                     whiteSpace: 'nowrap',
                     textDecoration: 'underline',
-                    textUnderlineOffset: '8px',
+                    textUnderlineOffset: '3px',
                     direction: isHebrew ? 'rtl' : 'ltr',
                     pointerEvents: 'none',
                     textShadow: '0 1px 4px rgba(0,0,0,0.25)'
@@ -139,7 +149,7 @@ export default function HeroSection() {
                     zIndex: 10
                 }}
             >
-                <Link to="/product/1" style={{ textDecoration: 'none' }}>
+                <Link to={mikdashPath} style={{ textDecoration: 'none' }}>
                     <Button
                         variant="contained"
                         sx={{
@@ -168,4 +178,4 @@ export default function HeroSection() {
             </Box>
         </Card>
     );
-} 
+}

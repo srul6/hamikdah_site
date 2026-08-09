@@ -7,6 +7,9 @@ export const API_BASE_URL = isDevelopment
     ? 'http://localhost:5001'
     : (process.env.REACT_APP_API_URL || 'https://hamikdah-site.onrender.com');
 
+/** Public site origin for canonical URLs, Open Graph, and sitemap links */
+export const SITE_URL = (process.env.REACT_APP_SITE_URL || 'https://bmikdash.com').replace(/\/$/, '');
+
 export const API_ENDPOINTS = {
     products: `${API_BASE_URL}/api/products`,
     greenInvoice: `${API_BASE_URL}/api/greeninvoice`,
