@@ -122,8 +122,25 @@ export default function SnakeScrollGallery({
 
         /**
          * Trackpad two-finger horizontal: let the browser scroll natively (correct RTL/LTR).
-         * Vertical wheel / mostly-vertical trackpad: map onto horizontal gallery scroll.
+         * Vertical wheel / mostly-vertical trackpad: map onto horizontal gallery scroll,
+         * unless the gesture is over a nested vertically-scrollable region (e.g. long review).
          */
+        const findVerticalScrollParent = (start) => {
+            let node = start;
+            while (node && node !== container) {
+                if (node instanceof HTMLElement) {
+                    const style = window.getComputedStyle(node);
+                    const overflowY = style.overflowY;
+                    const canScrollY =
+                        (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+                        && node.scrollHeight > node.clientHeight + 1;
+                    if (canScrollY) return node;
+                }
+                node = node.parentElement;
+            }
+            return null;
+        };
+
         const onWheel = (e) => {
             const max = getMaxScroll(container);
             if (max <= 0) return;
@@ -140,6 +157,21 @@ export default function SnakeScrollGallery({
 
             if (absY === 0) return;
 
+            // Prefer nested vertical scroll (long review text) over gallery scrubbing
+            const nestedY = findVerticalScrollParent(e.target);
+            if (nestedY) {
+                const atTop = nestedY.scrollTop <= 0;
+                const atBottom =
+                    nestedY.scrollTop + nestedY.clientHeight >= nestedY.scrollHeight - 1;
+                const scrollingUp = e.deltaY < 0;
+                const scrollingDown = e.deltaY > 0;
+                if ((scrollingUp && !atTop) || (scrollingDown && !atBottom)) {
+                    return;
+                }
+                // At nested edge: do not steal for gallery — allow page scroll
+                return;
+            }
+
             const current = getScrollDistance(container, isHebrew, rtlModeRef.current);
             // Wheel down advances through the gallery in both languages
             const delta = e.deltaY;
@@ -155,6 +187,80 @@ export default function SnakeScrollGallery({
         };
         container.addEventListener('wheel', onWheel, { passive: false });
 
+        /**
+         * Nested review text: vertical touch scrolls the text; horizontal touch
+         * scrolls the gallery. touch-action:none on [data-nested-y-scroll] so we
+         * can own both axes without the browser locking to pan-y only.
+         */
+        const nestTouch = {
+            active: false,
+            axis: null,
+            startX: 0,
+            startY: 0,
+            startDistance: 0,
+            startScrollTop: 0,
+            nested: null
+        };
+
+        const onNestTouchStart = (e) => {
+            if (e.touches.length !== 1) return;
+            const nested = e.target.closest?.('[data-nested-y-scroll]');
+            if (!nested || !container.contains(nested)) {
+                nestTouch.active = false;
+                return;
+            }
+            const t = e.touches[0];
+            nestTouch.active = true;
+            nestTouch.axis = null;
+            nestTouch.startX = t.clientX;
+            nestTouch.startY = t.clientY;
+            nestTouch.startDistance = getScrollDistance(container, isHebrew, rtlModeRef.current);
+            nestTouch.startScrollTop = nested.scrollTop;
+            nestTouch.nested = nested;
+        };
+
+        const onNestTouchMove = (e) => {
+            if (!nestTouch.active || !nestTouch.nested || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            const dx = t.clientX - nestTouch.startX;
+            const dy = t.clientY - nestTouch.startY;
+
+            if (!nestTouch.axis) {
+                if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+                nestTouch.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+            }
+
+            if (nestTouch.axis === 'x') {
+                e.preventDefault();
+                // Finger right → decrease gallery progress (same as native LTR/RTL distance model)
+                setScrollDistance(
+                    container,
+                    isHebrew,
+                    nestTouch.startDistance - dx,
+                    rtlModeRef.current
+                );
+                syncProgressFromScroll();
+                return;
+            }
+
+            // Vertical: scroll the review text
+            e.preventDefault();
+            const nested = nestTouch.nested;
+            const maxTop = Math.max(0, nested.scrollHeight - nested.clientHeight);
+            nested.scrollTop = Math.min(maxTop, Math.max(0, nestTouch.startScrollTop - dy));
+        };
+
+        const onNestTouchEnd = () => {
+            nestTouch.active = false;
+            nestTouch.axis = null;
+            nestTouch.nested = null;
+        };
+
+        container.addEventListener('touchstart', onNestTouchStart, { passive: true });
+        container.addEventListener('touchmove', onNestTouchMove, { passive: false });
+        container.addEventListener('touchend', onNestTouchEnd, { passive: true });
+        container.addEventListener('touchcancel', onNestTouchEnd, { passive: true });
+
         // Block image drag only (do not preventDefault on pointerdown — that can
         // interfere with trackpad / gesture handling in some browsers)
         const onDragStart = (e) => e.preventDefault();
@@ -164,6 +270,10 @@ export default function SnakeScrollGallery({
         return () => {
             container.removeEventListener('scroll', onScroll);
             container.removeEventListener('wheel', onWheel);
+            container.removeEventListener('touchstart', onNestTouchStart);
+            container.removeEventListener('touchmove', onNestTouchMove);
+            container.removeEventListener('touchend', onNestTouchEnd);
+            container.removeEventListener('touchcancel', onNestTouchEnd);
             container.removeEventListener('dragstart', onDragStart);
             if (ro) ro.disconnect();
             media.forEach((el) => {
@@ -252,7 +362,8 @@ export default function SnakeScrollGallery({
                     WebkitMaskSize: '100% 100%',
                     maskSize: '100% 100%',
                     cursor: 'default',
-                    touchAction: 'pan-x pinch-zoom',
+                    // Allow nested vertical scroll (review text) while keeping horizontal gallery pan
+                    touchAction: 'pan-x pan-y pinch-zoom',
                     overscrollBehaviorX: 'contain',
                     WebkitOverflowScrolling: 'touch',
                     userSelect: 'none',

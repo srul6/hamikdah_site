@@ -173,7 +173,7 @@ export default function CommentsSection() {
                     >
                         {comments.map((comment) => {
                             const customerName = isHebrew ? comment.name_he : comment.name_en;
-                            const showName = comment.type === 'text' || comment.type === 'image';
+                            const showName = Boolean(customerName);
 
                             return (
                                 <Card
@@ -192,7 +192,7 @@ export default function CommentsSection() {
                                         flexDirection: 'column',
                                         alignItems: 'center',
                                         p: comment.type === 'text' ? 3 : 0,
-                                        pb: comment.type === 'text' ? 7 : comment.type === 'image' ? 7 : 0,
+                                        pb: (comment.type === 'text' || comment.type === 'image') && showName ? 7 : 0,
                                         textAlign: 'center',
                                         overflow: 'hidden',
                                         transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -210,12 +210,18 @@ export default function CommentsSection() {
                                 >
                                     {comment.type === 'text' ? (
                                         <Box
+                                            data-nested-y-scroll
                                             sx={{
                                                 flex: 1,
                                                 overflowY: 'auto',
                                                 overflowX: 'hidden',
                                                 width: '100%',
                                                 px: 1,
+                                                minHeight: 0,
+                                                // SnakeScrollGallery owns touch axes for this node
+                                                touchAction: 'none',
+                                                overscrollBehavior: 'contain',
+                                                WebkitOverflowScrolling: 'touch',
                                                 '&::-webkit-scrollbar': {
                                                     width: '6px',
                                                 },
@@ -250,23 +256,40 @@ export default function CommentsSection() {
                                     ) : comment.type === 'video' ? (
                                         <Box
                                             sx={{
-                                                width: '100%',
-                                                height: '100%',
-                                                position: 'relative',
+                                                position: 'absolute',
+                                                inset: 0,
                                                 borderRadius: '8px',
-                                                overflow: 'hidden'
+                                                overflow: 'hidden',
+                                                backgroundColor: '#1a1a1a'
                                             }}
                                         >
                                             <video
-                                                src={comment.videoUrl}
+                                                src={
+                                                    comment.videoUrl
+                                                        ? `${comment.videoUrl}${comment.videoUrl.includes('#') ? '' : '#t=0.1'}`
+                                                        : undefined
+                                                }
+                                                preload="metadata"
                                                 style={{
                                                     width: '100%',
                                                     height: '100%',
                                                     objectFit: 'cover',
-                                                    borderRadius: '8px'
+                                                    borderRadius: '8px',
+                                                    display: 'block',
+                                                    backgroundColor: '#1a1a1a'
                                                 }}
                                                 onClick={() => handleVideoClick(comment.id)}
                                                 onEnded={() => handleVideoEnded(comment.id)}
+                                                onLoadedMetadata={(e) => {
+                                                    const video = e.currentTarget;
+                                                    if (!playingVideos[comment.id] && video.currentTime < 0.05) {
+                                                        try {
+                                                            video.currentTime = 0.1;
+                                                        } catch (_) {
+                                                            // Ignore seek errors (some mobile browsers)
+                                                        }
+                                                    }
+                                                }}
                                                 muted={!playingVideos[comment.id]}
                                                 playsInline
                                                 controls={false}
@@ -291,6 +314,7 @@ export default function CommentsSection() {
                                                     transform: 'translate(-50%, -50%)',
                                                     backgroundColor: 'rgba(0, 0, 0, 0.6)',
                                                     color: 'white',
+                                                    zIndex: 1,
                                                     '&:hover': {
                                                         backgroundColor: 'rgba(0, 0, 0, 0.8)'
                                                     }
@@ -326,22 +350,57 @@ export default function CommentsSection() {
                                     )}
 
                                     {showName && (
-                                        <Typography
-                                            variant="h6"
-                                            sx={{
-                                                position: 'absolute',
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 24,
-                                                color: '#d8472a',
-                                                fontWeight: 600,
-                                                m: 0,
-                                                px: 3,
-                                                direction: isHebrew ? 'rtl' : 'ltr',
-                                            }}
-                                        >
-                                            {customerName}
-                                        </Typography>
+                                        comment.type === 'video' ? (
+                                            <Box
+                                                sx={{
+                                                    position: 'absolute',
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 24,
+                                                    zIndex: 2,
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    px: 3,
+                                                    pointerEvents: 'none'
+                                                }}
+                                            >
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{
+                                                        color: '#d8472a',
+                                                        fontWeight: 600,
+                                                        m: 0,
+                                                        py: 0.25,
+                                                        backgroundColor: '#ebe4d4',
+                                                        borderRadius: 0,
+                                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                                        display: 'inline-block',
+                                                        width: '100%',
+                                                        maxWidth: '100%'
+                                                    }}
+                                                >
+                                                    {customerName}
+                                                </Typography>
+                                            </Box>
+                                        ) : (
+                                            <Typography
+                                                variant="h6"
+                                                sx={{
+                                                    position: 'absolute',
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 24,
+                                                    zIndex: 2,
+                                                    color: '#d8472a',
+                                                    fontWeight: 600,
+                                                    m: 0,
+                                                    px: 3,
+                                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                                }}
+                                            >
+                                                {customerName}
+                                            </Typography>
+                                        )
                                     )}
                                 </Card>
                             );
