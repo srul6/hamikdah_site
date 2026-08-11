@@ -1471,7 +1471,7 @@ export default function AdminPanel() {
               </Box>
             )}
 
-            {/* Children Playing Media Section */}
+            {/* Kids Playing Media — shown on all product pages when media is uploaded */}
             <Box sx={{
               mb: 4,
               p: 3,
@@ -1482,21 +1482,25 @@ export default function AdminPanel() {
             }}>
               <Typography variant="h5" sx={{
                 fontWeight: 600,
-                mb: 3,
+                mb: 1,
                 color: '#2c3e50',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1
               }}>
-                👶 Children Playing Media
+                👶 Kids Playing / ילדים משחקים
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 3, color: '#666' }}>
+                Upload images or videos for the horizontal Kids Playing gallery on this product page.
+                The progress bar fills as visitors scroll (RTL in Hebrew, LTR in English).
               </Typography>
               <Grid container spacing={3}>
                 <Grid item xs={12}>
                   <ImageUploader
-                    label="Children Playing Media"
+                    label="Kids Playing Media"
                     value={formData.children_playing}
                     onChange={(urls) => handleInputChange('children_playing', urls)}
-                    helperText="Upload multiple images/videos for the children playing section"
+                    helperText="Multiple images and videos supported. Leave empty to hide the section."
                     folder="children"
                     multiple={true}
                     acceptVideos={true}

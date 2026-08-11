@@ -19,6 +19,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getProductPath, isMikdashProduct as checkIsMikdashProduct } from '../utils/productSlug';
+import ChildrenPlayingSection from '../components/ChildrenPlayingSection';
 
 export default function ProductDetail({
   onAddToCart,
@@ -861,6 +862,12 @@ export default function ProductDetail({
           )}
         </Box>
       </Container>
+
+      {/* Kids Playing — same gallery + scroll progress bar as Temple product pages */}
+      <ChildrenPlayingSection
+        media={product?.childrenPlaying}
+        isHebrew={isHebrew}
+      />
 
       {/* Related Products Section */}
       {relatedProducts.length > 0 && (

@@ -13,6 +13,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
+import ChildrenPlayingSection from '../components/ChildrenPlayingSection';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -882,8 +883,6 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
     const [isSticky, setIsSticky] = useState(true); // Start as sticky (at bottom)
     const [hasReachedTarget, setHasReachedTarget] = useState(false);
     const [scrollY, setScrollY] = useState(0);
-    const [currentChildrenIndex, setCurrentChildrenIndex] = useState(0);
-    const [childrenScrollProgress, setChildrenScrollProgress] = useState(0);
     const [currentProductGalleryIndex, setCurrentProductGalleryIndex] = useState(0);
     const [productGalleryScrollProgress, setProductGalleryScrollProgress] = useState(0);
     const [currentAdvantageIndex, setCurrentAdvantageIndex] = useState(0);
@@ -905,7 +904,6 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
     const imageRef = useRef(null);
     const buttonTargetRef = useRef(null); // Reference to the target position
     const heroSectionRef = useRef(null); // Reference to the hero section
-    const childrenScrollContainerRef = useRef(null);
     const productGalleryScrollContainerRef = useRef(null);
     const advantageScrollContainerRef = useRef(null);
 
@@ -987,42 +985,6 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, [isSticky, hasReachedTarget]);
-
-    // Children playing scroll tracking
-    useEffect(() => {
-        const handleChildrenScroll = () => {
-            if (childrenScrollContainerRef.current) {
-                const container = childrenScrollContainerRef.current;
-                let scrollLeft = container.scrollLeft;
-                const maxScroll = container.scrollWidth - container.clientWidth;
-
-                // In RTL mode, scrollLeft is negative or zero when scrolling right
-                // We need to convert it to a positive value
-                if (isHebrew) {
-                    scrollLeft = Math.abs(scrollLeft);
-                }
-
-                const progress = maxScroll > 0 ? scrollLeft / maxScroll : 0;
-                setChildrenScrollProgress(progress);
-
-                const childNodes = container.childNodes[0]?.childNodes || [];
-                let totalWidth = 0;
-                for (let i = 0; i < childNodes.length; i++) {
-                    totalWidth += childNodes[i].offsetWidth + 16; // +gap
-                    if (totalWidth >= scrollLeft + container.clientWidth / 2) {
-                        setCurrentChildrenIndex(i);
-                        break;
-                    }
-                }
-            }
-        };
-
-        const container = childrenScrollContainerRef.current;
-        if (container) {
-            container.addEventListener('scroll', handleChildrenScroll);
-            return () => container.removeEventListener('scroll', handleChildrenScroll);
-        }
-    }, [product?.childrenPlaying, isHebrew]);
 
     // Product gallery scroll tracking
     useEffect(() => {
@@ -1322,10 +1284,10 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                     }
 
                     // Animate the scrolling container separately - fade from bottom
-                    const scrollContainer = childrenPlayingRef.current.querySelector('[ref]');
+                    const scrollContainer = childrenPlayingRef.current.querySelector('[data-children-playing-scroll]');
                     if (scrollContainer) {
-                        gsap.set(scrollContainer.parentElement, { opacity: 0, y: 15 });
-                        gsap.to(scrollContainer.parentElement, {
+                        gsap.set(scrollContainer, { opacity: 0, y: 15 });
+                        gsap.to(scrollContainer, {
                             scrollTrigger: {
                                 trigger: childrenPlayingRef.current,
                                 start: 'top 75%',
@@ -1981,178 +1943,12 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                 )
             }
 
-            {/* Children Playing Media Section - scrolling like videos */}
-            {product && Array.isArray(product.childrenPlaying) && product.childrenPlaying.length > 0 && (
-                <Box
-                    ref={childrenPlayingRef}
-                    sx={{
-                        backgroundColor: 'rgb(5, 38, 51)',
-                        minHeight: '100vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        py: 6
-                    }}>
-                    <Box sx={{
-                        display: 'flex',
-                        justifyContent: isHebrew ? 'flex-end' : 'flex-start',
-                        width: '100%',
-                        mb: 3,
-                    }}>
-                        <Typography
-                            variant="h2"
-                            sx={{
-                                color: '#f5f0e3',
-                                fontWeight: 400,
-                                fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
-                                lineHeight: 1.6,
-                                maxWidth: '80%',
-                                textAlign: isHebrew ? 'right' : 'left',
-                                direction: isHebrew ? 'rtl' : 'ltr',
-                                px: { xs: 4, md: '9%' },
-                            }}
-                        >
-                            {isHebrew ? 'ילדים משחקים' : 'Children Playing'}
-                        </Typography>
-                    </Box>
-
-                    <Box
-                        ref={childrenScrollContainerRef}
-                        sx={{
-                            overflowX: 'auto',
-                            overflowY: 'hidden',
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': { display: 'none' },
-                            width: '100%',
-                            direction: isHebrew ? 'rtl' : 'ltr'
-                        }}
-                    >
-                        <Box sx={{
-                            display: 'flex',
-                            gap: 3,
-                            py: 1,
-                            alignItems: 'center',
-                            height: { xs: '320px', sm: '450px', md: '500px' }
-                        }}>
-                            {/* Spacer at start */}
-                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
-
-                            {product.childrenPlaying.map((media, index) => {
-                                const isYouTube = media.includes('youtube.com/embed');
-                                const isUploadedVideo = media.includes('.mp4') || media.includes('.mov') || media.includes('.webm') || media.includes('.avi') || media.includes('.mkv');
-
-                                return (
-                                    <Box key={`cp-${index}`} sx={{
-                                        flexShrink: 0,
-                                        height: '100%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                    }}>
-                                        {isYouTube ? (
-                                            <Box sx={{
-                                                height: '100%',
-                                                width: 'auto',
-                                                aspectRatio: '16/9',
-                                                borderRadius: 2,
-                                                overflow: 'hidden',
-                                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                                                border: '1px solid rgba(255, 255, 255, 0.1)'
-                                            }}>
-                                                <iframe
-                                                    src={media}
-                                                    title={`${isHebrew ? 'ילדים משחקים' : 'Children Playing'} ${index + 1}`}
-                                                    style={{
-                                                        width: '100%',
-                                                        height: '100%',
-                                                        border: 'none',
-                                                        borderRadius: '8px'
-                                                    }}
-                                                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                    allowFullScreen
-                                                />
-                                            </Box>
-                                        ) : isUploadedVideo ? (
-                                            <Box sx={{
-                                                height: '100%',
-                                                width: 'auto',
-                                                aspectRatio: '16/9',
-                                                borderRadius: 2,
-                                                overflow: 'hidden',
-                                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                                position: 'relative'
-                                            }}>
-                                                <video
-                                                    src={media}
-                                                    controls
-                                                    style={{
-                                                        width: '100%',
-                                                        height: '100%',
-                                                        objectFit: 'cover',
-                                                        borderRadius: '8px'
-                                                    }}
-                                                    preload="metadata"
-                                                />
-                                            </Box>
-                                        ) : (
-                                            <img
-                                                src={getImageUrl(media)}
-                                                alt={`${isHebrew ? 'ילדים משחקים' : 'Children Playing'} ${index + 1}`}
-                                                style={{
-                                                    height: '100%',
-                                                    width: 'auto',
-                                                    objectFit: 'contain',
-                                                    borderRadius: '8px',
-                                                    display: 'block'
-                                                }}
-                                            />
-                                        )}
-                                    </Box>
-                                );
-                            })}
-
-                            {/* Spacer at end */}
-                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
-                        </Box>
-                    </Box>
-
-                    {/* Progress Indicator - exactly like video section */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <Box
-                            sx={{
-                                position: 'relative',
-                                width: '200px',
-                                height: '8px',
-                                backgroundColor: 'rgba(245, 240, 227, 0.3)',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                                if (childrenScrollContainerRef.current) {
-                                    const container = childrenScrollContainerRef.current;
-                                    const nextIndex = (currentChildrenIndex + 1) % product.childrenPlaying.length;
-                                    const targetChild = container.querySelectorAll('img, iframe')[nextIndex];
-                                    if (targetChild) {
-                                        targetChild.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                                    }
-                                }
-                            }}
-                        >
-                            <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: isHebrew ? 'auto' : 0,
-                                right: isHebrew ? 0 : 'auto',
-                                height: '100%',
-                                width: `calc(${childrenScrollProgress * 100}%)`,
-                                backgroundColor: '#f5f0e3',
-                                borderRadius: '4px',
-                                transition: 'width 0.1s ease-out'
-                            }} />
-                        </Box>
-                    </Box>
-                </Box>
-            )}
+            {/* Children Playing Media Section */}
+            <ChildrenPlayingSection
+                ref={childrenPlayingRef}
+                media={product?.childrenPlaying}
+                isHebrew={isHebrew}
+            />
 
             {/* Horizontal Scrolling Video Gallery */}
             <Box sx={{
