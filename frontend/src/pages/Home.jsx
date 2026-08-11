@@ -168,15 +168,22 @@ export default function Home({ onAddToCart }) {
                 fontWeight: 600,
                 color: 'rgb(5, 38, 51)',
                 fontSize: { xs: '1.8rem', sm: '3rem', md: '3.5rem' }, // Increased font sizes
-                mb: 1,
-                lineHeight: 0.9
+                mb: { xs: 2.5, sm: 1 },
+                lineHeight: { xs: 0.7, sm: 0.9 }
               }}
             >
               {isHebrew ? (
                 <>
                   הילדים בונים
-                  <Box component="br" sx={{ display: { xs: 'inline', sm: 'none' } }} />
-                  {' '}והיהדות מתעוררת לחיים!
+                  <Box
+                    component="span"
+                    sx={{
+                      display: { xs: 'block', sm: 'inline' },
+                      mt: { xs: 1.25, sm: 0 }
+                    }}
+                  >
+                    {' '}והיהדות מתעוררת לחיים!
+                  </Box>
                 </>
               ) : (
                 t.mainTitle
@@ -189,7 +196,7 @@ export default function Home({ onAddToCart }) {
               sx={{
                 color: '#86868b',
                 fontWeight: 400,
-                mb: 2,
+                mb: { xs: 4, sm: 2 },
                 fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.5rem' },
                 lineHeight: 1.2
               }}
