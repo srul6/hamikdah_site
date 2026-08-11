@@ -4,6 +4,7 @@ import { Box, Typography, Grid } from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import VideoCard from '../components/VideoCard';
 import CommentsSection from '../components/CommentsSection';
+import FaqSection from '../components/FaqSection';
 import HeroSection from '../components/HeroSection';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -171,7 +172,15 @@ export default function Home({ onAddToCart }) {
                 lineHeight: 0.9
               }}
             >
-              {t.mainTitle}
+              {isHebrew ? (
+                <>
+                  הילדים בונים
+                  <Box component="br" sx={{ display: { xs: 'inline', sm: 'none' } }} />
+                  {' '}והיהדות מתעוררת לחיים!
+                </>
+              ) : (
+                t.mainTitle
+              )}
             </Typography>
 
             <Typography
@@ -258,7 +267,8 @@ export default function Home({ onAddToCart }) {
           <Box sx={{
             maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
             margin: '0 auto',
-            px: 0 // Remove horizontal padding to match navbar width exactly
+            px: 0, // Remove horizontal padding to match navbar width exactly
+            mb: { xs: 8, md: 12 }
           }}>
             <Grid container spacing={3} justifyContent="center">
               {products.slice(2).map(product => (
@@ -271,6 +281,9 @@ export default function Home({ onAddToCart }) {
 
           {/* Testimonials Gallery - Full width */}
           <CommentsSection />
+
+          {/* FAQ */}
+          <FaqSection />
         </>
       )}
     </Box>

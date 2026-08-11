@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, CardMedia, CardContent, Typography, Box, Button
@@ -13,6 +13,84 @@ const SNAKE_COLOR = 'rgb(250, 250, 250)';
 const CARD_RADIUS = 15;
 const STROKE_WIDTH = 2;
 
+/** Preferred hover image filename markers for specific products (first match wins). */
+const HOVER_IMAGE_PREFERENCES = [
+  {
+    match: (p) => {
+      const he = String(p?.name_he || '').trim();
+      const en = String(p?.name_en || '').trim().toLowerCase();
+      return he === 'ערכת המקדש' || en === 'the temple';
+    },
+    prefer: ['inter_album.png', '4_kelim.png', 'box.png']
+  },
+  {
+    match: (p) => {
+      const he = String(p?.name_he || '').trim();
+      const en = String(p?.name_en || '').trim().toLowerCase();
+      return he === 'בית המקדש השלישי' || en === 'the third temple';
+    },
+    prefer: ['3mikdash_5.jpeg', '3mikdash_2.jpeg', '3mikdash_3.jpeg']
+  },
+  {
+    match: (p) => {
+      const he = String(p?.name_he || '').trim();
+      const en = String(p?.name_en || '').trim().toLowerCase();
+      return he === 'פמוט לשבת' || en === 'shabbat candle';
+    },
+    // Lifestyle / built photos rather than the flat color swatch mainImage
+    prefer: [
+      'eaa63086-00ae-4537-b634-5f3cc12a7deb.jpg',
+      '6b8064ca-8e05-48b9-82f7-04640fc9c331.jpg',
+      '9d52459b-560d-44da-a6dd-d1e14fc1f9b7.jpg',
+      '.jpg'
+    ]
+  },
+  {
+    match: (p) => {
+      const he = String(p?.name_he || '').trim();
+      const en = String(p?.name_en || '').trim().toLowerCase();
+      return he === 'קופת צדקה' || en === 'tzedaka box';
+    },
+    prefer: ['zdaka-brown.png', 'zdaka_brown_2.jpeg', 'zdaka_brown']
+  }
+];
+
+function collectAlternateImages(product, primaryUrl) {
+  const candidates = [];
+  const extras = product?.extraImages || product?.extraimages || [];
+  if (Array.isArray(extras)) {
+    candidates.push(...extras);
+  }
+
+  const colors = Array.isArray(product?.colors) ? product.colors : [];
+  colors.forEach((color) => {
+    if (color?.mainImage) candidates.push(color.mainImage);
+    const colorExtras = color?.extraImages || color?.extraimages || [];
+    if (Array.isArray(colorExtras)) candidates.push(...colorExtras);
+  });
+
+  const primary = primaryUrl ? String(primaryUrl).trim() : '';
+  return candidates
+    .filter((url) => typeof url === 'string' && url.trim())
+    .map((url) => getImageUrl(url.trim()))
+    .filter((url) => url && url !== primary && url !== getImageUrl(primary));
+}
+
+function pickHoverImage(product, primaryUrl) {
+  const alts = collectAlternateImages(product, primaryUrl);
+  if (alts.length === 0) return null;
+
+  const preference = HOVER_IMAGE_PREFERENCES.find((entry) => entry.match(product));
+  if (preference) {
+    for (const marker of preference.prefer) {
+      const found = alts.find((url) => url.toLowerCase().includes(marker.toLowerCase()));
+      if (found) return found;
+    }
+  }
+
+  return alts[0];
+}
+
 export default function ProductCard({ product, onAddToCart, allProducts = null }) {
   const wrapRef = useRef(null);
   const navigate = useNavigate();
@@ -22,6 +100,8 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
 
   // Get the appropriate name and description based on language
   const productName = isHebrew ? product.name_he : product.name_en;
+  const primaryImage = getImageUrl(product.homepageImage || product.homepageimage);
+  const hoverImage = useMemo(() => pickHoverImage(product, primaryImage), [product, primaryImage]);
 
   // Get default color (first color in the array, or null if no colors)
   const getDefaultColor = () => {
@@ -104,6 +184,17 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
           strokeDashoffset: 0,
           opacity: 1,
           transition: 'stroke-dashoffset 1.15s cubic-bezier(0.22, 1, 0.36, 1), opacity 0s linear'
+        },
+        // Desktop / fine pointer only — no zoom or image swap on mobile
+        '@media (hover: hover) and (pointer: fine)': {
+          '&:hover .product-card-image-primary': {
+            transform: 'scale(1.06)',
+            opacity: hoverImage ? 0 : 1
+          },
+          '&:hover .product-card-image-hover': {
+            transform: 'scale(1.06)',
+            opacity: 1
+          }
         }
       }}
     >
@@ -163,16 +254,52 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
             }
           </Button>
         )}
-        <CardMedia
-          component="img"
+        <Box
           sx={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
+            position: 'absolute',
+            inset: 0,
+            overflow: 'hidden'
           }}
-          image={getImageUrl(product.homepageimage)}
-          alt={productName}
-        />
+        >
+          <CardMedia
+            component="img"
+            className="product-card-image-primary"
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: 'scale(1)',
+              transformOrigin: 'center center',
+              opacity: 1,
+              transition: 'transform 0.45s ease, opacity 0.35s ease'
+            }}
+            image={primaryImage}
+            alt={productName}
+          />
+          {hoverImage && (
+            <CardMedia
+              component="img"
+              className="product-card-image-hover"
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: 'scale(1)',
+                transformOrigin: 'center center',
+                opacity: 0,
+                transition: 'transform 0.45s ease, opacity 0.35s ease',
+                pointerEvents: 'none'
+              }}
+              image={hoverImage}
+              alt=""
+              aria-hidden
+            />
+          )}
+        </Box>
 
         <CardContent
           sx={{
@@ -180,6 +307,7 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
             bottom: { xs: -4, sm: 0, md: 0 },
             left: 0,
             right: 0,
+            zIndex: 2,
             color: 'white',
             pt: 8,
           }}

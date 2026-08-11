@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Card, Button, Box, Typography } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -152,6 +154,8 @@ export default function HeroSection({ products = [] }) {
                 <Link to={mikdashPath} style={{ textDecoration: 'none' }}>
                     <Button
                         variant="contained"
+                        startIcon={isHebrew ? <ArrowBackIcon /> : null}
+                        endIcon={!isHebrew ? <ArrowForwardIcon /> : null}
                         sx={{
                             backgroundColor: 'rgba(229, 90, 61, 1)',
                             border: '1px solid rgba(245, 240, 227, 1)',
@@ -164,6 +168,11 @@ export default function HeroSection({ products = [] }) {
                             boxShadow: '0 8px 32px rgba(229, 90, 61, 0.4)',
                             transition: 'all 0.3s ease',
                             minWidth: { xs: '200px', md: '250px' },
+                            '& .MuiButton-startIcon, & .MuiButton-endIcon': {
+                                '& > *:nth-of-type(1)': {
+                                    fontSize: { xs: '1.25rem', md: '1.5rem' }
+                                }
+                            },
                             '&:hover': {
                                 backgroundColor: 'rgba(245, 240, 227, 1)',
                                 color: 'rgba(229, 90, 61, 1)',

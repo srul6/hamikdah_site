@@ -238,8 +238,15 @@ export default function SnakeScrollGallery({
                     '&::-webkit-scrollbar': { display: 'none' },
                     width: '100%',
                     direction: isHebrew ? 'rtl' : 'ltr',
-                    WebkitMaskImage: edgeFadeMask || 'none',
-                    maskImage: edgeFadeMask || 'none',
+                    // Edge fade on desktop/tablet only — none on mobile
+                    WebkitMaskImage: {
+                        xs: 'none',
+                        md: edgeFadeMask || 'none'
+                    },
+                    maskImage: {
+                        xs: 'none',
+                        md: edgeFadeMask || 'none'
+                    },
                     WebkitMaskRepeat: 'no-repeat',
                     maskRepeat: 'no-repeat',
                     WebkitMaskSize: '100% 100%',
