@@ -47,7 +47,7 @@ export const translations = {
         heroSubtitle: 'ערכות בנייה לילדים, ערכת המקדש, קופות צדקה ועוד',
         deliveryWithin7Days: 'משלוח תוך 5 ימי עסקים',
         addToCart: 'הוספה לעגלה',
-        loadingProducts: '...הנה עוד רגע האתר עולה',
+        loadingProducts: '..תנו לנו שנייה',
         mainTitle: 'הילדים בונים והיהדות מתעוררת לחיים!',
         mainDescription: 'ערכות בנייה ייחודיות, המשלבות יצירה, למידה וחיבור למסורת היהודית – חוויה מושלמת לכל המשפחה!',
         secondTitle: 'גלו את מוצר הדגל שלנו',

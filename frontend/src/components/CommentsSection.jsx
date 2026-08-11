@@ -157,6 +157,7 @@ export default function CommentsSection() {
                         aria-label={t.whatOurCustomersSay}
                         trackColor="rgba(216, 71, 42, 0.25)"
                         fillColor="#d8472a"
+                        mapVerticalWheel={false}
                         scrollContainerSx={{
                             // Leave room for card hover lift
                             overflowY: 'visible',

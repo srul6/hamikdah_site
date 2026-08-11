@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 
 function getMaxScroll(container) {
@@ -53,10 +53,42 @@ function setScrollDistance(container, isRtl, distance, rtlMode = 'negative') {
 const DEFAULT_EDGE_FADE =
     'linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%)';
 
+const EDGE_FADE_PCT = 5;
+
+/**
+ * Build a mask that fades only the edges that are "away from content".
+ * Visual start = right in Hebrew RTL, left in English LTR.
+ * At the start of the gallery, the start-edge fade is off so the first item isn't clipped.
+ */
+function buildEdgeFadeMask(isHebrew, progress, enabled) {
+    if (!enabled) return 'none';
+    const atStart = progress <= 0.015;
+    const atEnd = progress >= 0.985;
+    const fadeVisualStart = !atStart;
+    const fadeVisualEnd = !atEnd;
+
+    if (!fadeVisualStart && !fadeVisualEnd) return 'none';
+
+    // Map visual start/end → physical left/right (mask is always left→right)
+    const fadeLeft = isHebrew ? fadeVisualEnd : fadeVisualStart;
+    const fadeRight = isHebrew ? fadeVisualStart : fadeVisualEnd;
+
+    if (fadeLeft && fadeRight) {
+        return `linear-gradient(to right, transparent 0%, #000 ${EDGE_FADE_PCT}%, #000 ${100 - EDGE_FADE_PCT}%, transparent 100%)`;
+    }
+    if (fadeLeft) {
+        return `linear-gradient(to right, transparent 0%, #000 ${EDGE_FADE_PCT}%, #000 100%)`;
+    }
+    if (fadeRight) {
+        return `linear-gradient(to right, #000 0%, #000 ${100 - EDGE_FADE_PCT}%, transparent 100%)`;
+    }
+    return 'none';
+}
+
 /**
  * Horizontal gallery with:
  * - Native touch swipe + trackpad horizontal pan (respects direction: rtl/ltr)
- * - Vertical mouse wheel mapped to horizontal scroll
+ * - Optional vertical mouse wheel → horizontal scroll (disable for page-scroll sections)
  * - Progress “snake” scrubbing
  * - No mouse click-drag scrolling
  */
@@ -66,6 +98,7 @@ export default function SnakeScrollGallery({
     trackColor = 'rgba(245, 240, 227, 0.3)',
     fillColor = '#f5f0e3',
     edgeFadeMask = DEFAULT_EDGE_FADE,
+    mapVerticalWheel = true,
     rowSx = {},
     scrollContainerSx = {},
     snakeOuterSx = {},
@@ -122,8 +155,7 @@ export default function SnakeScrollGallery({
 
         /**
          * Trackpad two-finger horizontal: let the browser scroll natively (correct RTL/LTR).
-         * Vertical wheel / mostly-vertical trackpad: map onto horizontal gallery scroll,
-         * unless the gesture is over a nested vertically-scrollable region (e.g. long review).
+         * Vertical wheel: either map to gallery (mapVerticalWheel) or leave for page/nested text.
          */
         const findVerticalScrollParent = (start) => {
             let node = start;
@@ -150,30 +182,22 @@ export default function SnakeScrollGallery({
 
             // Native horizontal / diagonal-horizontal trackpad pan
             if (absX > absY) {
-                // Do not preventDefault — native overflow + direction handles RTL/LTR
-                // Snake updates via the scroll listener
                 return;
             }
 
             if (absY === 0) return;
 
-            // Prefer nested vertical scroll (long review text) over gallery scrubbing
-            const nestedY = findVerticalScrollParent(e.target);
-            if (nestedY) {
-                const atTop = nestedY.scrollTop <= 0;
-                const atBottom =
-                    nestedY.scrollTop + nestedY.clientHeight >= nestedY.scrollHeight - 1;
-                const scrollingUp = e.deltaY < 0;
-                const scrollingDown = e.deltaY > 0;
-                if ((scrollingUp && !atTop) || (scrollingDown && !atBottom)) {
-                    return;
-                }
-                // At nested edge: do not steal for gallery — allow page scroll
+            // Nested review text: always let vertical wheel scroll the text / page
+            if (findVerticalScrollParent(e.target)) {
+                return;
+            }
+
+            // Reviews-style: vertical wheel scrolls the page, not the gallery
+            if (!mapVerticalWheel) {
                 return;
             }
 
             const current = getScrollDistance(container, isHebrew, rtlModeRef.current);
-            // Wheel down advances through the gallery in both languages
             const delta = e.deltaY;
             const next = current + delta;
 
@@ -189,15 +213,14 @@ export default function SnakeScrollGallery({
 
         /**
          * Nested review text: vertical touch scrolls the text; horizontal touch
-         * scrolls the gallery. touch-action:none on [data-nested-y-scroll] so we
-         * can own both axes without the browser locking to pan-y only.
+         * scrolls the gallery with native content-follows-finger direction.
          */
         const nestTouch = {
             active: false,
             axis: null,
-            startX: 0,
+            lastX: 0,
+            startX: null,
             startY: 0,
-            startDistance: 0,
             startScrollTop: 0,
             nested: null
         };
@@ -212,9 +235,8 @@ export default function SnakeScrollGallery({
             const t = e.touches[0];
             nestTouch.active = true;
             nestTouch.axis = null;
-            nestTouch.startX = t.clientX;
+            nestTouch.lastX = t.clientX;
             nestTouch.startY = t.clientY;
-            nestTouch.startDistance = getScrollDistance(container, isHebrew, rtlModeRef.current);
             nestTouch.startScrollTop = nested.scrollTop;
             nestTouch.nested = nested;
         };
@@ -222,23 +244,23 @@ export default function SnakeScrollGallery({
         const onNestTouchMove = (e) => {
             if (!nestTouch.active || !nestTouch.nested || e.touches.length !== 1) return;
             const t = e.touches[0];
-            const dx = t.clientX - nestTouch.startX;
-            const dy = t.clientY - nestTouch.startY;
+            if (nestTouch.startX == null) {
+                nestTouch.startX = nestTouch.lastX;
+            }
+            const dxFromLast = t.clientX - nestTouch.lastX;
+            const dxTotal = t.clientX - nestTouch.startX;
+            const dyFromStart = t.clientY - nestTouch.startY;
 
             if (!nestTouch.axis) {
-                if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-                nestTouch.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+                if (Math.abs(dxTotal) < 8 && Math.abs(dyFromStart) < 8) return;
+                nestTouch.axis = Math.abs(dxTotal) > Math.abs(dyFromStart) ? 'x' : 'y';
             }
 
             if (nestTouch.axis === 'x') {
                 e.preventDefault();
-                // Finger right → decrease gallery progress (same as native LTR/RTL distance model)
-                setScrollDistance(
-                    container,
-                    isHebrew,
-                    nestTouch.startDistance - dx,
-                    rtlModeRef.current
-                );
+                // Native overflow drag: content follows finger (correct for LTR and RTL)
+                container.scrollLeft -= dxFromLast;
+                nestTouch.lastX = t.clientX;
                 syncProgressFromScroll();
                 return;
             }
@@ -247,13 +269,14 @@ export default function SnakeScrollGallery({
             e.preventDefault();
             const nested = nestTouch.nested;
             const maxTop = Math.max(0, nested.scrollHeight - nested.clientHeight);
-            nested.scrollTop = Math.min(maxTop, Math.max(0, nestTouch.startScrollTop - dy));
+            nested.scrollTop = Math.min(maxTop, Math.max(0, nestTouch.startScrollTop - dyFromStart));
         };
 
         const onNestTouchEnd = () => {
             nestTouch.active = false;
             nestTouch.axis = null;
             nestTouch.nested = null;
+            nestTouch.startX = null;
         };
 
         container.addEventListener('touchstart', onNestTouchStart, { passive: true });
@@ -280,7 +303,7 @@ export default function SnakeScrollGallery({
                 el.removeEventListener('load', onMediaLoad);
             });
         };
-    }, [children, isHebrew, syncProgressFromScroll]);
+    }, [children, isHebrew, mapVerticalWheel, syncProgressFromScroll]);
 
     const scrubToClientX = useCallback((clientX) => {
         const bar = progressBarRef.current;
@@ -334,6 +357,12 @@ export default function SnakeScrollGallery({
         }
     };
 
+    const edgeFadeEnabled = Boolean(edgeFadeMask) && edgeFadeMask !== 'none';
+    const activeEdgeFadeMask = useMemo(
+        () => buildEdgeFadeMask(isHebrew, scrollProgress, edgeFadeEnabled),
+        [isHebrew, scrollProgress, edgeFadeEnabled]
+    );
+
     return (
         <Box sx={{ width: '100%' }}>
             <Box
@@ -349,13 +378,14 @@ export default function SnakeScrollGallery({
                     width: '100%',
                     direction: isHebrew ? 'rtl' : 'ltr',
                     // Edge fade on desktop/tablet only — none on mobile
+                    // Start-edge fade only after scrolling away from the first item
                     WebkitMaskImage: {
                         xs: 'none',
-                        md: edgeFadeMask || 'none'
+                        md: activeEdgeFadeMask
                     },
                     maskImage: {
                         xs: 'none',
-                        md: edgeFadeMask || 'none'
+                        md: activeEdgeFadeMask
                     },
                     WebkitMaskRepeat: 'no-repeat',
                     maskRepeat: 'no-repeat',
