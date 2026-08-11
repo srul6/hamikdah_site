@@ -448,14 +448,33 @@ export default function ProductDetail({
           {productDescription}
         </Typography>
 
-        {/* Divider between description and features */}
+        {Array.isArray(product?.childrenPlaying) && product.childrenPlaying.length > 0 && (
+          <Box
+            sx={{
+              width: { xs: '60%', sm: '70%', md: '80%' },
+              height: '1px',
+              backgroundColor: 'rgba(229, 90, 61, 0.2)',
+              mx: 'auto',
+              mb: 4
+            }}
+          />
+        )}
+
+        <ChildrenPlayingSection
+          media={product?.childrenPlaying}
+          isHebrew={isHebrew}
+          theme="light"
+        />
+
+        {/* Divider between description / kids playing and features */}
         <Box
           sx={{
             width: { xs: '60%', sm: '70%', md: '80%' },
             height: '1px',
             backgroundColor: 'rgba(229, 90, 61, 0.2)',
             mx: 'auto',
-            mb: 4
+            mb: 4,
+            mt: product?.childrenPlaying?.length ? 4 : 0
           }}
         />
 
@@ -862,12 +881,6 @@ export default function ProductDetail({
           )}
         </Box>
       </Container>
-
-      {/* Kids Playing — same gallery + scroll progress bar as Temple product pages */}
-      <ChildrenPlayingSection
-        media={product?.childrenPlaying}
-        isHebrew={isHebrew}
-      />
 
       {/* Related Products Section */}
       {relatedProducts.length > 0 && (

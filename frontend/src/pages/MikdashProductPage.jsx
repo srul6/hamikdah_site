@@ -14,17 +14,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import ChildrenPlayingSection from '../components/ChildrenPlayingSection';
+import SnakeScrollGallery from '../components/SnakeScrollGallery';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, ref) => {
-    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
-    const [scrollProgress, setScrollProgress] = useState(0);
-    const galleryRef = useRef(null);
-    const scrollContainerRef = useRef(null);
 
     // YouTube video URLs converted to embed format
     const videos = [
@@ -33,46 +30,9 @@ const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, r
         'https://www.youtube.com/embed/-7lrSjwONg4'
     ];
 
-
-
     useEffect(() => {
         setIsVisible(true);
     }, []);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            if (scrollContainerRef.current) {
-                const container = scrollContainerRef.current;
-                let scrollLeft = container.scrollLeft;
-                const maxScroll = container.scrollWidth - container.clientWidth;
-
-                // In RTL mode, scrollLeft is negative or zero when scrolling right
-                // We need to convert it to a positive value
-                if (isHebrew) {
-                    scrollLeft = Math.abs(scrollLeft);
-                }
-
-                const progress = maxScroll > 0 ? scrollLeft / maxScroll : 0;
-                setScrollProgress(progress);
-
-                const childNodes = container.childNodes[0]?.childNodes || [];
-                let totalWidth = 0;
-                for (let i = 0; i < childNodes.length; i++) {
-                    totalWidth += childNodes[i].offsetWidth + 16; // +gap
-                    if (totalWidth >= scrollLeft + container.clientWidth / 2) {
-                        setCurrentVideoIndex(i);
-                        break;
-                    }
-                }
-            }
-        };
-
-        const container = scrollContainerRef.current;
-        if (container) {
-            container.addEventListener('scroll', handleScroll);
-            return () => container.removeEventListener('scroll', handleScroll);
-        }
-    }, [videos.length, isHebrew]);
 
     if (videos.length === 0) return null;
 
@@ -87,6 +47,7 @@ const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, r
             }}>
                 <Typography
                     variant="h2"
+                    component="h2"
                     sx={{
                         color: '#f5f0e3',
                         fontWeight: 400,
@@ -97,27 +58,16 @@ const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, r
                         direction: isHebrew ? 'rtl' : 'ltr',
                     }}
                 >
-                    {isHebrew ? 'סרטוני עזר לבנייה' : 'Building Assistance Videos'}
+                    {isHebrew ? 'סרטוני עזר לבנייה' : 'Building Tutorial Videos'}
                 </Typography>
             </Box>
 
-            {/* Horizontal Scrolling Gallery */}
-            <Box
-                ref={scrollContainerRef}
-                sx={{
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
-                    '&::-webkit-scrollbar': {
-                        display: 'none'
-                    },
-                    width: '100%',
-                    direction: isHebrew ? 'rtl' : 'ltr'
-                }}
-            >
-                <Box sx={{
-                    display: 'flex',
+            <SnakeScrollGallery
+                isHebrew={isHebrew}
+                aria-label={isHebrew ? 'סרטוני עזר לבנייה' : 'Building Tutorial Videos'}
+                trackColor="rgba(255, 255, 255, 0.3)"
+                fillColor="#f5f0e3"
+                rowSx={{
                     gap: 0,
                     py: 0,
                     '&::before': {
@@ -130,106 +80,57 @@ const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, r
                         flexShrink: 0,
                         width: { xs: '4px', md: '100px' }
                     }
-                }}>
-                    {videos.map((video, index) => (
-                        <Box
-                            key={index}
-                            sx={{
-                                flexShrink: 0,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                px: { xs: 0, sm: 1 },
-                                width: { xs: '100vw', sm: 'auto' },
-                                maxWidth: { xs: '100vw', sm: 'none' }
-                            }}
-                        >
-                            {/* Video Container */}
-                            <Box sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                height: { xs: '250px', sm: '300px', md: '400px' },
-                                width: { xs: '100vw', sm: '80vw', md: '600px' },
-                                maxWidth: { xs: 'calc(100vw - 32px)', sm: '80vw', md: '600px' },
-                                borderRadius: 2,
-                                overflow: 'hidden',
-                                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-                                mb: 1
-                            }}>
-                                <iframe
-                                    src={video}
-                                    title={`${isHebrew ? 'סרטון' : 'Video'} ${index + 1}`}
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        border: 'none',
-                                        borderRadius: '8px'
-                                    }}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                />
-                            </Box>
-
-                        </Box>
-                    ))}
-                </Box>
-
-            </Box>
-            {/* Progress Indicator */}
-            <Box
-                sx={{
-                    position: 'sticky',
-                    top: '0%',
-                    zIndex: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                }}
+                snakeOuterSx={{
                     mt: { xs: 4, md: 8 },
                     mb: { xs: 3, md: 6 }
                 }}
             >
-                <Box
-                    sx={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                        borderRadius: '20px',
-                        backdropFilter: 'blur(10px)',
-                        cursor: 'pointer'
-                    }}
-                    onClick={() => {
-                        if (scrollContainerRef.current) {
-                            const container = scrollContainerRef.current;
-                            const nextIndex = (currentVideoIndex + 1) % videos.length;
-                            const targetChild = container.querySelectorAll('iframe')[nextIndex];
-                            if (targetChild) {
-                                targetChild.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                            }
-                        }
-                    }}
-                >
-                    <Box sx={{
-                        position: 'relative',
-                        width: '200px',
-                        height: '8px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                    }}>
+                {videos.map((video, index) => (
+                    <Box
+                        key={index}
+                        data-snake-media
+                        sx={{
+                            flexShrink: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            px: { xs: 0, sm: 1 },
+                            width: { xs: '100vw', sm: 'auto' },
+                            maxWidth: { xs: '100vw', sm: 'none' },
+                            opacity: isVisible ? 1 : 0,
+                            transition: 'opacity 0.4s ease'
+                        }}
+                    >
                         <Box sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: isHebrew ? 'auto' : 0,
-                            right: isHebrew ? 0 : 'auto',
-                            height: '100%',
-                            width: `calc(${scrollProgress * 100}%)`,
-                            backgroundColor: '#f5f0e3',
-                            borderRadius: '4px',
-                            transition: 'width 0.1s ease-out'
-                        }} />
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: { xs: '250px', sm: '300px', md: '400px' },
+                            width: { xs: '100vw', sm: '80vw', md: '600px' },
+                            maxWidth: { xs: 'calc(100vw - 32px)', sm: '80vw', md: '600px' },
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+                            mb: 1
+                        }}>
+                            <iframe
+                                src={video}
+                                title={`${isHebrew ? 'סרטון' : 'Video'} ${index + 1}`}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                    borderRadius: '8px'
+                                }}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </Box>
                     </Box>
-                </Box>
-            </Box>
+                ))}
+            </SnakeScrollGallery>
         </Box>
     );
 });
@@ -883,8 +784,6 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
     const [isSticky, setIsSticky] = useState(true); // Start as sticky (at bottom)
     const [hasReachedTarget, setHasReachedTarget] = useState(false);
     const [scrollY, setScrollY] = useState(0);
-    const [currentProductGalleryIndex, setCurrentProductGalleryIndex] = useState(0);
-    const [productGalleryScrollProgress, setProductGalleryScrollProgress] = useState(0);
     const [currentAdvantageIndex, setCurrentAdvantageIndex] = useState(0);
     const [advantageScrollProgress, setAdvantageScrollProgress] = useState(0);
 
@@ -904,7 +803,6 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
     const imageRef = useRef(null);
     const buttonTargetRef = useRef(null); // Reference to the target position
     const heroSectionRef = useRef(null); // Reference to the hero section
-    const productGalleryScrollContainerRef = useRef(null);
     const advantageScrollContainerRef = useRef(null);
 
     // GSAP animation refs for mobile
@@ -985,42 +883,6 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, [isSticky, hasReachedTarget]);
-
-    // Product gallery scroll tracking
-    useEffect(() => {
-        const handleProductGalleryScroll = () => {
-            if (productGalleryScrollContainerRef.current) {
-                const container = productGalleryScrollContainerRef.current;
-                let scrollLeft = container.scrollLeft;
-                const maxScroll = container.scrollWidth - container.clientWidth;
-
-                // In RTL mode, scrollLeft is negative or zero when scrolling right
-                // We need to convert it to a positive value
-                if (isHebrew) {
-                    scrollLeft = Math.abs(scrollLeft);
-                }
-
-                const progress = maxScroll > 0 ? scrollLeft / maxScroll : 0;
-                setProductGalleryScrollProgress(progress);
-
-                const childNodes = container.childNodes[0]?.childNodes || [];
-                let totalWidth = 0;
-                for (let i = 0; i < childNodes.length; i++) {
-                    totalWidth += childNodes[i].offsetWidth + 16; // +gap
-                    if (totalWidth >= scrollLeft + container.clientWidth / 2) {
-                        setCurrentProductGalleryIndex(i);
-                        break;
-                    }
-                }
-            }
-        };
-
-        const container = productGalleryScrollContainerRef.current;
-        if (container && productGalleryImages.length > 0) {
-            container.addEventListener('scroll', handleProductGalleryScroll);
-            return () => container.removeEventListener('scroll', handleProductGalleryScroll);
-        }
-    }, [productGalleryImages, isHebrew]);
 
     // Advantages scroll tracking - exact copy from children playing
     useEffect(() => {
@@ -1208,7 +1070,7 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                     }
 
                     // Animate the content (videos)
-                    const videoContent = videoGalleryRef.current.querySelector('[ref]')?.parentElement;
+                    const videoContent = videoGalleryRef.current.querySelector('[data-snake-scroll-container]');
                     if (videoContent) {
                         gsap.set(videoContent, { opacity: 0, y: 15 });
                         gsap.to(videoContent, {
@@ -1971,7 +1833,7 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
             {/* Product Features Section */}
             <ProductFeaturesSection ref={productFeaturesRef} product={product} isHebrew={isHebrew} />
 
-            {/* Product Gallery Section - scrolling like children playing */}
+            {/* Close-Up Photos — snake-controlled horizontal gallery */}
             {productGalleryImages.length > 0 && (
                 <Box
                     ref={productGalleryRef}
@@ -1991,6 +1853,7 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                     }}>
                         <Typography
                             variant="h2"
+                            component="h2"
                             sx={{
                                 color: '#f5f0e3',
                                 fontWeight: 400,
@@ -2002,93 +1865,45 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                                 px: { xs: 4, md: '9%' },
                             }}
                         >
-                            {isHebrew ? 'תמונות מקרוב' : 'Product Gallery'}
+                            {isHebrew ? 'תמונות מקרוב' : 'Close-Up Photos'}
                         </Typography>
                     </Box>
 
-                    <Box
-                        ref={productGalleryScrollContainerRef}
-                        sx={{
-                            overflowX: 'auto',
-                            overflowY: 'hidden',
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': { display: 'none' },
-                            width: '100%',
-                            direction: isHebrew ? 'rtl' : 'ltr'
+                    <SnakeScrollGallery
+                        isHebrew={isHebrew}
+                        aria-label={isHebrew ? 'תמונות מקרוב' : 'Close-Up Photos'}
+                        rowSx={{
+                            height: { xs: '320px', sm: '450px', md: '500px' }
                         }}
                     >
-                        <Box sx={{
-                            display: 'flex',
-                            gap: 3,
-                            py: 1,
-                            alignItems: 'center',
-                            height: { xs: '320px', sm: '450px', md: '500px' }
-                        }}>
-                            {/* Spacer at start */}
-                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
-
-                            {productGalleryImages.map((imagePath, index) => (
-                                <Box key={`pg-${index}`} sx={{
+                        <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
+                        {productGalleryImages.map((imagePath, index) => (
+                            <Box
+                                key={`pg-${index}`}
+                                data-snake-media
+                                sx={{
                                     flexShrink: 0,
                                     height: '100%',
                                     display: 'flex',
                                     alignItems: 'center',
-                                }}>
-                                    <img
-                                        src={imagePath}
-                                        alt={`${isHebrew ? 'תמונת מוצר' : 'Product image'} ${index + 1}`}
-                                        style={{
-                                            height: '100%',
-                                            width: 'auto',
-                                            objectFit: 'contain',
-                                            borderRadius: '8px',
-                                            display: 'block'
-                                        }}
-                                    />
-                                </Box>
-                            ))}
-
-                            {/* Spacer at end */}
-                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
-                        </Box>
-                    </Box>
-
-                    {/* Progress Indicator - exactly like video section */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <Box
-                            sx={{
-                                position: 'relative',
-                                width: '200px',
-                                height: '8px',
-                                backgroundColor: 'rgba(245, 240, 227, 0.3)',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                                if (productGalleryScrollContainerRef.current) {
-                                    const container = productGalleryScrollContainerRef.current;
-                                    const nextIndex = (currentProductGalleryIndex + 1) % productGalleryImages.length;
-                                    const targetChild = container.querySelectorAll('img')[nextIndex];
-                                    if (targetChild) {
-                                        targetChild.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                                    }
-                                }
-                            }}
-                        >
-                            <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: isHebrew ? 'auto' : 0,
-                                right: isHebrew ? 0 : 'auto',
-                                height: '100%',
-                                width: `calc(${productGalleryScrollProgress * 100}%)`,
-                                backgroundColor: '#f5f0e3',
-                                borderRadius: '4px',
-                                transition: 'width 0.1s ease-out'
-                            }} />
-                        </Box>
-                    </Box>
+                                }}
+                            >
+                                <img
+                                    src={imagePath}
+                                    alt={`${isHebrew ? 'תמונת מוצר' : 'Product image'} ${index + 1}`}
+                                    draggable={false}
+                                    style={{
+                                        height: '100%',
+                                        width: 'auto',
+                                        objectFit: 'contain',
+                                        borderRadius: '8px',
+                                        display: 'block'
+                                    }}
+                                />
+                            </Box>
+                        ))}
+                        <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
+                    </SnakeScrollGallery>
                 </Box>
             )}
 
