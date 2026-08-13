@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Typography, Card, IconButton } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -7,14 +9,59 @@ import { translations } from '../translations/translations';
 import { fetchComments } from '../api/comments';
 import SnakeScrollGallery from './SnakeScrollGallery';
 
+const DEFAULT_CARD_WIDTH = { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 };
+const NAME_FOOTER_RESERVE = 72;
+const IMAGE_BOTTOM_PAD = 10;
+const IMAGE_SIDE_PAD = 16;
+const IMAGE_CARD_MIN_WIDTH = 280;
+
 export default function CommentsSection() {
     const sectionRef = useRef(null);
     const [playingVideos, setPlayingVideos] = useState({});
     const videoRefs = useRef({});
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
+    /** @type {[{[id: string]: number}, Function]} imageId → naturalWidth/naturalHeight */
+    const [imageAspects, setImageAspects] = useState({});
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+    const theme = useTheme();
+    const isXl = useMediaQuery(theme.breakpoints.up('xl'));
+    const isLg = useMediaQuery(theme.breakpoints.up('lg'));
+    const isSm = useMediaQuery(theme.breakpoints.up('sm'));
+
+    const defaultWidthPx = !isSm
+        ? (typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 420) : 320)
+        : isXl
+            ? 360
+            : isLg
+                ? 300
+                : 260;
+    const cardHeightPx = isXl ? 490 : isLg ? 420 : 390;
+
+    const getImageCardWidthSx = (commentId, showName) => {
+        const aspect = imageAspects[commentId];
+        if (!aspect || aspect <= 0) {
+            return {
+                minWidth: DEFAULT_CARD_WIDTH,
+                maxWidth: DEFAULT_CARD_WIDTH
+            };
+        }
+        const availH = cardHeightPx - (showName ? NAME_FOOTER_RESERVE : 8) - IMAGE_BOTTOM_PAD;
+        const fitted = Math.round(availH * aspect + IMAGE_SIDE_PAD);
+        if (fitted >= defaultWidthPx - 1) {
+            return {
+                minWidth: DEFAULT_CARD_WIDTH,
+                maxWidth: DEFAULT_CARD_WIDTH
+            };
+        }
+        const narrow = Math.max(IMAGE_CARD_MIN_WIDTH, fitted);
+        return {
+            minWidth: narrow,
+            maxWidth: narrow,
+            width: narrow
+        };
+    };
 
     // Fetch comments from API
     useEffect(() => {
@@ -175,13 +222,18 @@ export default function CommentsSection() {
                         {comments.map((comment) => {
                             const customerName = isHebrew ? comment.name_he : comment.name_en;
                             const showName = Boolean(customerName);
+                            const widthSx = comment.type === 'image'
+                                ? getImageCardWidthSx(comment.id, showName)
+                                : {
+                                    minWidth: DEFAULT_CARD_WIDTH,
+                                    maxWidth: DEFAULT_CARD_WIDTH
+                                };
 
                             return (
                                 <Card
                                     key={comment.id}
                                     sx={{
-                                        minWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 },
-                                        maxWidth: { xs: '100%', sm: 260, md: 260, lg: 300, xl: 360 },
+                                        ...widthSx,
                                         height: { xs: 390, sm: 390, md: 390, lg: 420, xl: 490 },
                                         flexShrink: 0,
                                         borderRadius: 3,
@@ -192,11 +244,12 @@ export default function CommentsSection() {
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: 'center',
-                                        p: comment.type === 'text' ? 3 : 0,
-                                        pb: (comment.type === 'text' || comment.type === 'image') && showName ? 7 : 0,
+                                        p: 0,
+                                        pt: comment.type === 'text' ? 3 : 0,
+                                        px: comment.type === 'text' ? 3 : 0,
                                         textAlign: 'center',
                                         overflow: 'hidden',
-                                        transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s ease, min-width 0.25s ease, max-width 0.25s ease',
                                         cursor: 'pointer',
                                         position: 'relative',
                                         '&.MuiPaper-root': {
@@ -210,50 +263,88 @@ export default function CommentsSection() {
                                     }}
                                 >
                                     {comment.type === 'text' ? (
-                                        <Box
-                                            data-nested-y-scroll
-                                            sx={{
-                                                flex: 1,
-                                                overflowY: 'auto',
-                                                overflowX: 'hidden',
-                                                width: '100%',
-                                                px: 1,
-                                                minHeight: 0,
-                                                // SnakeScrollGallery owns touch axes for this node
-                                                touchAction: 'none',
-                                                overscrollBehavior: 'contain',
-                                                WebkitOverflowScrolling: 'touch',
-                                                '&::-webkit-scrollbar': {
-                                                    width: '6px',
-                                                },
-                                                '&::-webkit-scrollbar-track': {
-                                                    background: 'transparent',
-                                                },
-                                                '&::-webkit-scrollbar-thumb': {
-                                                    background: '#d8472a',
-                                                    borderRadius: '3px',
-                                                    '&:hover': {
-                                                        background: '#b8381f',
-                                                    },
-                                                },
-                                                scrollbarWidth: 'thin',
-                                                scrollbarColor: '#d8472a transparent',
-                                            }}
-                                        >
-                                            <Typography
-                                                variant="body1"
+                                        <>
+                                            <Box
+                                                data-nested-y-scroll
                                                 sx={{
-                                                    color: '#1d1d1f',
-                                                    fontSize: '1.1rem',
-                                                    lineHeight: 1.6,
-                                                    fontWeight: 400,
-                                                    direction: isHebrew ? 'rtl' : 'ltr',
-                                                    wordBreak: 'break-word',
+                                                    flex: 1,
+                                                    overflowY: 'auto',
+                                                    overflowX: 'hidden',
+                                                    width: '100%',
+                                                    px: 1,
+                                                    pb: 1.25,
+                                                    minHeight: 0,
+                                                    // SnakeScrollGallery owns touch axes for this node
+                                                    touchAction: 'none',
+                                                    overscrollBehavior: 'contain',
+                                                    WebkitOverflowScrolling: 'touch',
+                                                    '&::-webkit-scrollbar': {
+                                                        width: '6px',
+                                                    },
+                                                    '&::-webkit-scrollbar-track': {
+                                                        background: 'transparent',
+                                                    },
+                                                    '&::-webkit-scrollbar-thumb': {
+                                                        background: '#d8472a',
+                                                        borderRadius: '3px',
+                                                        '&:hover': {
+                                                            background: '#b8381f',
+                                                        },
+                                                    },
+                                                    scrollbarWidth: 'thin',
+                                                    scrollbarColor: '#d8472a transparent',
                                                 }}
                                             >
-                                                "{isHebrew ? comment.text_he : comment.text_en}"
-                                            </Typography>
-                                        </Box>
+                                                <Typography
+                                                    variant="body1"
+                                                    sx={{
+                                                        color: '#1d1d1f',
+                                                        fontSize: '1.1rem',
+                                                        lineHeight: 1.6,
+                                                        fontWeight: 400,
+                                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                                        wordBreak: 'break-word',
+                                                    }}
+                                                >
+                                                    "{isHebrew ? comment.text_he : comment.text_en}"
+                                                </Typography>
+                                            </Box>
+                                            {showName && (
+                                                <Box
+                                                    sx={{
+                                                        width: '100%',
+                                                        flexShrink: 0,
+                                                        px: 0,
+                                                        pt: 0,
+                                                        pb: 1.75,
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            width: '70%',
+                                                            height: '1.5px',
+                                                            backgroundColor: 'rgba(229, 90, 61, 1)',
+                                                            mb: 1.75
+                                                        }}
+                                                    />
+                                                    <Typography
+                                                        variant="h6"
+                                                        sx={{
+                                                            color: '#d8472a',
+                                                            fontWeight: 600,
+                                                            m: 0,
+                                                            textAlign: 'center',
+                                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                                        }}
+                                                    >
+                                                        {customerName}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                        </>
                                     ) : comment.type === 'video' ? (
                                         <Box
                                             sx={{
@@ -325,83 +416,126 @@ export default function CommentsSection() {
                                             </IconButton>
                                         </Box>
                                     ) : (
-                                        <Box
-                                            sx={{
-                                                flex: 1,
-                                                width: '100%',
-                                                minHeight: 0,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                overflow: 'hidden',
-                                                pb: 7,
-                                            }}
-                                        >
+                                        <>
                                             <Box
-                                                component="img"
-                                                src={comment.imageUrl}
-                                                alt={customerName}
                                                 sx={{
+                                                    flex: 1,
                                                     width: '100%',
-                                                    height: 'auto',
-                                                    display: 'block',
-                                                }}
-                                            />
-                                        </Box>
-                                    )}
-
-                                    {showName && (
-                                        comment.type === 'video' ? (
-                                            <Box
-                                                sx={{
-                                                    position: 'absolute',
-                                                    left: 0,
-                                                    right: 0,
-                                                    bottom: 24,
-                                                    zIndex: 2,
+                                                    minHeight: 0,
                                                     display: 'flex',
+                                                    alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    px: 3,
-                                                    pointerEvents: 'none'
+                                                    overflow: 'hidden',
+                                                    px: 1,
+                                                    pt: 0,
+                                                    pb: 4,
+                                                    boxSizing: 'border-box'
                                                 }}
                                             >
-                                                <Typography
-                                                    variant="h6"
+                                                <Box
+                                                    component="img"
+                                                    src={comment.imageUrl}
+                                                    alt={customerName}
+                                                    ref={(el) => {
+                                                        if (!el || !el.complete || !el.naturalWidth || !el.naturalHeight) return;
+                                                        const aspect = el.naturalWidth / el.naturalHeight;
+                                                        queueMicrotask(() => {
+                                                            setImageAspects((prev) => {
+                                                                if (prev[comment.id] === aspect) return prev;
+                                                                return { ...prev, [comment.id]: aspect };
+                                                            });
+                                                        });
+                                                    }}
+                                                    onLoad={(e) => {
+                                                        const { naturalWidth, naturalHeight } = e.currentTarget;
+                                                        if (!naturalWidth || !naturalHeight) return;
+                                                        const aspect = naturalWidth / naturalHeight;
+                                                        setImageAspects((prev) => {
+                                                            if (prev[comment.id] === aspect) return prev;
+                                                            return { ...prev, [comment.id]: aspect };
+                                                        });
+                                                    }}
                                                     sx={{
-                                                        color: '#d8472a',
-                                                        fontWeight: 600,
-                                                        m: 0,
-                                                        py: 0.25,
-                                                        backgroundColor: '#ebe4d4',
-                                                        borderRadius: 0,
-                                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                                        display: 'inline-block',
+                                                        maxWidth: '100%',
+                                                        maxHeight: '100%',
+                                                        width: 'auto',
+                                                        height: 'auto',
+                                                        objectFit: 'contain',
+                                                        objectPosition: 'center top',
+                                                        display: 'block'
+                                                    }}
+                                                />
+                                            </Box>
+                                            {showName && (
+                                                <Box
+                                                    sx={{
                                                         width: '100%',
-                                                        maxWidth: '100%'
+                                                        flexShrink: 0,
+                                                        px: 3,
+                                                        pt: 0,
+                                                        pb: 1.75,
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center'
                                                     }}
                                                 >
-                                                    {customerName}
-                                                </Typography>
-                                            </Box>
-                                        ) : (
+                                                    <Box
+                                                        sx={{
+                                                            width: '70%',
+                                                            height: '1.5px',
+                                                            backgroundColor: 'rgba(229, 90, 61, 1)',
+                                                            mb: 1.75
+                                                        }}
+                                                    />
+                                                    <Typography
+                                                        variant="h6"
+                                                        sx={{
+                                                            color: '#d8472a',
+                                                            fontWeight: 600,
+                                                            m: 0,
+                                                            textAlign: 'center',
+                                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                                        }}
+                                                    >
+                                                        {customerName}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {showName && comment.type === 'video' && (
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 24,
+                                                zIndex: 2,
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                px: 3,
+                                                pointerEvents: 'none'
+                                            }}
+                                        >
                                             <Typography
                                                 variant="h6"
                                                 sx={{
-                                                    position: 'absolute',
-                                                    left: 0,
-                                                    right: 0,
-                                                    bottom: 24,
-                                                    zIndex: 2,
                                                     color: '#d8472a',
                                                     fontWeight: 600,
                                                     m: 0,
-                                                    px: 3,
+                                                    py: 0.25,
+                                                    backgroundColor: '#ebe4d4',
+                                                    borderRadius: 0,
                                                     direction: isHebrew ? 'rtl' : 'ltr',
+                                                    display: 'inline-block',
+                                                    width: '100%',
+                                                    maxWidth: '100%'
                                                 }}
                                             >
                                                 {customerName}
                                             </Typography>
-                                        )
+                                        </Box>
                                     )}
                                 </Card>
                             );
