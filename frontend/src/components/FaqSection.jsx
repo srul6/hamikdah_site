@@ -27,8 +27,50 @@ export default function FaqSection() {
         { id: 'q1', question: t.faqQ1Question, answer: t.faqQ1Answer },
         { id: 'q2', question: t.faqQ2Question, answer: t.faqQ2Answer },
         { id: 'q3', question: t.faqQ3Question, answer: t.faqQ3Answer },
-        { id: 'q4', question: t.faqQ4Question, answer: t.faqQ4Answer }
+        { id: 'q4', question: t.faqQ4Question, answer: t.faqQ4Answer },
+        { id: 'q5', question: t.faqQ5Question, answer: t.faqQ5Answer }
     ];
+
+    const whatsAppLinkSx = {
+        color: '#25D366',
+        fontWeight: 600,
+        textDecoration: 'underline',
+        textUnderlineOffset: '2px',
+        '&:hover': {
+            color: '#1ebe57'
+        },
+        '&:focus-visible': {
+            outline: '2px solid rgba(229, 90, 61, 0.55)',
+            outlineOffset: '2px',
+            borderRadius: '2px'
+        }
+    };
+
+    const renderAnswer = (item) => {
+        if (item.id === 'q3') {
+            return (
+                <>
+                    {t.faqQ3AnswerBefore}
+                    <Box component="a" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" sx={whatsAppLinkSx}>
+                        {t.faqQ3AnswerLink}
+                    </Box>
+                    {t.faqQ3AnswerAfter}
+                </>
+            );
+        }
+        if (item.id === 'q5') {
+            return (
+                <>
+                    {t.faqQ5AnswerBefore}
+                    <Box component="a" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" sx={whatsAppLinkSx}>
+                        {t.faqQ5AnswerLink}
+                    </Box>
+                    {t.faqQ5AnswerAfter}
+                </>
+            );
+        }
+        return item.answer;
+    };
 
     const contactBlockSx = {
         width: '100%',
@@ -345,36 +387,7 @@ export default function FaqSection() {
                                             textAlign: isHebrew ? 'right' : 'left'
                                         }}
                                     >
-                                        {item.id === 'q3' ? (
-                                            <>
-                                                {t.faqQ3AnswerBefore}
-                                                <Box
-                                                    component="a"
-                                                    href={WHATSAPP_URL}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    sx={{
-                                                        color: '#25D366',
-                                                        fontWeight: 600,
-                                                        textDecoration: 'underline',
-                                                        textUnderlineOffset: '2px',
-                                                        '&:hover': {
-                                                            color: '#1ebe57'
-                                                        },
-                                                        '&:focus-visible': {
-                                                            outline: '2px solid rgba(229, 90, 61, 0.55)',
-                                                            outlineOffset: '2px',
-                                                            borderRadius: '2px'
-                                                        }
-                                                    }}
-                                                >
-                                                    {t.faqQ3AnswerLink}
-                                                </Box>
-                                                {t.faqQ3AnswerAfter}
-                                            </>
-                                        ) : (
-                                            item.answer
-                                        )}
+                                        {renderAnswer(item)}
                                     </Typography>
                                 </AccordionDetails>
                             </Accordion>

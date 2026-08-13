@@ -72,6 +72,11 @@ export const translations = {
         faqQ3Answer: 'זה לא מופץ כרגע לכל החנויות אבל יש מוקדי חלוקה בירושלים ובמרכז - צרו איתנו קשר ונחבר אתכם למוקד החלוקה הרצוי.',
         faqQ4Question: 'לאיזה גילים זה מתאים?',
         faqQ4Answer: 'כדי שילד/ה יבנו את זה לבד, הם צריכים להיות בגיל 9+. בעזרת מבוגר אפשר גם מגילים נמוכים יותר כמו 6-7.',
+        faqQ5Question: 'יש מחיר מיוחד לכמויות גדולות?',
+        faqQ5AnswerBefore: 'כן בטח! המחיר משתנה לפי הכמות שתבקשו, ונהיה נמוך יותר ככל שהכמות גדלה. המינימום הנדרש הוא 10 יחידות. לפרטים נוספים ',
+        faqQ5AnswerLink: 'צרו איתנו קשר בווצאפ',
+        faqQ5AnswerAfter: ' ונדבר:)',
+        faqQ5Answer: 'כן בטח! המחיר משתנה לפי הכמות שתבקשו, ונהיה נמוך יותר ככל שהכמות גדלה. המינימום הנדרש הוא 10 יחידות. לפרטים נוספים צרו איתנו קשר בווצאפ ונדבר:)',
 
         // Product Detail
         productsYouMayLike: 'הערכות הנוספות שלנו',
@@ -434,6 +439,11 @@ export const translations = {
         faqQ3Answer: 'It is not currently distributed to all stores, but there are pickup points in Jerusalem and the center — contact us and we will connect you to the right pickup location.',
         faqQ4Question: 'What ages is this suitable for?',
         faqQ4Answer: 'For a child to build it independently, they should be age 9+. With an adult, younger ages like 6–7 work too.',
+        faqQ5Question: 'Is there a special price for large quantities?',
+        faqQ5AnswerBefore: 'Yes, of course! The price changes based on the quantity you request, and gets lower as the quantity grows. The minimum required is 10 units. For more details, ',
+        faqQ5AnswerLink: 'contact us on WhatsApp',
+        faqQ5AnswerAfter: ' and we\'ll talk :)',
+        faqQ5Answer: 'Yes, of course! The price changes based on the quantity you request, and gets lower as the quantity grows. The minimum required is 10 units. For more details, contact us on WhatsApp and we\'ll talk :)',
 
         // Product Detail
         productsYouMayLike: 'Products You May Like',

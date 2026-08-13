@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { getImageUrl } from '../utils/imageUtils';
 import SnakeScrollGallery from './SnakeScrollGallery';
@@ -11,6 +11,57 @@ function isUploadedVideo(url) {
 function isYouTubeEmbed(url) {
     if (!url || typeof url !== 'string') return false;
     return url.includes('youtube.com/embed') || url.includes('youtu.be/');
+}
+
+/**
+ * Renders an uploaded gallery video at its natural orientation/aspect ratio
+ * (portrait stays portrait, landscape stays landscape), fitted to row height.
+ */
+function OrientationAwareVideo({ src, title }) {
+    const [aspectRatio, setAspectRatio] = useState(null);
+
+    return (
+        <Box
+            sx={{
+                height: '100%',
+                width: 'auto',
+                // Once metadata loads, lock the correct portrait/landscape box
+                aspectRatio: aspectRatio ? String(aspectRatio) : 'auto',
+                maxWidth: aspectRatio && aspectRatio < 1
+                    ? { xs: '70vw', sm: '50vw', md: '360px' }
+                    : 'none',
+                borderRadius: 2,
+                overflow: 'hidden',
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}
+        >
+            <video
+                src={src}
+                controls
+                playsInline
+                preload="metadata"
+                title={title}
+                onLoadedMetadata={(e) => {
+                    const { videoWidth, videoHeight } = e.currentTarget;
+                    if (videoWidth > 0 && videoHeight > 0) {
+                        setAspectRatio(videoWidth / videoHeight);
+                    }
+                }}
+                style={{
+                    height: '100%',
+                    width: aspectRatio ? '100%' : 'auto',
+                    objectFit: 'contain',
+                    borderRadius: '8px',
+                    display: 'block',
+                    backgroundColor: '#000'
+                }}
+            />
+        </Box>
+    );
 }
 
 /**
@@ -139,29 +190,10 @@ const ChildrenPlayingSection = forwardRef(function ChildrenPlayingSection(
                                     />
                                 </Box>
                             ) : video ? (
-                                <Box
-                                    sx={{
-                                        height: '100%',
-                                        width: 'auto',
-                                        aspectRatio: '16/9',
-                                        borderRadius: 2,
-                                        overflow: 'hidden',
-                                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                        position: 'relative'
-                                    }}
-                                >
-                                    <video
-                                        src={mediaUrl}
-                                        controls
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover',
-                                            borderRadius: '8px'
-                                        }}
-                                        preload="metadata"
-                                    />
-                                </Box>
+                                <OrientationAwareVideo
+                                    src={mediaUrl}
+                                    title={`${title} ${index + 1}`}
+                                />
                             ) : (
                                 <img
                                     src={getImageUrl(mediaUrl)}
