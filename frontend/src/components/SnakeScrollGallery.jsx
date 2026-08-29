@@ -179,16 +179,55 @@ export default function SnakeScrollGallery({
 
             const absX = Math.abs(e.deltaX);
             const absY = Math.abs(e.deltaY);
+            const nestedY = findVerticalScrollParent(e.target);
 
-            // Native horizontal / diagonal-horizontal trackpad pan
-            if (absX > absY) {
+            const scrollGalleryByScrollLeftDelta = (delta) => {
+                if (!delta) return;
+                e.preventDefault();
+                container.scrollLeft += delta;
+                syncProgressFromScroll();
+            };
+
+            const scrollGalleryByDistanceDelta = (delta) => {
+                if (!delta) return;
+                const current = getScrollDistance(container, isHebrew, rtlModeRef.current);
+                const next = current + delta;
+                if ((delta > 0 && current >= max - 0.5) || (delta < 0 && current <= 0.5)) {
+                    return;
+                }
+                e.preventDefault();
+                setScrollDistance(container, isHebrew, next, rtlModeRef.current);
+                syncProgressFromScroll();
+            };
+
+            // Shift + wheel (common mouse horizontal) → always move reviews
+            if (e.shiftKey && absY > 0) {
+                scrollGalleryByScrollLeftDelta(e.deltaY);
+                return;
+            }
+
+            // Trackpad / mouse horizontal intent
+            if (absX > absY && absX > 0) {
+                // Over nested text, native horizontal may not reach the gallery — apply manually
+                if (nestedY) {
+                    scrollGalleryByScrollLeftDelta(e.deltaX);
+                }
                 return;
             }
 
             if (absY === 0) return;
 
-            // Nested review text: always let vertical wheel scroll the text / page
-            if (findVerticalScrollParent(e.target)) {
+            // Nested long review: vertical scrolls text while it can; at edges → reviews
+            if (nestedY) {
+                const atTop = nestedY.scrollTop <= 0;
+                const atBottom =
+                    nestedY.scrollTop + nestedY.clientHeight >= nestedY.scrollHeight - 1;
+                const scrollingDown = e.deltaY > 0;
+                const scrollingUp = e.deltaY < 0;
+                if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
+                    return;
+                }
+                scrollGalleryByDistanceDelta(e.deltaY);
                 return;
             }
 
@@ -197,17 +236,7 @@ export default function SnakeScrollGallery({
                 return;
             }
 
-            const current = getScrollDistance(container, isHebrew, rtlModeRef.current);
-            const delta = e.deltaY;
-            const next = current + delta;
-
-            if ((delta > 0 && current >= max - 0.5) || (delta < 0 && current <= 0.5)) {
-                return;
-            }
-
-            e.preventDefault();
-            setScrollDistance(container, isHebrew, next, rtlModeRef.current);
-            syncProgressFromScroll();
+            scrollGalleryByDistanceDelta(e.deltaY);
         };
         container.addEventListener('wheel', onWheel, { passive: false });
 

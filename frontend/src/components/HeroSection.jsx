@@ -71,10 +71,7 @@ export default function HeroSection({ products = [] }) {
                     width: '100%',
                     height: '100%',
                     borderRadius: '15px',
-                    backgroundImage: {
-                        xs: 'url(/first_web.webp)',
-                        md: 'url(/hero_section.webp)'
-                    },
+                    backgroundImage: 'url(/hero_section.webp)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat'
@@ -116,6 +113,32 @@ export default function HeroSection({ products = [] }) {
                     }}
                 />
             </Box>
+
+            {/* Hero tagline — desktop + mobile */}
+            <Typography
+                sx={{
+                    position: 'absolute',
+                    // Position: change `top` / `left` / `right` / `bottom` to move it
+                    top: { xs: '61%', md: '68%' },
+                    left: '50%',
+                    fontWeight: 'bold',
+                    transform: 'translateX(-50%)',
+                    zIndex: 10,
+                    color: 'rgba(245, 240, 227, 1)',
+                    // Size: change `fontSize` (and optionally `fontWeight` / `letterSpacing`)
+                    fontSize: { xs: '1.2rem', sm: '1.2rem', md: '1.4rem', lg: '1.6rem' },
+                    fontWeight: 500,
+                    letterSpacing: '0.02em',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    direction: isHebrew ? 'rtl' : 'ltr',
+                    pointerEvents: 'none',
+                    textShadow: '0 2px 12px rgba(0,0,0,0.35)',
+                    px: 2
+                }}
+            >
+                {t.heroTagline}
+            </Typography>
 
             {/* Mobile: delivery note below hero slogan */}
             <Typography

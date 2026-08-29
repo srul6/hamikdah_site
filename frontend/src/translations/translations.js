@@ -45,10 +45,11 @@ export const translations = {
         // Home Page
         heroTitle: 'חנות המקדש',
         heroSubtitle: 'ערכות בנייה לילדים, ערכת המקדש, קופות צדקה ועוד',
+        heroTagline: 'מתנות שמעצבות את הלב',
         deliveryWithin7Days: 'משלוח תוך 5 ימי עסקים',
         addToCart: 'הוספה לעגלה',
         loadingProducts: '..תנו לנו שנייה',
-        mainTitle: 'הילדים בונים והיהדות מתעוררת לחיים!',
+        mainTitle: 'הילדים בונים|ובית המקדש מתעורר לחיים!',
         mainDescription: 'ערכות בנייה ייחודיות, המשלבות יצירה, למידה וחיבור למסורת היהודית – חוויה מושלמת לכל המשפחה!',
         secondTitle: 'גלו את מוצר הדגל שלנו',
         secondDescription: 'המקדש השני - המוצר שממנו הכל התחיל.',
@@ -412,11 +413,12 @@ export const translations = {
 
         // Home Page
         heroSubtitle: 'Authentic Jewish Religious Items and Spiritual Artifacts',
+        heroTagline: 'Gifts that shape the heart',
         deliveryWithin7Days: 'Delivery within 5 business days',
         addToCart: 'Add to Cart',
         loadingProducts: 'Loading products...',
-        mainTitle: 'High-quality products for the Jewish home',
-        mainDescription: 'We specialize in selling unique, high-quality products for the synagogue and the Jewish family.',
+        mainTitle: 'Children build and Judaism comes to life!',
+        mainDescription: 'Unique building kits that combine creativity, learning, and connection to Jewish tradition – a perfect experience for the whole family!',
         secondTitle: 'Discover Our Products',
         secondDescription: 'Each product is carefully selected to enrich your Jewish holiday and tradition experience at home',
         whatOurCustomersSay: 'What Our Customers Say',

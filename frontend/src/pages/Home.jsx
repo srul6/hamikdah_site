@@ -172,22 +172,27 @@ export default function Home({ onAddToCart }) {
                 lineHeight: { xs: 0.7, sm: 0.9 }
               }}
             >
-              {isHebrew ? (
-                <>
-                  הילדים בונים
-                  <Box
-                    component="span"
-                    sx={{
-                      display: { xs: 'block', sm: 'inline' },
-                      mt: { xs: 1.25, sm: 0 }
-                    }}
-                  >
-                    {' '}והיהדות מתעוררת לחיים!
-                  </Box>
-                </>
-              ) : (
-                t.mainTitle
-              )}
+              {(() => {
+                const titleParts = t.mainTitle.split('|');
+                if (titleParts.length === 1) {
+                  return t.mainTitle;
+                }
+
+                return (
+                  <>
+                    {titleParts[0]}
+                    <Box
+                      component="span"
+                      sx={{
+                        display: { xs: 'block', sm: 'inline' },
+                        mt: { xs: 1.25, sm: 0 }
+                      }}
+                    >
+                      {' '}{titleParts.slice(1).join('|')}
+                    </Box>
+                  </>
+                );
+              })()}
             </Typography>
 
             <Typography
