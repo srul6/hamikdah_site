@@ -75,7 +75,7 @@ export const translations = {
         newsletter: 'ניוזלטר',
         newsletterGiftTeaser: 'אני רוצה הנחה',
         newsletterGiftTeaserLine1: 'אני רוצה',
-        newsletterGiftTeaserLine2: 'מתנה',
+        newsletterGiftTeaserLine2: 'הנחה',
         newsletterGiftBannerTitle: 'יש! מצאתם את זה!',
         newsletterGiftBannerBody:
             'הירשמו לניוזלטר השווה שלנו, ותקבלו 5% הנחה על הקנייה הראשונה שלכם!',
