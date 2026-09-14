@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Container, Typography, Box, Button, Card, CardContent, CardMedia,
-    Grid, TextField, IconButton, Alert, Chip, Divider, Paper,
+    Grid, TextField, IconButton, Alert, Divider, Paper,
     Dialog, DialogTitle, DialogContent, DialogActions, FormControl,
     InputLabel, Select, MenuItem, InputAdornment
 } from '@mui/material';
@@ -27,16 +27,19 @@ import { getCartItemDisplayName } from '../utils/cartDisplayName';
 import { getProductPath } from '../utils/productSlug';
 import { trackInitiateCheckout } from '../analytics/metaTracking';
 import { trackGa4BeginCheckout } from '../analytics/ga4Tracking';
+import { useGifts } from '../gifts/GiftContext';
+import GiftCartProductCards from '../gifts/GiftCartProductCards';
+import BannerSlot from '../banners/BannerSlot';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const navigate = useNavigate();
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
+    const { ensureGiftsBeforeCheckout } = useGifts();
 
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [couponError, setCouponError] = useState('');
-    const [couponSuccess, setCouponSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [homeDelivery, setHomeDeliveryState] = useState(() => getHomeDeliveryPreference());
 
@@ -64,7 +67,6 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
         setIsLoading(true);
         setCouponError('');
-        setCouponSuccess('');
 
         try {
             const response = await fetch(`${API_ENDPOINTS.coupons}/apply`, {
@@ -82,7 +84,6 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
             if (data.success) {
                 setAppliedCoupon(data);
-                setCouponSuccess(`${t.couponAppliedPrefix}${data.discountAmount.toFixed(2)}`);
                 setCouponCode('');
             } else {
                 setCouponError((isHebrew ? data.message_he : data.message_en) || t.couponNotFound);
@@ -97,7 +98,6 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     // Remove coupon
     const handleRemoveCoupon = () => {
         setAppliedCoupon(null);
-        setCouponSuccess('');
         setCouponError('');
     };
 
@@ -105,42 +105,46 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const handleContinueToPayment = () => {
         if (cart.length === 0) return;
 
-        saveHomeDeliveryPreference(homeDelivery);
+        const proceed = () => {
+            saveHomeDeliveryPreference(homeDelivery);
 
-        const finalTotal = total + (homeDelivery && subtotal < 350 ? 35 : 0);
-        const numItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const finalTotal = total + (homeDelivery && subtotal < 350 ? 35 : 0);
+            const numItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
-        try {
-            trackInitiateCheckout({
-                items: cart,
-                value: finalTotal,
-                numItems
-            });
-        } catch (_) {
-            // Tracking must never block checkout
-        }
-
-        try {
-            trackGa4BeginCheckout({
-                items: cart,
-                value: finalTotal,
-                currency: 'ILS'
-            });
-        } catch (_) {
-            // Tracking must never block checkout
-        }
-
-        navigate('/payment', {
-            state: {
-                cart: cart,
-                subtotal: subtotal,
-                discount: discount,
-                total: total,
-                appliedCoupon: appliedCoupon,
-                homeDelivery: homeDelivery,
-                finalTotal
+            try {
+                trackInitiateCheckout({
+                    items: cart,
+                    value: finalTotal,
+                    numItems
+                });
+            } catch (_) {
+                // Tracking must never block checkout
             }
-        });
+
+            try {
+                trackGa4BeginCheckout({
+                    items: cart,
+                    value: finalTotal,
+                    currency: 'ILS'
+                });
+            } catch (_) {
+                // Tracking must never block checkout
+            }
+
+            navigate('/payment', {
+                state: {
+                    cart: cart,
+                    subtotal: subtotal,
+                    discount: discount,
+                    total: total,
+                    appliedCoupon: appliedCoupon,
+                    homeDelivery: homeDelivery,
+                    finalTotal
+                }
+            });
+        };
+
+        ensureGiftsBeforeCheckout(proceed);
     };
 
     if (cart.length === 0) {
@@ -183,6 +187,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
+            <BannerSlot placement="cart" />
             <Typography variant="h3" gutterBottom sx={{
                 textAlign: 'center',
                 mt: 8,
@@ -198,7 +203,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 <Grid item xs={12} md={6}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         {cart.map((item) => (
-                            <Card key={item.id} sx={{
+                            <React.Fragment key={item.uniqueId || item.id}>
+                            <Card sx={{
                                 mb: 2,
                                 backgroundColor: 'transparent', // Transparent background
                                 border: '1px solid rgba(229, 90, 61, 1)', // Same color as cart text
@@ -378,6 +384,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                     </Grid>
                                 </Grid>
                             </Card>
+                            <GiftCartProductCards item={item} />
+                            </React.Fragment>
                         ))}
                     </Box>
                 </Grid>
@@ -465,13 +473,40 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                         </Button>
                                     </Box>
                                 ) : (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Chip
-                                            label={`${appliedCoupon.coupon.code} - ₪${appliedCoupon.discountAmount.toFixed(2)} ${isHebrew ? t.discount : t.couponOffSuffix}`}
-                                            color="success"
-                                            onDelete={handleRemoveCoupon}
-                                        />
-                                    </Box>
+                                    <Alert
+                                        severity="success"
+                                        onClose={handleRemoveCoupon}
+                                        sx={{
+                                            mt: 2.5,
+                                            direction: isHebrew ? 'rtl' : 'ltr',
+                                            textAlign: isHebrew ? 'right' : 'left',
+                                            alignItems: 'center',
+                                            gap: 1.5,
+                                            '& .MuiAlert-message': {
+                                                flex: 1,
+                                                fontWeight: 600,
+                                                pr: isHebrew ? 0 : 1,
+                                                pl: isHebrew ? 1 : 0
+                                            },
+                                            '& .MuiAlert-action': {
+                                                marginInlineStart: 1.5,
+                                                marginInlineEnd: 0,
+                                                padding: 0,
+                                                alignItems: 'center'
+                                            },
+                                            '& .MuiAlert-action .MuiIconButton-root': {
+                                                color: 'inherit',
+                                                padding: 0.5,
+                                                backgroundColor: 'transparent',
+                                                '&:hover': {
+                                                    backgroundColor: 'transparent',
+                                                    color: '#e8dcc8'
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        {`${t.couponAppliedPrefix}${Number(appliedCoupon.discountAmount).toFixed(2)}`}
+                                    </Alert>
                                 )}
 
                                 {couponError && (
@@ -485,19 +520,6 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                         }}
                                     >
                                         {couponError}
-                                    </Alert>
-                                )}
-
-                                {couponSuccess && (
-                                    <Alert
-                                        severity="success"
-                                        sx={{
-                                            mt: 1,
-                                            direction: isHebrew ? 'rtl' : 'ltr',
-                                            textAlign: isHebrew ? 'right' : 'left'
-                                        }}
-                                    >
-                                        {couponSuccess}
                                     </Alert>
                                 )}
                             </Box>

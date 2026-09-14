@@ -5,6 +5,8 @@ import ProductCard from '../components/ProductCard';
 import VideoCard from '../components/VideoCard';
 import CommentsSection from '../components/CommentsSection';
 import FaqSection from '../components/FaqSection';
+import NewsletterSection from '../newsletter/NewsletterSection';
+import BannerSlot from '../banners/BannerSlot';
 import HeroSection from '../components/HeroSection';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -125,7 +127,7 @@ export default function Home({ onAddToCart }) {
     <Box sx={{
       background: 'rgba(245, 240, 227, 0.9)', // Changed to match global background
       pt: { xs: 9.5, sm: 10, md: 11 }, // Responsive top padding to maintain consistent distance from navbar
-      pb: 4,
+      pb: 0,
       minHeight: '100vh'
     }}>
       {products.length === 0 ? (
@@ -296,6 +298,11 @@ export default function Home({ onAddToCart }) {
 
           {/* FAQ */}
           <FaqSection />
+
+          <BannerSlot placement="homepage_section" />
+
+          {/* Newsletter signup */}
+          <NewsletterSection />
         </>
       )}
     </Box>

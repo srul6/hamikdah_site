@@ -13,6 +13,7 @@ import { useCart } from '../contexts/CartContext';
 import { translations } from '../translations/translations';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config';
+import { useGifts } from '../gifts/GiftContext';
 import {
     getHomeDeliveryPreference,
     saveHomeDeliveryPreference,
@@ -44,6 +45,7 @@ export default function GreenInvoicePayment() {
     const location = useLocation();
     const navigate = useNavigate();
     const { cart: contextCart, isLoading: cartLoading } = useCart();
+    const { ensureGiftsBeforeCheckout, getFlattenedSelections, giftSelections, promotions } = useGifts();
     const locationState = location.state || {};
     const {
         cart: stateCart,
@@ -63,6 +65,7 @@ export default function GreenInvoicePayment() {
     const [homeDeliveryOptOut, setHomeDeliveryOptOut] = useState(
         () => getHomeDeliveryOptOutPreference()
     );
+    const giftBannerShownRef = React.useRef(false);
 
     const updateHomeDelivery = (enabled) => {
         setSelectedHomeDelivery(enabled);
@@ -140,13 +143,28 @@ export default function GreenInvoicePayment() {
         }
     }, [savedFormData]);
 
-    // Redirect if no cart data
+    // Redirect if no cart; show gift banner only after this page has painted (once).
     useEffect(() => {
         if (cartLoading) return;
         if (!checkoutCart.length) {
             navigate('/cart');
+            return;
         }
-    }, [checkoutCart, cartLoading, navigate]);
+        if (giftBannerShownRef.current) return;
+        if (!promotions.length) return;
+
+        let cancelled = false;
+        const timeoutId = setTimeout(() => {
+            if (cancelled || giftBannerShownRef.current) return;
+            giftBannerShownRef.current = true;
+            ensureGiftsBeforeCheckout(() => {}, { showGiftBanner: true });
+        }, 450);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
+    }, [checkoutCart, cartLoading, navigate, ensureGiftsBeforeCheckout, promotions.length]);
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -280,6 +298,7 @@ export default function GreenInvoicePayment() {
                 const colorNameEn = sc ? (sc.name_en || sc.name || '') : '';
                 return {
                     id: item.id,
+                    uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                     name: item.name,
                     name_he: item.name_he,
                     name_en: item.name_en,
@@ -292,7 +311,9 @@ export default function GreenInvoicePayment() {
 
             const response = await getPaymentForm(items, displayTotal, customerInfo, marketingConsent, {
                 couponDiscount: discount || 0,
-                deliveryFee
+                deliveryFee,
+                couponCode: appliedCoupon?.coupon?.code || '',
+                giftSelections: getFlattenedSelections()
             });
 
             if (response.success) {
@@ -1279,6 +1300,22 @@ export default function GreenInvoicePayment() {
                                     }}
                                 >
                                     {getCartItemDisplayName(item, isHebrew)} × {item.quantity}
+                                    {(() => {
+                                        const uid = String(item.uniqueId != null ? item.uniqueId : item.id);
+                                        const map = giftSelections?.[uid] || {};
+                                        const promo = promotions.find((p) => String(p.productId) === String(item.id));
+                                        const titles = Object.values(map)
+                                            .map((bookId) =>
+                                                (promo?.books || []).find((b) => String(b.id) === String(bookId))?.title
+                                            )
+                                            .filter(Boolean);
+                                        if (!titles.length) return null;
+                                        return (
+                                            <Box component="span" sx={{ display: 'block', mt: 0.5, fontSize: '0.85rem', color: '#d8472a' }}>
+                                                🎁 {titles.join(', ')}
+                                            </Box>
+                                        );
+                                    })()}
                                 </Typography>
                                 <Typography
                                     sx={{

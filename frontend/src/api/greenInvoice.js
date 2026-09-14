@@ -4,6 +4,8 @@ import { API_ENDPOINTS } from '../config';
 export const getPaymentForm = async (items, totalAmount, customerInfo, marketingConsent, breakdown = {}) => {
     const couponDiscount = Number(breakdown.couponDiscount) || 0;
     const deliveryFee = Number(breakdown.deliveryFee) || 0;
+    const couponCode = breakdown.couponCode ? String(breakdown.couponCode).trim() : '';
+    const giftSelections = Array.isArray(breakdown.giftSelections) ? breakdown.giftSelections : [];
     try {
         const response = await fetch(`${API_ENDPOINTS.greenInvoice}/payment-form`, {
             method: 'POST',
@@ -17,7 +19,9 @@ export const getPaymentForm = async (items, totalAmount, customerInfo, marketing
                 customerInfo,
                 marketing_consent: !!marketingConsent,
                 couponDiscount,
-                deliveryFee
+                deliveryFee,
+                ...(couponCode ? { couponCode } : {}),
+                giftSelections
             }),
         });
 

@@ -348,7 +348,7 @@ export default function PaymentSuccess() {
 
     if (isLoading) {
         return (
-            <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+            <Container maxWidth="md" sx={{ pt: 15, pb: 8, textAlign: 'center' }}>
                 <CircularProgress size={60} />
                 <Typography variant="h6" sx={{ mt: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                     {t.processing}
@@ -359,7 +359,7 @@ export default function PaymentSuccess() {
 
     if (error) {
         return (
-            <Container maxWidth="md" sx={{ py: 8 }}>
+            <Container maxWidth="md" sx={{ pt: 15, pb: 8 }}>
                 <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
                     <Alert severity="error" sx={{ mb: 3 }}>
                         {error}

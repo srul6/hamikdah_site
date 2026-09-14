@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Box,
     Typography,
@@ -12,24 +12,98 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
-import { WHATSAPP_URL } from '../config';
+import { API_ENDPOINTS, WHATSAPP_URL } from '../config';
+
+const LINK_PLACEHOLDER_RE = /\{\{(\d+)\}\}/g;
+
+function fallbackItems(t) {
+    return [
+        {
+            id: 'q1',
+            question: t.faqQ1Question,
+            answer: t.faqQ1Answer,
+            links: []
+        },
+        {
+            id: 'q2',
+            question: t.faqQ2Question,
+            answer: t.faqQ2Answer,
+            links: []
+        },
+        {
+            id: 'q3',
+            question: t.faqQ3Question,
+            answer: `${t.faqQ3AnswerBefore}{{0}}${t.faqQ3AnswerAfter}`,
+            links: [{ url: WHATSAPP_URL, labelHe: t.faqQ3AnswerLink, labelEn: t.faqQ3AnswerLink }]
+        },
+        {
+            id: 'q4',
+            question: t.faqQ4Question,
+            answer: t.faqQ4Answer,
+            links: []
+        },
+        {
+            id: 'q5',
+            question: t.faqQ5Question,
+            answer: `${t.faqQ5AnswerBefore}{{0}}${t.faqQ5AnswerAfter}`,
+            links: [{ url: WHATSAPP_URL, labelHe: t.faqQ5AnswerLink, labelEn: t.faqQ5AnswerLink }]
+        }
+    ];
+}
+
+function mapApiItem(item, isHebrew) {
+    const links = Array.isArray(item.links) ? item.links : [];
+    return {
+        id: `faq-${item.id}`,
+        question: isHebrew
+            ? item.questionHe || item.question_he || ''
+            : item.questionEn || item.question_en || '',
+        answer: isHebrew
+            ? item.answerHe || item.answer_he || ''
+            : item.answerEn || item.answer_en || '',
+        links: links.map((l) => ({
+            url: l.url || '',
+            label: isHebrew
+                ? l.labelHe || l.label_he || l.labelEn || l.label_en || l.url || ''
+                : l.labelEn || l.label_en || l.labelHe || l.label_he || l.url || ''
+        }))
+    };
+}
 
 export default function FaqSection() {
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
     const [expanded, setExpanded] = useState(false);
+    const [remoteItems, setRemoteItems] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(API_ENDPOINTS.faq);
+                const data = await res.json().catch(() => ({}));
+                if (!cancelled && data.success && Array.isArray(data.items) && data.items.length) {
+                    setRemoteItems(data.items);
+                }
+            } catch (_) {
+                /* keep translation fallback */
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const items = useMemo(() => {
+        if (remoteItems?.length) {
+            return remoteItems.map((item) => mapApiItem(item, isHebrew));
+        }
+        return fallbackItems(t);
+    }, [remoteItems, isHebrew, t]);
 
     const handleChange = (panel) => (_event, isExpanded) => {
         setExpanded(isExpanded ? panel : false);
     };
-
-    const items = [
-        { id: 'q1', question: t.faqQ1Question, answer: t.faqQ1Answer },
-        { id: 'q2', question: t.faqQ2Question, answer: t.faqQ2Answer },
-        { id: 'q3', question: t.faqQ3Question, answer: t.faqQ3Answer },
-        { id: 'q4', question: t.faqQ4Question, answer: t.faqQ4Answer },
-        { id: 'q5', question: t.faqQ5Question, answer: t.faqQ5Answer }
-    ];
 
     const whatsAppLinkSx = {
         color: '#25D366',
@@ -46,30 +120,56 @@ export default function FaqSection() {
         }
     };
 
+    const defaultLinkSx = {
+        color: 'rgba(229, 90, 61, 1)',
+        fontWeight: 600,
+        textDecoration: 'underline',
+        textUnderlineOffset: '2px',
+        '&:hover': {
+            color: '#c03d24'
+        }
+    };
+
     const renderAnswer = (item) => {
-        if (item.id === 'q3') {
-            return (
-                <>
-                    {t.faqQ3AnswerBefore}
-                    <Box component="a" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" sx={whatsAppLinkSx}>
-                        {t.faqQ3AnswerLink}
-                    </Box>
-                    {t.faqQ3AnswerAfter}
-                </>
-            );
+        const answer = String(item.answer || '');
+        const links = item.links || [];
+        if (!links.length || !answer.includes('{{')) {
+            return answer;
         }
-        if (item.id === 'q5') {
-            return (
-                <>
-                    {t.faqQ5AnswerBefore}
-                    <Box component="a" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" sx={whatsAppLinkSx}>
-                        {t.faqQ5AnswerLink}
+
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+        const re = new RegExp(LINK_PLACEHOLDER_RE.source, 'g');
+        while ((match = re.exec(answer)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push(answer.slice(lastIndex, match.index));
+            }
+            const linkIndex = parseInt(match[1], 10);
+            const link = links[linkIndex];
+            if (link?.url) {
+                const isWhatsApp = /wa\.me|whatsapp/i.test(link.url);
+                parts.push(
+                    <Box
+                        key={`link-${linkIndex}-${match.index}`}
+                        component="a"
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={isWhatsApp ? whatsAppLinkSx : defaultLinkSx}
+                    >
+                        {link.label || link.url}
                     </Box>
-                    {t.faqQ5AnswerAfter}
-                </>
-            );
+                );
+            } else {
+                parts.push(match[0]);
+            }
+            lastIndex = match.index + match[0].length;
         }
-        return item.answer;
+        if (lastIndex < answer.length) {
+            parts.push(answer.slice(lastIndex));
+        }
+        return <>{parts}</>;
     };
 
     const contactBlockSx = {
@@ -153,7 +253,7 @@ export default function FaqSection() {
             aria-labelledby="faq-heading"
             sx={{
                 backgroundColor: '#f5f0e3',
-                py: { xs: 5, md: 7 },
+                py: { xs: 8, md: 12 },
                 px: { xs: 2, sm: 3, md: 4 },
                 direction: isHebrew ? 'rtl' : 'ltr'
             }}
@@ -164,7 +264,6 @@ export default function FaqSection() {
                     maxWidth: { xs: 'calc(100% - 32px)', md: 1120 },
                     width: '100%',
                     mx: 'auto',
-                    // Keep grid LTR so column order stays predictable (accordion left, intro right)
                     direction: 'ltr',
                     display: 'grid',
                     gridTemplateColumns: { xs: '1fr', md: '1.1fr 0.9fr' },
@@ -173,7 +272,6 @@ export default function FaqSection() {
                     justifyContent: 'center'
                 }}
             >
-                {/* Intro — desktop right column */}
                 <Box
                     sx={{
                         order: { xs: 1, md: 2 },
@@ -215,7 +313,6 @@ export default function FaqSection() {
                         </Typography>
                     </Box>
 
-                    {/* Compact contact block — desktop only (inside intro column) */}
                     <Box
                         sx={{
                             display: { xs: 'none', md: 'flex' },
@@ -228,7 +325,6 @@ export default function FaqSection() {
                     </Box>
                 </Box>
 
-                {/* Accordion — nudged toward page center on desktop */}
                 <Box
                     sx={{
                         order: { xs: 2, md: 1 },
@@ -312,7 +408,6 @@ export default function FaqSection() {
                                                 transform: 'none'
                                             }
                                         },
-                                        // Collapsed hover: orange question + white plus circle
                                         '&:hover:not(.Mui-expanded)': {
                                             backgroundColor: 'transparent',
                                             '& .faq-question-text': {
@@ -323,7 +418,6 @@ export default function FaqSection() {
                                                 borderColor: 'rgba(229, 90, 61, 0.55)'
                                             }
                                         },
-                                        // Expanded: always original colors (even while hovered)
                                         '&.Mui-expanded': {
                                             backgroundColor: 'transparent',
                                             '& .faq-question-text': {
@@ -395,7 +489,6 @@ export default function FaqSection() {
                     })}
                 </Box>
 
-                {/* Compact contact block — mobile only, under questions */}
                 <Box
                     sx={{
                         display: { xs: 'flex', md: 'none' },

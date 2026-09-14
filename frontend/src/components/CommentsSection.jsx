@@ -159,7 +159,7 @@ export default function CommentsSection() {
                         fontWeight: 400,
                         color: '#1d1d1f',
                         mb: 1,
-                        fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem' },
+                        fontSize: { xs: '2rem', sm: '2.4rem', md: '2.8rem' },
                     }}
                 >
                     {t.whatOurCustomersSay}

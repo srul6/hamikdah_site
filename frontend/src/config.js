@@ -19,5 +19,9 @@ export const API_ENDPOINTS = {
     upload: `${API_BASE_URL}/api/upload`,
     orders: `${API_BASE_URL}/api/orders`,
     comments: `${API_BASE_URL}/api/comments`,
-    feedback: `${API_BASE_URL}/api/feedback`
+    feedback: `${API_BASE_URL}/api/feedback`,
+    newsletter: `${API_BASE_URL}/api/newsletter`,
+    gifts: `${API_BASE_URL}/api/gifts`,
+    banners: `${API_BASE_URL}/api/banners`,
+    faq: `${API_BASE_URL}/api/faq`
 };

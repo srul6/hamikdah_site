@@ -10,13 +10,15 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchProducts } from '../api/products';
+import { useNewsletter } from '../newsletter/NewsletterContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
 import { getProductPath } from '../utils/productSlug';
+import { useGifts } from '../gifts/GiftContext';
 
 // Add CSS animation for smooth slide-down
 const slideDownAnimation = `
@@ -57,6 +59,9 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
     const { language, toggleLanguage, isHebrew } = useLanguage();
     const t = translations[language];
     const location = useLocation();
+    const navigate = useNavigate();
+    const { openNewsletterModal } = useNewsletter();
+    const { ensureGiftsBeforeCheckout } = useGifts();
 
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
@@ -246,7 +251,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
         try {
             // Mock coupon validation - replace with actual API call
             const validCoupons = {
-                'SAVE10': { discount: 10, type: 'percentage' },
+                'SAVE5': { discount: 5, type: 'percentage' },
                 'SAVE20': { discount: 20, type: 'fixed' },
                 'WELCOME': { discount: 15, type: 'percentage' }
             };
@@ -477,6 +482,24 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                         {t.aboutUs}
                                     </Typography>
                                 </Link>
+
+                                {/* Newsletter */}
+                                <Typography
+                                    variant="body1"
+                                    onClick={openNewsletterModal}
+                                    sx={{
+                                        color: '#1d1d1f',
+                                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                        fontWeight: 400,
+                                        cursor: 'pointer',
+                                        transition: 'color 0.2s ease',
+                                        '&:hover': {
+                                            color: 'rgba(199, 61, 34, 1)'
+                                        }
+                                    }}
+                                >
+                                    {t.newsletter}
+                                </Typography>
 
                                 {/* Separator */}
                                 <Typography
@@ -965,28 +988,30 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     </Box>
 
                                     {/* Checkout Button */}
-                                    <Link
-                                        to="/payment"
-                                        style={{ textDecoration: 'none', width: '100%' }}
-                                        state={{
-                                            cart: cart,
-                                            subtotal: calculateCartTotal(),
-                                            discount: discount,
-                                            total: calculateDiscountedTotal(),
-                                            appliedCoupon: appliedCoupon,
-                                            homeDelivery: calculateDiscountedTotal() >= 499
+                                    <Button
+                                        variant="contained"
+                                        fullWidth
+                                        onClick={() => {
+                                            setIsCartExpanded(false);
+                                            ensureGiftsBeforeCheckout(() => {
+                                                navigate('/payment', {
+                                                    state: {
+                                                        cart: cart,
+                                                        subtotal: calculateCartTotal(),
+                                                        discount: discount,
+                                                        total: calculateDiscountedTotal(),
+                                                        appliedCoupon: appliedCoupon,
+                                                        homeDelivery: calculateDiscountedTotal() >= 499
+                                                    }
+                                                });
+                                            });
                                         }}
-                                    >
-                                        <Button
-                                            variant="contained"
-                                            fullWidth
-                                            onClick={() => setIsCartExpanded(false)}
-                                            sx={{
-                                                backgroundColor: 'rgba(229, 90, 61, 1)',
-                                                color: 'white',
-                                                py: 1.2,
-                                                mb: 1,
-                                                fontWeight: 600,
+                                        sx={{
+                                            backgroundColor: 'rgba(229, 90, 61, 1)',
+                                            color: 'white',
+                                            py: 1.2,
+                                            mb: 1,
+                                            fontWeight: 600,
                                                 '&:hover': {
                                                     backgroundColor: 'rgba(229, 90, 61, 0.9)'
                                                 }
@@ -994,7 +1019,6 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                         >
                                             {isHebrew ? 'המשך לתשלום' : 'Proceed to Checkout'}
                                         </Button>
-                                    </Link>
 
                                     {/* Go to Cart Page Link */}
                                     <Link to="/cart" style={{ textDecoration: 'none' }}>
@@ -1135,6 +1159,39 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                             />
                                         </ListItem>
                                     </Link>
+
+                                    {/* Newsletter */}
+                                    <ListItem
+                                        onClick={() => {
+                                            handleMobileMenuClose();
+                                            openNewsletterModal();
+                                        }}
+                                        sx={{
+                                            borderRadius: 0,
+                                            backgroundColor: 'transparent',
+                                            cursor: 'pointer',
+                                            opacity: 0,
+                                            animation: 'fadeInUp 0.6s ease 0.25s forwards',
+                                            '&:hover': {
+                                                backgroundColor: 'transparent',
+                                                '& .MuiListItemText-primary': {
+                                                    color: 'rgba(199, 61, 34, 1)'
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <ListItemText
+                                            primary={t.newsletter}
+                                            primaryTypographyProps={{
+                                                fontSize: '2.5rem',
+                                                mb: -1.5,
+                                                fontWeight: 400,
+                                                color: '#1d1d1f',
+                                                cursor: 'pointer',
+                                                transition: 'color 0.2s ease'
+                                            }}
+                                        />
+                                    </ListItem>
 
                                     {/* Language Toggle */}
                                     <ListItem

@@ -65,8 +65,13 @@ app.use((req, res, next) => {
 // CORS configuration - set FRONTEND_URL / BACKEND_URL in env; optional hardcoded origins below
 const allowedOrigins = [
     'https://bmikdash.com',
+    'https://www.bmikdash.com',
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:5001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:5001',
     process.env.FRONTEND_URL,
     process.env.BACKEND_URL?.replace(/\/api\/?$/, ''),
     'https://hamikdash.onrender.com',
@@ -76,10 +81,21 @@ const allowedOrigins = [
     'https://google.co.il'
 ].filter(Boolean);
 
+function isLocalDevOrigin(origin) {
+    if (process.env.NODE_ENV === 'production') return false;
+    try {
+        const { hostname } = new URL(origin);
+        return hostname === 'localhost' || hostname === '127.0.0.1';
+    } catch (_) {
+        return false;
+    }
+}
+
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+        if (isLocalDevOrigin(origin)) return callback(null, true);
         if (process.env.NODE_ENV !== 'production') {
             console.log('⚠️  CORS blocked origin:', origin);
         }
@@ -113,6 +129,10 @@ app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/feedback', require('./routes/feedback'));
+app.use('/api/newsletter', require('./routes/newsletter'));
+app.use('/api/gifts', require('./routes/gifts'));
+app.use('/api/banners', require('./routes/banners'));
+app.use('/api/faq', require('./routes/faq'));
 
 const { databaseController } = require('./config/database');
 const {
@@ -121,7 +141,13 @@ const {
     buildProductSlugMap
 } = require('./utils/productSlug');
 
-const SITE_ORIGIN = (process.env.FRONTEND_URL || 'https://bmikdash.com').replace(/\/$/, '');
+// Sitemap / public URLs: prefer the real domain, not the Render preview URL
+const SITE_ORIGIN = (
+    process.env.PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    (process.env.NODE_ENV !== 'production' ? process.env.FRONTEND_URL : null) ||
+    'https://bmikdash.com'
+).replace(/\/$/, '');
 
 /**
  * Legacy numeric product URLs → HTTP 301 to Hebrew SEO slug.

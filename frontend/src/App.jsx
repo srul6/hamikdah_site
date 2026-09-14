@@ -17,6 +17,8 @@ import GreenInvoicePayment from './pages/GreenInvoicePayment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFailure from './pages/PaymentFailure';
 import PaymentCancel from './pages/PaymentCancel';
+import NewsletterVerifyPage from './pages/NewsletterVerifyPage';
+import NewsletterUnsubscribePage from './pages/NewsletterUnsubscribePage';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -26,16 +28,24 @@ import MetaPixelAnalytics from './analytics/MetaPixelAnalytics';
 import GA4Analytics from './analytics/GA4Analytics';
 import { ConsentProvider } from './consent/ConsentContext';
 import CookieConsentUI from './consent/CookieConsentUI';
+import { NewsletterProvider } from './newsletter/NewsletterContext';
+import NewsletterModal from './newsletter/NewsletterModal';
+import { GiftProvider, useGifts } from './gifts/GiftContext';
+import BannerSlot from './banners/BannerSlot';
 import { trackAddToCart } from './analytics/metaTracking';
 import { trackGa4AddToCart } from './analytics/ga4Tracking';
 
-// Inner component that uses cart context
 function AppContent() {
     const { cart, addToCart: addToCartContext, removeFromCart: removeFromCartContext, updateQuantity: updateQuantityContext } = useCart();
+    const { notifyGiftUnlocked } = useGifts();
 
-    // Wrapper function to maintain compatibility with existing addToCart signature
     const handleAddToCart = (product, selectedColor = null) => {
         addToCartContext(product, 1, selectedColor);
+        try {
+            notifyGiftUnlocked(product, selectedColor);
+        } catch (_) {
+            /* gifts optional */
+        }
         try {
             trackAddToCart(product, 1);
         } catch (_) {
@@ -48,70 +58,74 @@ function AppContent() {
         }
     };
 
-    // Wrapper for removeFromCart to use uniqueId
     const handleRemoveFromCart = (uniqueId) => {
-        // Find the item by uniqueId
         const item = cart.find(item => item.uniqueId === uniqueId);
         if (item) {
             removeFromCartContext(item.id, item.selectedColor);
         }
     };
 
-    // Wrapper for updateQuantity to use uniqueId
     const handleUpdateQuantity = (uniqueId, newQuantity) => {
-        // Find the item by uniqueId
         const item = cart.find(item => item.uniqueId === uniqueId);
         if (item) {
             updateQuantityContext(item.id, newQuantity, item.selectedColor);
         }
     };
 
-    // Calculate cart count for navbar
     const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
+            <BannerSlot placement="site_entry" />
             <Navbar
                 cartCount={cartCount}
                 cart={cart}
                 onRemoveFromCart={handleRemoveFromCart}
                 onUpdateQuantity={handleUpdateQuantity}
             />
-            <Routes>
-                <Route path="/" element={<Home onAddToCart={handleAddToCart} />} />
-                <Route path="/product/:productSlug" element={<ProductPageRouter onAddToCart={handleAddToCart} />} />
-                <Route path="/cart" element={<CartPage cart={cart} onRemove={handleRemoveFromCart} onUpdateQuantity={handleUpdateQuantity} />} />
-                <Route path="/about" element={<AboutUs />} />
-                <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/site-terms" element={<SiteTerms />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/returns" element={<Returns />} />
-                <Route path="/payment" element={<GreenInvoicePayment />} />
-                <Route path="/payment/success" element={<PaymentSuccess />} />
-                <Route path="/payment/failure" element={<PaymentFailure />} />
-                <Route path="/payment/cancel" element={<PaymentCancel />} />
-            </Routes>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <Routes>
+                    <Route path="/" element={<Home onAddToCart={handleAddToCart} />} />
+                    <Route path="/product/:productSlug" element={<ProductPageRouter onAddToCart={handleAddToCart} />} />
+                    <Route path="/cart" element={<CartPage cart={cart} onRemove={handleRemoveFromCart} onUpdateQuantity={handleUpdateQuantity} />} />
+                    <Route path="/about" element={<AboutUs />} />
+                    <Route path="/admin" element={<AdminPanel />} />
+                    <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="/site-terms" element={<SiteTerms />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/returns" element={<Returns />} />
+                    <Route path="/payment" element={<GreenInvoicePayment />} />
+                    <Route path="/payment/success" element={<PaymentSuccess />} />
+                    <Route path="/payment/failure" element={<PaymentFailure />} />
+                    <Route path="/payment/cancel" element={<PaymentCancel />} />
+                    <Route path="/newsletter/verify" element={<NewsletterVerifyPage />} />
+                    <Route path="/newsletter/unsubscribe" element={<NewsletterUnsubscribePage />} />
+                </Routes>
+            </Box>
             <Footer />
             <WhatsAppFloatingButton />
+            <NewsletterModal />
         </Box>
     );
 }
 
-// Main App component with all providers
 export default function App() {
     return (
         <LanguageProvider>
             <ConsentProvider>
                 <CartProvider>
                     <FormDataProvider>
-                        <Router>
-                            <ClarityAnalytics />
-                            <MetaPixelAnalytics />
-                            <GA4Analytics />
-                            <AppContent />
-                            <CookieConsentUI />
-                        </Router>
+                        <NewsletterProvider>
+                            <Router>
+                                <GiftProvider>
+                                    <ClarityAnalytics />
+                                    <MetaPixelAnalytics />
+                                    <GA4Analytics />
+                                    <AppContent />
+                                    <CookieConsentUI />
+                                </GiftProvider>
+                            </Router>
+                        </NewsletterProvider>
                     </FormDataProvider>
                 </CartProvider>
             </ConsentProvider>

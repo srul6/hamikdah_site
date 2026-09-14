@@ -47,7 +47,7 @@ class GreenInvoiceController {
         }
 
         try {
-            let { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent, couponDiscount, deliveryFee } = req.body;
+            let { items, totalAmount, currency = 'ILS', customerInfo, id, marketing_consent, couponDiscount, deliveryFee, couponCode, giftSelections } = req.body;
             const marketingConsent = !!marketing_consent;
 
             const validated = validateCheckoutRequest({ items, totalAmount, customerInfo, couponDiscount, deliveryFee });
@@ -64,8 +64,106 @@ class GreenInvoiceController {
             }
             items = validated.items;
             customerInfo = validated.customerInfo;
-            const discountAmount = validated.couponDiscount || 0;
+            let discountAmount = validated.couponDiscount || 0;
             const deliveryFeeAmount = validated.deliveryFee || 0;
+
+            // Gift-with-purchase: require complete selections for eligible lines
+            const {
+                validateGiftSelectionsForCheckout,
+                buildSlots
+            } = require('../utils/giftSlots');
+            const activePromos = await this.databaseController.getActiveGiftPromotionsSummary();
+            const giftCheck = validateGiftSelectionsForCheckout({
+                items: items.map((item) => ({
+                    id: item.id,
+                    uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
+                    quantity: item.quantity
+                })),
+                selections: Array.isArray(giftSelections) ? giftSelections : [],
+                promotionsByProduct: activePromos
+            });
+            if (!giftCheck.ok) {
+                console.warn('Payment form gift validation failed:', giftCheck.error);
+                return res.status(400).json({
+                    success: false,
+                    error: giftCheck.error,
+                    missing: giftCheck.missing,
+                    message: clientMessages.BAD_REQUEST
+                });
+            }
+
+            // Normalize gift selections for custom payload (include auto-assigned singles)
+            const promoByProduct = new Map(activePromos.map((p) => [String(p.productId), p]));
+            const normalizedGifts = [];
+            const incoming = Array.isArray(giftSelections) ? giftSelections : [];
+            for (const item of items) {
+                const uniqueId = String(item.uniqueId != null ? item.uniqueId : item.id);
+                const promo = promoByProduct.get(String(item.id));
+                if (!promo) continue;
+                const slots = buildSlots({
+                    quantity: item.quantity,
+                    giftsPerUnit: promo.giftsPerUnit
+                });
+                const allowed = promo.bookIds || [];
+                for (const s of slots) {
+                    let sel = incoming.find(
+                        (g) =>
+                            String(g.cartUniqueId) === uniqueId &&
+                            parseInt(g.slotIndex, 10) === s.slotIndex
+                    );
+                    let bookId = sel?.bookId;
+                    if ((bookId == null || bookId === '') && allowed.length === 1) {
+                        bookId = allowed[0];
+                    }
+                    const book = (promo.books || []).find((b) => String(b.id) === String(bookId));
+                    // Skip empty slots (declined / not chosen) so email & DB only get real gifts
+                    if (bookId == null || bookId === '') continue;
+                    normalizedGifts.push({
+                        cartUniqueId: uniqueId,
+                        productId: item.id,
+                        slotIndex: s.slotIndex,
+                        unitIndex: s.unitIndex,
+                        bookId,
+                        bookTitleSnapshot: book?.title || sel?.bookTitleSnapshot || ''
+                    });
+                }
+            }
+
+            // Re-validate coupon server-side when a code is provided (never trust client discount alone)
+            let safeCouponCode = null;
+            if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
+                const { computeCouponDiscount } = require('../utils/couponApply');
+                const coupon = await this.databaseController.getCouponByCode(couponCode.trim());
+                const lineSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const applied = computeCouponDiscount(coupon, lineSubtotal);
+                if (!applied.ok) {
+                    console.warn('Payment form coupon re-validation failed:', applied.error);
+                    return res.status(400).json({
+                        success: false,
+                        message: clientMessages.BAD_REQUEST
+                    });
+                }
+                // Client discount must match server-computed value (small float tolerance)
+                if (Math.abs(applied.discountAmount - discountAmount) > 0.05) {
+                    console.warn('Payment form coupon discount mismatch', {
+                        server: applied.discountAmount,
+                        client: discountAmount
+                    });
+                    return res.status(400).json({
+                        success: false,
+                        message: clientMessages.BAD_REQUEST
+                    });
+                }
+                discountAmount = applied.discountAmount;
+                safeCouponCode = String(coupon.code).toUpperCase().trim();
+            } else if (discountAmount > 0) {
+                // Discount without a code is not allowed for integrity
+                console.warn('Payment form rejected: couponDiscount without couponCode');
+                return res.status(400).json({
+                    success: false,
+                    message: clientMessages.BAD_REQUEST
+                });
+            }
 
             const checkoutSessionId = Date.now();
 
@@ -148,14 +246,17 @@ class GreenInvoiceController {
                         quantity: item.quantity,
                         price: item.price,
                         color_name_he: item.color_name_he || '',
-                        color_name_en: item.color_name_en || ''
+                        color_name_en: item.color_name_en || '',
+                        uniqueId: item.uniqueId != null ? item.uniqueId : item.id
                     })),
+                    giftSelections: normalizedGifts,
                     dedication: customerInfo.dedication || '',
                     marketing_consent: marketingConsent,
                     amount: totalAmount,
                     currency: currency,
                     couponDiscount: discountAmount,
-                    deliveryFee: deliveryFeeAmount
+                    deliveryFee: deliveryFeeAmount,
+                    couponCode: safeCouponCode
                 })
             };
 
@@ -343,6 +444,7 @@ class GreenInvoiceController {
                                         );
                                         return {
                                             id: item.id,
+                                            uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                                             name_he: names.name_he,
                                             name_en: names.name_en,
                                             quantity: item.quantity || 1,
@@ -358,6 +460,7 @@ class GreenInvoiceController {
                                         );
                                         return {
                                             id: item.id,
+                                            uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                                             name_he: names.name_he,
                                             name_en: names.name_en,
                                             quantity: item.quantity || 1,
@@ -376,6 +479,7 @@ class GreenInvoiceController {
                                     );
                                     return {
                                         id: item.id,
+                                        uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                                         name_he: names.name_he,
                                         name_en: names.name_en,
                                         quantity: item.quantity || 1,
@@ -491,6 +595,59 @@ class GreenInvoiceController {
                 console.log('📝 Creating/updating order in database...');
                 const createdOrder = await this.databaseController.createOrder(orderData);
                 console.log('✅ Order saved/updated in database successfully. Order ID:', createdOrder.id, 'Status:', createdOrder.status);
+
+                // Persist gift-with-purchase selections from custom payload
+                const giftSelections = (Array.isArray(customData.giftSelections)
+                    ? customData.giftSelections
+                    : []
+                ).filter((g) => g && g.bookId != null && g.bookId !== '');
+
+                // Attach gifts onto items for admin email / sheets (even if DB save fails)
+                if (giftSelections.length > 0) {
+                    orderData.giftSelections = giftSelections;
+                    orderData.items = (orderData.items || []).map((item) => {
+                        const uid = String(
+                            item.uniqueId != null ? item.uniqueId : item.id
+                        );
+                        const gifts = giftSelections
+                            .filter(
+                                (g) =>
+                                    String(g.cartUniqueId) === uid ||
+                                    String(g.productId) === String(item.id)
+                            )
+                            .map((g) => ({
+                                title:
+                                    g.bookTitleSnapshot ||
+                                    g.book_title_snapshot ||
+                                    '',
+                                slotIndex: g.slotIndex,
+                                unitIndex: g.unitIndex
+                            }));
+                        return { ...item, gifts };
+                    });
+                    console.log(
+                        '🎁 Attached gift selections for email:',
+                        giftSelections.map((g) => g.bookTitleSnapshot || g.bookId)
+                    );
+                }
+
+                if (createdOrder?.id && giftSelections.length > 0) {
+                    try {
+                        await this.databaseController.saveOrderGiftSelections(
+                            createdOrder.id,
+                            giftSelections.map((g) => ({
+                                productId: g.productId,
+                                cartUniqueId: g.cartUniqueId,
+                                slotIndex: g.slotIndex,
+                                unitIndex: g.unitIndex,
+                                bookId: g.bookId,
+                                bookTitleSnapshot: g.bookTitleSnapshot || g.book_title_snapshot
+                            }))
+                        );
+                    } catch (giftErr) {
+                        console.error('❌ Failed to save order gift selections:', giftErr);
+                    }
+                }
             } catch (error) {
                 console.error('❌ Failed to save order to database:', error);
                 console.error('   Error message:', error.message);
@@ -556,6 +713,55 @@ class GreenInvoiceController {
                         }
                     } else {
                         console.log('⚠️  No items found in order, skipping quantity reduction');
+                    }
+
+                    // Mark coupon used only after successful payment (never at apply-time)
+                    const paidCouponCode = typeof customData.couponCode === 'string'
+                        ? customData.couponCode.trim()
+                        : '';
+                    if (paidCouponCode) {
+                        try {
+                            const markResult = await this.databaseController.markCouponUsedByCode(paidCouponCode);
+                            if (markResult.ok) {
+                                console.log('✅ Coupon marked as used:', markResult.coupon.code, {
+                                    usageCount: markResult.coupon.usageCount,
+                                    isActive: markResult.coupon.isActive,
+                                    usedAt: markResult.coupon.usedAt
+                                });
+                            } else {
+                                // Zero rows updated — reuse, race, or missing code. Do not silently proceed.
+                                console.error(
+                                    '❌ CRITICAL: Coupon was NOT marked used after paid webhook (rowCount=0).',
+                                    {
+                                        code: paidCouponCode,
+                                        reason: markResult.reason,
+                                        coupon: markResult.coupon
+                                            ? {
+                                                id: markResult.coupon.id,
+                                                isActive: markResult.coupon.isActive,
+                                                usageCount: markResult.coupon.usageCount,
+                                                maxUsage: markResult.coupon.maxUsage,
+                                                usedAt: markResult.coupon.usedAt
+                                            }
+                                            : null,
+                                        formId,
+                                        orderId: customData.orderId
+                                    }
+                                );
+                            }
+                        } catch (couponErr) {
+                            console.error('❌ CRITICAL: Failed to mark coupon used after paid webhook:', {
+                                code: paidCouponCode,
+                                formId,
+                                orderId: customData.orderId,
+                                error: couponErr
+                            });
+                        }
+                    } else if (customData.couponDiscount > 0) {
+                        console.error(
+                            '❌ CRITICAL: Paid order had couponDiscount but no couponCode in webhook custom data',
+                            { formId, orderId: customData.orderId, couponDiscount: customData.couponDiscount }
+                        );
                     }
 
                     // Get document details if available

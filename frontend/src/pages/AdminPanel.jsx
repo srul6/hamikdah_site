@@ -14,8 +14,14 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import DownloadIcon from '@mui/icons-material/Download';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
+import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
+import QuizIcon from '@mui/icons-material/Quiz';
 import { API_ENDPOINTS } from '../config';
 import CouponsTab from './CouponsTab';
+import GiftsTab from './GiftsTab';
+import BannersTab from './BannersTab';
+import FaqsTab from './FaqsTab';
 import ImageUploader from '../components/ImageUploader';
 import VideoUploader from '../components/VideoUploader';
 import { fetchComments, createComment, updateComment, deleteComment } from '../api/comments';
@@ -788,6 +794,39 @@ export default function AdminPanel() {
               mx: 0.5
             }}
           />
+          <Tab
+            icon={<CardGiftcardIcon />}
+            label="Gifts"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
+          <Tab
+            icon={<ViewCarouselIcon />}
+            label="Banners"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
+          <Tab
+            icon={<QuizIcon />}
+            label="FAQ"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
         </Tabs>
       </Box>
 
@@ -1258,6 +1297,9 @@ export default function AdminPanel() {
 
       {/* Coupons Tab */}
       {activeTab === 3 && <CouponsTab />}
+      {activeTab === 4 && <GiftsTab />}
+      {activeTab === 5 && <BannersTab />}
+      {activeTab === 6 && <FaqsTab />}
 
       {/* Product Dialog */}
       <Dialog

@@ -2235,7 +2235,7 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                                     width: '80%',
                                     maxWidth: '600px',
                                     padding: { xs: '16px 32px', sm: '20px 40px', md: '24px 48px' },
-                                    fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' },
+                                    fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.8rem' },
                                     fontWeight: 700,
                                     borderRadius: 2,
                                     boxShadow: '0 4px 16px rgba(241, 241, 238, 0.6)',
@@ -2255,10 +2255,33 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                                     }
                                 }}
                             >
-                                {product && product.quantity > 0 ?
-                                    (isHebrew ? 'הוסף לסל' : 'Add to Cart') :
-                                    (isHebrew ? 'בקרוב' : 'Coming Soon')
-                                }
+                                {product && product.quantity > 0 ? (
+                                    <Box
+                                        component="span"
+                                        sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            direction: 'ltr'
+                                        }}
+                                    >
+                                        <Box component="span">
+                                            {isHebrew ? 'הוספה לסל' : 'Add to Cart'}
+                                        </Box>
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                width: 0,
+                                                alignSelf: 'stretch',
+                                                borderLeft: '2.5px solid currentColor',
+                                                opacity: 0.55,
+                                            }}
+                                        />
+                                        <Box component="span">₪690</Box>
+                                    </Box>
+                                ) : (
+                                    isHebrew ? 'בקרוב' : 'Coming Soon'
+                                )}
                             </Button>
                         )}
                     </Box>
@@ -2312,7 +2335,7 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                             }}
                         >
                             {product && product.quantity > 0 ?
-                                (isHebrew ? 'הוסף לסל' : 'Add to Cart') :
+                                (isHebrew ? 'הוספה לסל' : 'Add to Cart') :
                                 (isHebrew ? 'אזל מהמלאי' : 'Out of Stock')
                             }
                         </Button>

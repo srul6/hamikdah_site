@@ -13,6 +13,7 @@ const COOKIE_CONFIG = {
     SESSION_EXPIRY_DAYS: 1,
     // Cookie names
     CART_COOKIE: 'hamikdash_cart',
+    CART_GIFTS_COOKIE: 'hamikdash_cart_gifts',
     FORM_DATA_COOKIE: 'hamikdash_form_data',
     USER_PREFERENCES_COOKIE: 'hamikdash_preferences'
 };
@@ -164,6 +165,76 @@ export function getCartFromCookie() {
  */
 export function clearCartCookie() {
     return deleteCookie(COOKIE_CONFIG.CART_COOKIE);
+}
+
+export function saveCartGiftsToCookie(giftSelections) {
+    return setCookie(COOKIE_CONFIG.CART_GIFTS_COOKIE, giftSelections || {}, COOKIE_CONFIG.CART_EXPIRY_DAYS);
+}
+
+export function getCartGiftsFromCookie() {
+    const gifts = getCookie(COOKIE_CONFIG.CART_GIFTS_COOKIE);
+    return gifts && typeof gifts === 'object' && !Array.isArray(gifts) ? gifts : {};
+}
+
+export function clearCartGiftsCookie() {
+    return deleteCookie(COOKIE_CONFIG.CART_GIFTS_COOKIE);
+}
+
+const GIFTS_SEEN_ON_CART_KEY = 'hamikdash_gifts_seen_on_cart';
+const GIFTS_DECLINED_KEY = 'hamikdash_gifts_declined';
+
+/** Shopper handled gifts on the cart page — skip checkout gift banner when complete. */
+export function markGiftsSeenOnCart() {
+    try {
+        sessionStorage.setItem(GIFTS_SEEN_ON_CART_KEY, '1');
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+export function getGiftsSeenOnCart() {
+    try {
+        return sessionStorage.getItem(GIFTS_SEEN_ON_CART_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+export function clearGiftsSeenOnCart() {
+    try {
+        sessionStorage.removeItem(GIFTS_SEEN_ON_CART_KEY);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+/** Shopper explicitly declined free gifts at checkout. */
+export function markGiftsDeclined() {
+    try {
+        sessionStorage.setItem(GIFTS_DECLINED_KEY, '1');
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+export function getGiftsDeclined() {
+    try {
+        return sessionStorage.getItem(GIFTS_DECLINED_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+export function clearGiftsDeclined() {
+    try {
+        sessionStorage.removeItem(GIFTS_DECLINED_KEY);
+        return true;
+    } catch (_) {
+        return false;
+    }
 }
 
 // ===== FORM DATA-SPECIFIC FUNCTIONS =====

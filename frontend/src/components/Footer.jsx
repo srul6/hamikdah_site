@@ -20,12 +20,14 @@ import { WHATSAPP_URL } from '../config';
 import { translations } from '../translations/translations';
 import { Link as RouterLink } from 'react-router-dom';
 import { useConsent } from '../consent/ConsentContext';
+import { useNewsletter } from '../newsletter/NewsletterContext';
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
     const { language, isHebrew } = useLanguage();
     const t = translations[language]; // Use current language translations
     const { openPreferences } = useConsent();
+    const { openNewsletterModal, openUnsubscribeModal } = useNewsletter();
 
     // Footer link labels
     const termsText = isHebrew ? 'תנאי שימוש' : t.termsOfService;
@@ -70,6 +72,26 @@ export default function Footer() {
                         >
                             {t.storeDescription}
                         </Typography>
+                        <Button
+                            onClick={openNewsletterModal}
+                            sx={{
+                                color: 'rgb(245, 240, 227)',
+                                textTransform: 'none',
+                                fontSize: '0.95rem',
+                                fontWeight: 600,
+                                px: 0,
+                                mb: 1,
+                                justifyContent: 'flex-start',
+                                textDecoration: 'underline',
+                                textUnderlineOffset: '3px',
+                                '&:hover': {
+                                    backgroundColor: 'transparent',
+                                    color: '#fff'
+                                }
+                            }}
+                        >
+                            {t.newsletterFooterCta}
+                        </Button>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: isHebrew ? 'flex-start' : 'flex-start' }}>
                             <Button
                                 component="a"
@@ -287,6 +309,33 @@ export default function Footer() {
                             alignItems: 'baseline'
                         }}
                     >
+                        <Link
+                            component="button"
+                            type="button"
+                            underline="none"
+                            onClick={openUnsubscribeModal}
+                            sx={{
+                                color: 'rgb(245, 240, 227)',
+                                textDecoration: 'none',
+                                fontSize: '0.875rem',
+                                fontWeight: 400,
+                                fontFamily: 'inherit',
+                                lineHeight: 'inherit',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: 0,
+                                verticalAlign: 'baseline',
+                                '&:hover': {
+                                    color: '#222222',
+                                    fontWeight: 400,
+                                    backgroundColor: 'transparent',
+                                    textDecoration: 'none'
+                                }
+                            }}
+                        >
+                            {t.newsletterFooterUnsubscribe}
+                        </Link>
                         <Link
                             component={RouterLink}
                             to="/terms"

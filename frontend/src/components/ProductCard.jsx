@@ -4,10 +4,12 @@ import {
   Card, CardMedia, CardContent, Typography, Box, Button
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getProductPath } from '../utils/productSlug';
+import { useGifts } from '../gifts/GiftContext';
 
 const SNAKE_COLOR = 'rgb(250, 250, 250)';
 const CARD_RADIUS = 15;
@@ -96,12 +98,17 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
   const navigate = useNavigate();
   const { language, isHebrew } = useLanguage();
   const t = translations[language];
+  const { promotionForProduct } = useGifts();
   const [size, setSize] = useState({ w: 0, h: 0 });
 
   // Get the appropriate name and description based on language
   const productName = isHebrew ? product.name_he : product.name_en;
   const primaryImage = getImageUrl(product.homepageImage || product.homepageimage);
   const hoverImage = useMemo(() => pickHoverImage(product, primaryImage), [product, primaryImage]);
+  const giftPromo = promotionForProduct(product?.id);
+  const hasGift =
+    !!giftPromo &&
+    ((giftPromo.books || []).length > 0 || (giftPromo.bookIds || []).length > 0);
 
   // Get default color (first color in the array, or null if no colors)
   const getDefaultColor = () => {
@@ -254,6 +261,30 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
             }
           </Button>
         )}
+
+        {hasGift ? (
+          <Box
+            aria-label={t.giftFreeChip || 'Gift'}
+            sx={{
+              position: 'absolute',
+              top: { xs: 12, sm: 14, md: 16 },
+              right: { xs: 12, sm: 14, md: 16 },
+              zIndex: 10,
+              width: { xs: 32, sm: 36, md: 42 },
+              height: { xs: 32, sm: 36, md: 42 },
+              borderRadius: '50%',
+              backgroundColor: '#d8472a',
+              color: '#f5f0e3',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.18)',
+              pointerEvents: 'none'
+            }}
+          >
+            <CardGiftcardIcon sx={{ fontSize: { xs: 18, sm: 20, md: 24 } }} />
+          </Box>
+        ) : null}
         <Box
           sx={{
             position: 'absolute',

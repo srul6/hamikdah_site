@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
 const { databaseController } = require('../config/database');
+const { computeCouponDiscount } = require('../utils/couponApply');
 
 function requireAdmin(req, res, next) {
     if (!req.admin) {
@@ -41,48 +42,38 @@ router.post('/apply', async (req, res) => {
             });
         }
 
-        const now = new Date();
-        const validFrom = new Date(coupon.validFrom);
-        const validUntil = new Date(coupon.validUntil);
-
-        if (now < validFrom || now > validUntil) {
+        const result = computeCouponDiscount(coupon, totalAmount);
+        if (!result.ok) {
+            if (result.error === 'expired') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Coupon has expired or is not yet valid'
+                });
+            }
+            if (result.error === 'limit') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Coupon usage limit reached'
+                });
+            }
+            if (result.error === 'min_amount') {
+                return res.status(400).json({
+                    success: false,
+                    message: `Minimum order amount is ₪${result.minAmount}`
+                });
+            }
             return res.status(400).json({
                 success: false,
-                message: 'Coupon has expired or is not yet valid'
+                message: 'Coupon cannot be applied'
             });
         }
-
-        if (coupon.usageCount >= coupon.maxUsage) {
-            return res.status(400).json({
-                success: false,
-                message: 'Coupon usage limit reached'
-            });
-        }
-
-        const total = parseFloat(totalAmount);
-        if (total < coupon.minAmount) {
-            return res.status(400).json({
-                success: false,
-                message: `Minimum order amount is ₪${coupon.minAmount}`
-            });
-        }
-
-        let discountAmount = 0;
-        if (coupon.type === 'percentage') {
-            discountAmount = (total * coupon.discount) / 100;
-            discountAmount = Math.min(discountAmount, coupon.maxDiscount);
-        } else {
-            discountAmount = Math.min(coupon.discount, coupon.maxDiscount);
-        }
-
-        const finalAmount = Math.max(0, total - discountAmount);
 
         res.json({
             success: true,
             coupon,
-            originalAmount: total,
-            discountAmount,
-            finalAmount
+            originalAmount: result.originalAmount,
+            discountAmount: result.discountAmount,
+            finalAmount: result.finalAmount
         });
     } catch (error) {
         console.error('❌ Coupon apply error:', error);

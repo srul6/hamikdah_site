@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, Button, Box, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -8,7 +8,6 @@ import { translations } from '../translations/translations';
 import { getProductPath, isMikdashProduct } from '../utils/productSlug';
 
 export default function HeroSection({ products = [] }) {
-    const cardRef = useRef(null);
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
 
@@ -21,60 +20,30 @@ export default function HeroSection({ products = [] }) {
         ? getProductPath(mikdashProduct, products)
         : '/';
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0) scale(1)';
-                }
-            },
-            {
-                threshold: 0.1,
-                rootMargin: '0px 0px -100px 0px'
-            }
-        );
-
-        if (cardRef.current) {
-            observer.observe(cardRef.current);
-        }
-
-        return () => {
-            if (cardRef.current) {
-                observer.unobserve(cardRef.current);
-            }
-        };
-    }, []);
-
     return (
         <Card
-            ref={cardRef}
+            elevation={0}
             sx={{
-                height: { xs: 'calc(87vh - 85px)', sm: '87vh' }, // Reduced by 85px on mobile
+                height: { xs: 'calc(87vh - 85px)', sm: '87vh' },
                 position: 'relative',
                 overflow: 'hidden',
-                borderRadius: '15px', // More rounded corners
-                boxShadow: 'none', // Removed shadow effect
-                transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)', // Enhanced timing
-                opacity: 0,
-                transform: 'translateY(50px) scale(0.95)', // Enhanced initial state
-                margin: '15px 0px 15px 0px',
-                backgroundColor: 'transparent', // Transparent background
-                '&:hover': {
-                    transform: 'translateY(-8px) scale(1.02)', // Enhanced hover effect
-                    boxShadow: 'none' // Removed shadow from hover effect
-                }
+                borderRadius: '15px',
+                boxShadow: 'none',
+                margin: '15px 0',
+                backgroundColor: 'transparent',
+                opacity: 1
             }}
         >
             <Box
                 sx={{
-                    width: '100%',
-                    height: '100%',
+                    position: 'absolute',
+                    inset: 0,
                     borderRadius: '15px',
                     backgroundImage: 'url(/hero_section.webp)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
+                    backgroundRepeat: 'no-repeat',
+                    zIndex: 0
                 }}
             />
 
@@ -118,14 +87,11 @@ export default function HeroSection({ products = [] }) {
             <Typography
                 sx={{
                     position: 'absolute',
-                    // Position: change `top` / `left` / `right` / `bottom` to move it
                     top: { xs: '61%', md: '68%' },
                     left: '50%',
-                    fontWeight: 'bold',
                     transform: 'translateX(-50%)',
                     zIndex: 10,
                     color: 'rgba(245, 240, 227, 1)',
-                    // Size: change `fontSize` (and optionally `fontWeight` / `letterSpacing`)
                     fontSize: { xs: '1.2rem', sm: '1.2rem', md: '1.4rem', lg: '1.6rem' },
                     fontWeight: 500,
                     letterSpacing: '0.02em',
@@ -168,7 +134,7 @@ export default function HeroSection({ products = [] }) {
             <Box
                 sx={{
                     position: 'absolute',
-                    bottom: '10%', // Lower quarter of the hero section
+                    bottom: '10%',
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 10

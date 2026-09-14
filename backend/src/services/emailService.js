@@ -4,7 +4,7 @@ class EmailService {
     constructor() {
         this.adminEmail = (process.env.ADMIN_EMAIL || '').trim();
         this.sendFromEmail = (process.env.RESEND_FROM_EMAIL || '').trim();
-        this.sendFromName = (process.env.RESEND_FROM_NAME || 'הזמנה חדשה').trim();
+        this.sendFromName = (process.env.RESEND_FROM_NAME || 'המקדש').trim();
         this.resendApiKey = (process.env.RESEND_API_KEY || '').trim();
 
         this.initializeResend();
@@ -15,13 +15,12 @@ class EmailService {
             console.warn('⚠️  Email service not configured - missing RESEND_API_KEY');
             return;
         }
-        if (!this.adminEmail) {
-            console.warn('⚠️  Email service not configured - missing ADMIN_EMAIL');
+        if (!this.sendFromEmail) {
+            console.warn('⚠️  Email service incomplete - missing RESEND_FROM_EMAIL. Emails will fail until set.');
             return;
         }
-        if (!this.sendFromEmail) {
-            console.warn('⚠️  Email service incomplete - missing RESEND_FROM_EMAIL. Order emails will fail until set.');
-            return;
+        if (!this.adminEmail) {
+            console.warn('⚠️  ADMIN_EMAIL missing — admin order notifications will be skipped; customer emails can still send.');
         }
 
         this.resend = new Resend(this.resendApiKey);
@@ -319,14 +318,19 @@ class EmailService {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${safeItems.map(item => `
+                                    ${safeItems.map(item => {
+                                        const giftLines = Array.isArray(item.gifts) && item.gifts.length
+                                            ? `<div style="margin-top:6px;font-size:13px;color:#555;">🎁 מתנות: ${item.gifts.map((g) => g.title || 'ספר מתנה').join(', ')}</div>`
+                                            : '';
+                                        return `
                                         <tr>
-                                            <td>${item.name_he || item.name_en || item.name || 'פריט'}</td>
+                                            <td>${item.name_he || item.name_en || item.name || 'פריט'}${giftLines}</td>
                                             <td>${item.quantity || 1}</td>
                                             <td>₪${(item.price || 0).toFixed(2)}</td>
                                             <td><strong>₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</strong></td>
                                         </tr>
-                                    `).join('')}
+                                    `;
+                                    }).join('')}
                                 </tbody>
                             </table>
                             ` : '<p>לא זמין מידע על הפריטים</p>'}
@@ -395,11 +399,107 @@ Form ID: ${formId}
 - עיר: ${customerInfo?.city || 'לא זמין'}
 
 🛍️ פריטים שהוזמנו:
-${safeItems.length > 0 ? safeItems.map(item => `- ${item.name_he || item.name_en || item.name || 'פריט'} x${item.quantity || 1} - ₪${(item.price || 0).toFixed(2)} (סה"כ: ₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)})`).join('\n') : 'לא זמין מידע על הפריטים'}
+${safeItems.length > 0 ? safeItems.map(item => {
+    const giftText = Array.isArray(item.gifts) && item.gifts.length
+        ? ` [מתנות: ${item.gifts.map((g) => g.title || 'ספר מתנה').join(', ')}]`
+        : '';
+    return `- ${item.name_he || item.name_en || item.name || 'פריט'} x${item.quantity || 1} - ₪${(item.price || 0).toFixed(2)} (סה"כ: ₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)})${giftText}`;
+}).join('\n') : 'לא זמין מידע על הפריטים'}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 מערכת ניהול הזמנות - בית המקדש
         `;
+    }
+
+    _fromField() {
+        return this.sendFromName
+            ? `${this.sendFromName} <${this.sendFromEmail}>`
+            : this.sendFromEmail;
+    }
+
+    _canSendToCustomer() {
+        if (!this.resendApiKey) {
+            console.error('❌ Email service not configured - missing RESEND_API_KEY');
+            return false;
+        }
+        if (!this.sendFromEmail) {
+            console.error('❌ Email not sent: RESEND_FROM_EMAIL is empty.');
+            return false;
+        }
+        if (!this.resend) {
+            this.initializeResend();
+        }
+        return !!this.resend;
+    }
+
+    async sendNewsletterVerification({
+        to,
+        verifyUrl,
+        unsubscribeUrl,
+        couponCode,
+        discountPercent = 5,
+        language = 'he',
+        products = [],
+        siteOrigin: siteOriginUrl = 'https://bmikdash.com'
+    }) {
+        if (!this._canSendToCustomer() || !to) return false;
+
+        const { buildNewsletterVerificationEmail } = require('../utils/newsletterVerificationEmail');
+        const { subject, html, text } = buildNewsletterVerificationEmail({
+            verifyUrl,
+            unsubscribeUrl,
+            couponCode,
+            discountPercent,
+            language,
+            products,
+            siteOrigin: siteOriginUrl
+        });
+
+        const { error } = await this.resend.emails.send({
+            from: this._fromField(),
+            to,
+            subject,
+            html,
+            text
+        });
+        if (error) {
+            console.error('❌ Newsletter verification email failed:', error);
+            return false;
+        }
+        return true;
+    }
+
+    /** @deprecated Coupon is now included in the single verification email. Kept as no-op for safety. */
+    async sendNewsletterCoupon() {
+        return false;
+    }
+
+    async sendNewsletterUnsubscribeLink({ to, unsubscribeUrl }) {
+        if (!this._canSendToCustomer() || !to) return false;
+
+        const subject = 'הסרה מרשימת התפוצה / Unsubscribe';
+        const html = `
+            <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
+              <p>לחיצה על הקישור תסיר אתכם מרשימת התפוצה:</p>
+              <p><a href="${unsubscribeUrl}">${unsubscribeUrl}</a></p>
+              <hr />
+              <p>Click to unsubscribe:</p>
+              <p><a href="${unsubscribeUrl}">${unsubscribeUrl}</a></p>
+            </div>`;
+        const text = `Unsubscribe: ${unsubscribeUrl}`;
+
+        const { error } = await this.resend.emails.send({
+            from: this._fromField(),
+            to,
+            subject,
+            html,
+            text
+        });
+        if (error) {
+            console.error('❌ Unsubscribe link email failed:', error);
+            return false;
+        }
+        return true;
     }
 }
 
