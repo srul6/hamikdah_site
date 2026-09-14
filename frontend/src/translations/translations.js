@@ -73,7 +73,7 @@ export const translations = {
 
         // Newsletter
         newsletter: 'ניוזלטר',
-        newsletterGiftTeaser: 'אני רוצה מתנה',
+        newsletterGiftTeaser: 'אני רוצה הנחה',
         newsletterGiftTeaserLine1: 'אני רוצה',
         newsletterGiftTeaserLine2: 'מתנה',
         newsletterGiftBannerTitle: 'יש! מצאתם את זה!',
