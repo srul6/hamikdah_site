@@ -1,568 +1,114 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-    Container, Typography, Box, Button, Grid, Card, CardMedia,
-    CircularProgress, Alert, Divider
+    Container, Typography, Box, Button, Grid, Card,
+    CircularProgress
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import StraightenIcon from '@mui/icons-material/Straighten';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import { fetchProductById } from '../api/products';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
-import { getImageUrl } from '../utils/imageUtils';
 import ChildrenPlayingSection from '../components/ChildrenPlayingSection';
+import PriceDisplay from '../components/PriceDisplay';
+import { computeProductPricing } from '../utils/productPricing';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const GallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, ref) => {
-    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-    const [isVisible, setIsVisible] = useState(false);
-    const [scrollProgress, setScrollProgress] = useState(0);
-    const galleryRef = useRef(null);
-    const scrollContainerRef = useRef(null);
+const TEXT_SECTION_IMAGE = 'https://cdn.bmikdash.com/3mikdash_5.jpeg';
+const HERO_IMAGE = '/3th_mikdash_white.png';
+const LOGO_IMAGE = '/3th_mikdash_logo.webp';
 
-    // YouTube video URLs converted to embed format
-    const videos = [
-        'https://www.youtube.com/embed/qHSVrX7wbCE?start=1',
-        'https://www.youtube.com/embed/hO0byC8b8BM?start=1',
-        'https://www.youtube.com/embed/-7lrSjwONg4'
-    ];
+/** Light blue accent: highlighted words, borders and outline buttons. */
+const ACCENT_COLOR = '#2fb3c1';
 
+/** Desktop: distance of the temple image from the hero panel's left edge (smaller = further left, negative allowed). */
+const DESKTOP_HERO_IMAGE_LEFT = '-5%';
+/** Mobile: temple image width relative to the screen width (100% = full width; larger overflows evenly on both sides). */
+const MOBILE_HERO_IMAGE_WIDTH = '125%';
+/** Mobile: space above the logo, relative to the screen width (larger = lower). */
+const MOBILE_HERO_LOGO_TOP = '40%';
+/** Mobile: extra offset of the temple image below the logo, relative to the screen width (negative = higher, 0 = default). */
+const MOBILE_HERO_IMAGE_TOP = '-8%';
 
+/** Desktop: distance of the logo from the right edge of the hero area (larger = further left). */
+const DESKTOP_HERO_LOGO_RIGHT = '8%';
 
-    useEffect(() => {
-        setIsVisible(true);
-    }, []);
+/** Renders translation text, coloring phrases wrapped in **double asterisks** with the accent color. */
+function renderHighlighted(text) {
+    return String(text || '').split(/\*\*(.+?)\*\*/g).map((part, i) => (
+        i % 2 === 1
+            ? <span key={i} style={{ color: ACCENT_COLOR }}>{part}</span>
+            : part
+    ));
+}
 
-    useEffect(() => {
-        const handleScroll = () => {
-            if (scrollContainerRef.current) {
-                const container = scrollContainerRef.current;
-                let scrollLeft = container.scrollLeft;
-                const maxScroll = container.scrollWidth - container.clientWidth;
+/**
+ * Hero panel geometry, in pixels of the Second Temple hero video frame (mikdash_2_hero.webm, 1890×768),
+ * so both pages share the same chevron stripe, tip curve and corner rounding.
+ */
+const HERO_FRAME = { width: 1890, height: 768 };
+const HERO_ASPECT_RATIO = HERO_FRAME.width / HERO_FRAME.height;
+const HERO_CORNER_RADIUS = 68;
+const HERO_STRIPE = {
+    upperPoint: [820.5, 12],
+    upperDirection: [1.3355, 1],
+    lowerPoint: [982, 756],
+    lowerDirection: [-3.31, 1],
+    tipRadius: 71,
+    halfWidth: 21.5,
+};
 
-                // In RTL mode, scrollLeft is negative or zero when scrolling right
-                // We need to convert it to a positive value
-                if (isHebrew) {
-                    scrollLeft = Math.abs(scrollLeft);
-                }
+const normalize = ([x, y]) => {
+    const length = Math.hypot(x, y);
+    return [x / length, y / length];
+};
 
-                const progress = maxScroll > 0 ? scrollLeft / maxScroll : 0;
-                setScrollProgress(progress);
+/** Outline of one hero piece: the stripe's center line offset sideways by `offset` (negative = left piece), closed along `closingX`. */
+function heroPiecePath(offset, closingX) {
+    const { width, height } = HERO_FRAME;
+    const a = normalize(HERO_STRIPE.upperDirection);
+    const b = normalize(HERO_STRIPE.lowerDirection);
+    const upperNormal = [a[1], -a[0]];
+    const lowerNormal = [b[1], -b[0]];
+    const p1 = [HERO_STRIPE.upperPoint[0] + upperNormal[0] * offset, HERO_STRIPE.upperPoint[1] + upperNormal[1] * offset];
+    const p2 = [HERO_STRIPE.lowerPoint[0] + lowerNormal[0] * offset, HERO_STRIPE.lowerPoint[1] + lowerNormal[1] * offset];
 
-                const childNodes = container.childNodes[0]?.childNodes || [];
-                let totalWidth = 0;
-                for (let i = 0; i < childNodes.length; i++) {
-                    totalWidth += childNodes[i].offsetWidth + 16; // +gap
-                    if (totalWidth >= scrollLeft + container.clientWidth / 2) {
-                        setCurrentVideoIndex(i);
-                        break;
-                    }
-                }
-            }
-        };
+    const det = a[0] * -b[1] + b[0] * a[1];
+    const s = ((p2[0] - p1[0]) * -b[1] + b[0] * (p2[1] - p1[1])) / det;
+    const corner = [p1[0] + a[0] * s, p1[1] + a[1] * s];
 
-        const container = scrollContainerRef.current;
-        if (container) {
-            container.addEventListener('scroll', handleScroll);
-            return () => container.removeEventListener('scroll', handleScroll);
-        }
-    }, [videos.length, isHebrew]);
+    const halfAngle = Math.acos(-a[0] * b[0] - a[1] * b[1]) / 2;
+    const radius = HERO_STRIPE.tipRadius + offset;
+    const tangentDistance = radius / Math.tan(halfAngle);
+    const tangentIn = [corner[0] - a[0] * tangentDistance, corner[1] - a[1] * tangentDistance];
+    const tangentOut = [corner[0] + b[0] * tangentDistance, corner[1] + b[1] * tangentDistance];
 
-    if (videos.length === 0) return null;
+    const top = -20;
+    const bottom = height + 20;
+    const start = [p1[0] + (a[0] / a[1]) * (top - p1[1]), top];
+    const end = [p2[0] + (b[0] / b[1]) * (bottom - p2[1]), bottom];
 
-    return (
-        <Box ref={ref} sx={{ position: 'relative', width: '100%' }}>
-            <Box sx={{
-                display: 'flex',
-                justifyContent: isHebrew ? 'flex-end' : 'flex-start',
-                width: '100%',
-                mb: 3,
-                px: { xs: 4, md: '9%' },
-            }}>
-                <Typography
-                    variant="h2"
-                    sx={{
-                        color: '#f5f0e3',
-                        fontWeight: 400,
-                        fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
-                        lineHeight: 1.6,
-                        maxWidth: '80%',
-                        textAlign: isHebrew ? 'right' : 'left',
-                        direction: isHebrew ? 'rtl' : 'ltr',
-                    }}
-                >
-                    {isHebrew ? 'סרטוני עזר לבנייה' : 'Building Assistance Videos'}
-                </Typography>
-            </Box>
+    const u = ([x, y]) => `${(x / width).toFixed(5)} ${(y / height).toFixed(5)}`;
+    const rx = (radius / width).toFixed(5);
+    const ry = (radius / height).toFixed(5);
+    return `M ${u(start)} L ${u(tangentIn)} A ${rx} ${ry} 0 0 1 ${u(tangentOut)} L ${u(end)} L ${u([closingX, bottom])} L ${u([closingX, top])} Z`;
+}
 
-            {/* Horizontal Scrolling Gallery */}
-            <Box
-                ref={scrollContainerRef}
-                sx={{
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
-                    '&::-webkit-scrollbar': {
-                        display: 'none'
-                    },
-                    width: '100%',
-                    direction: isHebrew ? 'rtl' : 'ltr'
-                }}
-            >
-                <Box sx={{
-                    display: 'flex',
-                    gap: 0,
-                    py: 0,
-                    '&::before': {
-                        content: '""',
-                        flexShrink: 0,
-                        width: { xs: '4px', md: '100px' }
-                    },
-                    '&::after': {
-                        content: '""',
-                        flexShrink: 0,
-                        width: { xs: '4px', md: '100px' }
-                    }
-                }}>
-                    {videos.map((video, index) => (
-                        <Box
-                            key={index}
-                            sx={{
-                                flexShrink: 0,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                px: { xs: 0, sm: 1 },
-                                width: { xs: '100vw', sm: 'auto' },
-                                maxWidth: { xs: '100vw', sm: 'none' }
-                            }}
-                        >
-                            {/* Video Container */}
-                            <Box sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                height: { xs: '250px', sm: '300px', md: '400px' },
-                                width: { xs: '100vw', sm: '80vw', md: '600px' },
-                                maxWidth: { xs: 'calc(100vw - 32px)', sm: '80vw', md: '600px' },
-                                borderRadius: 2,
-                                overflow: 'hidden',
-                                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-                                mb: 1
-                            }}>
-                                <iframe
-                                    src={video}
-                                    title={`${isHebrew ? 'סרטון' : 'Video'} ${index + 1}`}
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        border: 'none',
-                                        borderRadius: '8px'
-                                    }}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                />
-                            </Box>
-
-                        </Box>
-                    ))}
-                </Box>
-
-            </Box>
-            {/* Progress Indicator */}
-            <Box
-                sx={{
-                    position: 'sticky',
-                    top: '0%',
-                    zIndex: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mt: { xs: 4, md: 8 },
-                    mb: { xs: 3, md: 6 }
-                }}
-            >
-                <Box
-                    sx={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                        borderRadius: '20px',
-                        backdropFilter: 'blur(10px)',
-                        cursor: 'pointer'
-                    }}
-                    onClick={() => {
-                        if (scrollContainerRef.current) {
-                            const container = scrollContainerRef.current;
-                            const nextIndex = (currentVideoIndex + 1) % videos.length;
-                            const targetChild = container.querySelectorAll('iframe')[nextIndex];
-                            if (targetChild) {
-                                targetChild.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                            }
-                        }
-                    }}
-                >
-                    <Box sx={{
-                        position: 'relative',
-                        width: '200px',
-                        height: '8px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                    }}>
-                        <Box sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: isHebrew ? 'auto' : 0,
-                            right: isHebrew ? 0 : 'auto',
-                            height: '100%',
-                            width: `calc(${scrollProgress * 100}%)`,
-                            backgroundColor: '#f5f0e3',
-                            borderRadius: '4px',
-                            transition: 'width 0.1s ease-out'
-                        }} />
-                    </Box>
-                </Box>
-            </Box>
-        </Box>
-    );
-});
-
-GallerySection.displayName = 'GallerySection';
-
-const StaticGallerySection = React.forwardRef(({ product, selectedColor, isHebrew }, ref) => {
-    const getCurrentImages = () => {
-        if (selectedColor && selectedColor.extraImages) {
-            // Ensure it's an array
-            const images = Array.isArray(selectedColor.extraImages)
-                ? selectedColor.extraImages
-                : [];
-            return images.filter(img => img);
-        } else if (product.extraimages) {
-            // Ensure it's an array (handle both camelCase and lowercase)
-            const images = Array.isArray(product.extraimages)
-                ? product.extraimages
-                : (Array.isArray(product.extraImages) ? product.extraImages : []);
-            return images.filter(img => img);
-        }
-        return [];
-    };
-
-    const images = getCurrentImages();
-
-    const imageDescriptions = [
-        {
-            title: {
-                he: 'כלי המקדש',
-                en: 'Temple Vessels'
-            },
-            description: {
-                he: 'ארבעה כלי מקדש מיניאטוריים מהממים - שולחן הפנים, המנורה, מזבח הזהב והכרובים. וכל זה באריזה מיוחדת במינה.',
-                en: 'The Second Temple in all its glory - a comprehensive view of the magnificent structure'
-            }
-        },
-        {
-            title: {
-                he: 'אלבום המקדש',
-                en: 'Temple Album'
-            },
-            description: {
-                he: 'אלבום מקדש מושקע, שמכיל בתוכו תמונות מרהיבות והסברים מורחבים על איזורי המקדש השונים. תוכלו לבנות וללמוד יחד עם הבנייה!',
-                en: 'Temple album invested, containing beautiful images and detailed explanations of the different areas of the temple. You can build and learn together with the building!'
-            }
-        },
-        {
-            title: {
-                he: 'אריזה מרהיבה',
-                en: 'Beautiful Box'
-            },
-            description: {
-                he: 'אריזה שעוצבה בידי מעצב על, כדי שתקבלו חוויה מושלמת של בניית המקדש.',
-                en: 'A box designed by a designer, to give you a perfect experience of building the temple.'
-            }
-        },
-        {
-            title: {
-                he: 'הוראות בנייה',
-                en: 'Building Instructions'
-            },
-            description: {
-                he: 'חוברת הוראות בנייה בהירה להבנה, שלב אחרי שלב.',
-                en: 'Building instructions, step by step.'
-            }
-        },
-        {
-            title: {
-                he: 'אלבום המקדש מבפנים',
-                en: 'Temple Album from Inside'
-            },
-            description: {
-                he: 'הצצה לעמוד מתוך אלבום המקדש. תמונות שנרכשו ממכון המקדש עם הסברים מפורטים כדי שתקבלו את ההדמיות היפות והאותנטיות ביותר.',
-                en: 'A peek into the temple album. Pictures taken from the temple museum with detailed explanations to give you the most beautiful and meaningful pictures.'
-            }
-        }
-    ];
-
-    if (images.length === 0) return null;
-
-    return (
-        <Box
-            ref={ref}
-            sx={{
-                backgroundColor: '#162b26',
-                pt: 8,
-                pb: 6
-            }}>
-            <Container
-                maxWidth="lg"
-                sx={{
-                    maxWidth: { xs: '100%', md: '800px' },
-                    px: { xs: 2, md: 3 }
-                }}
-            >
-                {/* Desktop: Title above, then text-image pairs */}
-                <Box sx={{
-                    display: { xs: 'none', md: 'block' }
-                }}>
-                    {/* Title above everything - aligned with image section */}
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        mb: 4
-                    }}>
-                        {/* Spacer matching text section width */}
-                        <Box sx={{ flex: '0 0 40%' }} />
-
-                        {/* Spacer for divider */}
-                        <Box sx={{ width: '1px' }} />
-
-                        {/* Title in image section area */}
-                        <Box sx={{ flex: '0 0 60%' }}>
-                            <Typography
-                                variant="h2"
-                                sx={{
-                                    color: '#f5f0e3',
-                                    fontWeight: 400,
-                                    fontSize: { md: '2.4rem', lg: '2.6rem' },
-                                    lineHeight: 1.6,
-                                    textAlign: isHebrew ? 'right' : 'left',
-                                    direction: isHebrew ? 'rtl' : 'ltr',
-                                }}
-                            >
-                                {isHebrew ? 'מה הערכה כוללת?' : 'What does the package include?'}
-                            </Typography>
-                        </Box>
-                    </Box>
-
-                    {/* Text-Image pairs */}
-                    {images.map((image, index) => (
-                        <Box key={`pair-${index}`} className={`gallery-pair-${index}`} sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            mb: 4,
-                            flexDirection: isHebrew ? 'row' : 'row',
-                            '&:hover .gallery-divider': {
-                                borderColor: '#45bdcd',
-                            }
-                        }}>
-                            {/* Text side */}
-                            <Box
-                                className="gallery-text"
-                                sx={{
-                                    flex: '0 0 40%',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    textAlign: 'center',
-                                }}>
-                                <Typography
-                                    variant="h6"
-                                    sx={{
-                                        color: 'white',
-                                        fontSize: '1.6rem',
-                                        lineHeight: 1.3,
-                                        fontWeight: 600,
-                                        mb: 1,
-                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                    }}
-                                >
-                                    {isHebrew
-                                        ? imageDescriptions[index]?.title?.he || imageDescriptions[0]?.title?.he
-                                        : imageDescriptions[index]?.title?.en || imageDescriptions[0]?.title?.en}
-                                </Typography>
-                                <Typography
-                                    variant="body1"
-                                    sx={{
-                                        color: 'rgba(255, 255, 255, 0.9)',
-                                        fontSize: '1.15rem',
-                                        lineHeight: 1.5,
-                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                    }}
-                                >
-                                    {isHebrew
-                                        ? imageDescriptions[index]?.description?.he || imageDescriptions[0]?.description?.he
-                                        : imageDescriptions[index]?.description?.en || imageDescriptions[0]?.description?.en}
-                                </Typography>
-                            </Box>
-                            <Divider
-                                className="gallery-divider"
-                                orientation="vertical"
-                                sx={{
-                                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                                    my: '32px',
-                                    transition: 'border-color 0.3s ease'
-                                }}
-                                flexItem
-                            />
-                            {/* Image side */}
-                            <Box
-                                className="gallery-image"
-                                sx={{
-                                    flex: '0 0 60%',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}>
-                                <Box
-                                    component="img"
-                                    src={getImageUrl(image)}
-                                    alt={`${isHebrew ? 'תמונה' : 'Image'} ${index + 1}`}
-                                    sx={{
-                                        maxWidth: '100%',
-                                        height: 'auto',
-                                        objectFit: 'contain',
-                                        display: 'block',
-                                        borderRadius: '8px',
-                                        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                                        '&:hover': {
-                                            transform: 'scale(1.05)',
-                                            boxShadow: '0 10px 40px rgba(69, 189, 205, 0.4)',
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        </Box>
-                    ))}
-                </Box>
-
-                {/* Mobile: Stacked layout (images above text) */}
-                <Box sx={{
-                    display: { xs: 'block', md: 'none' }
-                }}>
-                    <Typography
-                        variant="h2"
-                        sx={{
-                            color: '#f5f0e3',
-                            fontWeight: 400,
-                            fontSize: { xs: '2rem', sm: '2.2rem' },
-                            lineHeight: 1.6,
-                            textAlign: isHebrew ? 'right' : 'left',
-                            direction: isHebrew ? 'rtl' : 'ltr',
-                            mb: 2,
-                            width: '100%'
-                        }}
-                    >
-                        {isHebrew ? 'מה הערכה כוללת?' : 'What does the package include?'}
-                    </Typography>
-
-                    <Grid container spacing={4}>
-                        {images.map((image, index) => (
-                            <Grid item xs={12} sm={6} key={index}>
-                                <Box
-                                    className="gallery-item"
-                                    sx={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        textAlign: 'center',
-                                    }}>
-                                    {/* Image Container */}
-                                    <Box sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: isHebrew ? 'flex-end' : 'flex-start',
-                                        width: '100%',
-                                    }}>
-                                        <img
-                                            src={getImageUrl(image)}
-                                            alt={`${isHebrew ? 'תמונה' : 'Image'} ${index + 1}`}
-                                            style={{
-                                                maxWidth: '100%',
-                                                height: 'auto',
-                                                objectFit: 'contain',
-                                                display: 'block',
-                                                borderRadius: '8px'
-                                            }}
-                                        />
-                                    </Box>
-
-                                    {/* Image Title */}
-                                    <Typography
-                                        variant="h6"
-                                        sx={{
-                                            color: 'white',
-                                            textAlign: 'center',
-                                            maxWidth: '100%',
-                                            fontSize: '1.3rem',
-                                            lineHeight: 1.3,
-                                            fontWeight: 600,
-                                            mt: 2,
-                                            mb: 0.8,
-                                            direction: isHebrew ? 'rtl' : 'ltr',
-                                            pr: isHebrew ? 2 : 0,
-                                            pl: isHebrew ? 0 : 2
-                                        }}
-                                    >
-                                        {isHebrew
-                                            ? imageDescriptions[index]?.title?.he || imageDescriptions[0]?.title?.he
-                                            : imageDescriptions[index]?.title?.en || imageDescriptions[0]?.title?.en}
-                                    </Typography>
-
-                                    {/* Image Description */}
-                                    <Typography
-                                        variant="body1"
-                                        sx={{
-                                            color: 'rgba(255, 255, 255, 0.9)',
-                                            textAlign: 'center',
-                                            maxWidth: '100%',
-                                            fontSize: '1rem',
-                                            lineHeight: 1.2,
-                                            direction: isHebrew ? 'rtl' : 'ltr',
-                                            pr: isHebrew ? 2 : 0,
-                                            pl: isHebrew ? 0 : 2
-                                        }}
-                                    >
-                                        {isHebrew
-                                            ? imageDescriptions[index]?.description?.he || imageDescriptions[0]?.description?.he
-                                            : imageDescriptions[index]?.description?.en || imageDescriptions[0]?.description?.en}
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                        ))}
-                    </Grid>
-                </Box>
-            </Container>
-        </Box>
-    );
-});
-
-StaticGallerySection.displayName = 'StaticGallerySection';
+const HERO_LEFT_PIECE_PATH = heroPiecePath(-HERO_STRIPE.halfWidth, -20);
+const HERO_RIGHT_PIECE_PATH = heroPiecePath(HERO_STRIPE.halfWidth, HERO_FRAME.width + 20);
+const HERO_PANEL_BORDER_RADIUS = `${(HERO_CORNER_RADIUS / HERO_FRAME.width) * 100}% / ${(HERO_CORNER_RADIUS / HERO_FRAME.height) * 100}%`;
 
 const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => {
     return (
         <Box
             ref={ref}
             sx={{
-                backgroundColor: '#1e3932',
+                backgroundColor: '#1d392d',
                 py: 6
             }}>
             <Container maxWidth="lg">
@@ -577,7 +123,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                     <Typography
                         variant="h2"
                         sx={{
-                            color: '#f5f0e3',
+                            color: '#f5efe3',
                             fontWeight: 400,
                             fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
                             lineHeight: 1.6,
@@ -614,7 +160,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <AccessTimeIcon
                                 sx={{
                                     fontSize: { xs: '2rem', md: '2.5rem' },
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 1
                                 }}
                             />
@@ -622,7 +168,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                 variant="h6"
                                 sx={{
                                     fontWeight: 600,
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 0,
                                     fontSize: { xs: '1rem', md: '1.2rem' }
                                 }}
@@ -632,7 +178,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <Typography
                                 variant="body2"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.1rem', md: '1.3rem' }
                                 }}
@@ -666,7 +212,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <ExtensionIcon
                                 sx={{
                                     fontSize: { xs: '2rem', md: '2.5rem' },
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 1
                                 }}
                             />
@@ -674,7 +220,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                 variant="h6"
                                 sx={{
                                     fontWeight: 600,
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 0,
                                     fontSize: { xs: '1rem', md: '1.2rem' }
                                 }}
@@ -684,7 +230,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <Typography
                                 variant="body2"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.1rem', md: '1.3rem' }
                                 }}
@@ -716,7 +262,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <StraightenIcon
                                 sx={{
                                     fontSize: { xs: '2rem', md: '2.5rem' },
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 1
                                 }}
                             />
@@ -724,7 +270,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                 variant="h6"
                                 sx={{
                                     fontWeight: 600,
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 1,
                                     fontSize: { xs: '1rem', md: '1.2rem' }
                                 }}
@@ -736,7 +282,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                     <Typography
                                         variant="body2"
                                         sx={{
-                                            color: '#f5f0e3',
+                                            color: '#f5efe3',
                                             fontWeight: 600,
                                             fontSize: { xs: '1rem', md: '1.1rem' },
                                             mb: 0.5
@@ -749,7 +295,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                     <Typography
                                         variant="body2"
                                         sx={{
-                                            color: '#f5f0e3',
+                                            color: '#f5efe3',
                                             fontWeight: 600,
                                             fontSize: { xs: '1rem', md: '1.1rem' },
                                             mb: 0.5
@@ -762,7 +308,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                     <Typography
                                         variant="body2"
                                         sx={{
-                                            color: '#f5f0e3',
+                                            color: '#f5efe3',
                                             fontWeight: 600,
                                             fontSize: { xs: '1rem', md: '1.1rem' }
                                         }}
@@ -796,7 +342,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <ChildCareIcon
                                 sx={{
                                     fontSize: { xs: '2rem', md: '2.5rem' },
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 1
                                 }}
                             />
@@ -804,7 +350,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                                 variant="h6"
                                 sx={{
                                     fontWeight: 600,
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 0,
                                     fontSize: { xs: '1rem', md: '1.2rem' }
                                 }}
@@ -814,7 +360,7 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <Typography
                                 variant="body2"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.1rem', md: '1.3rem' }
                                 }}
@@ -846,14 +392,14 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
                             <MenuBookIcon
                                 sx={{
                                     fontSize: { xs: '2rem', md: '2.5rem' },
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     mb: 1
                                 }}
                             />
                             <Typography
                                 variant="body2"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.1rem', md: '1.3rem' }
                                 }}
@@ -872,41 +418,27 @@ const ProductFeaturesSection = React.forwardRef(({ product, isHebrew }, ref) => 
 
 ProductFeaturesSection.displayName = 'ProductFeaturesSection';
 
-export default function ThirdTempleProductPage({ onAddToCart }) {
-    const { id } = useParams();
+export default function ThirdTempleProductPage({ onAddToCart, product: productProp = null }) {
     const navigate = useNavigate();
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
 
-    const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [product, setProduct] = useState(productProp || null);
+    const [loading, setLoading] = useState(!productProp);
     const [error, setError] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
     const [isSticky, setIsSticky] = useState(true); // Start as sticky (at bottom)
     const [hasReachedTarget, setHasReachedTarget] = useState(false);
     const [scrollY, setScrollY] = useState(0);
-    const [currentProductGalleryIndex, setCurrentProductGalleryIndex] = useState(0);
-    const [productGalleryScrollProgress, setProductGalleryScrollProgress] = useState(0);
     const [currentAdvantageIndex, setCurrentAdvantageIndex] = useState(0);
     const [advantageScrollProgress, setAdvantageScrollProgress] = useState(0);
 
-    // Product gallery images - stored in public/3mikdash_product_images/
-    const productGalleryImages = [
-        '/3mikdash_product_images/candle.png',
-        '/3mikdash_product_images/hamikdash.png',
-        '/3mikdash_product_images/kruvim.png',
-        '/3mikdash_product_images/lehem.png',
-        '/3mikdash_product_images/pnimi.png',
-        '/3mikdash_product_images/hamikdash2.png'
-        // Add more images as needed
-    ];
+    const galleryImages = (Array.isArray(product?.extraImages) ? product.extraImages : [])
+        .filter(Boolean);
 
-    const titleRef = useRef(null);
     const subtitleRef = useRef(null);
-    const imageRef = useRef(null);
     const buttonTargetRef = useRef(null); // Reference to the target position
     const heroSectionRef = useRef(null); // Reference to the hero section
-    const productGalleryScrollContainerRef = useRef(null);
     const advantageScrollContainerRef = useRef(null);
 
     // GSAP animation refs for mobile
@@ -914,21 +446,16 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
     const mobileLogoRef = useRef(null);
     const textSectionRef = useRef(null);
     const gilImageRef = useRef(null);
-    const staticGalleryRef = useRef(null);
-    const videoGalleryRef = useRef(null);
     const productFeaturesRef = useRef(null);
+    const galleryRef = useRef(null);
     const childrenPlayingRef = useRef(null);
-    const productGalleryRef = useRef(null);
     const kitAdvantagesRef = useRef(null);
 
-    // GSAP animation refs for desktop hero video
-    const desktopHeroVideoRef = useRef(null);
+    // GSAP animation refs for desktop hero image
+    const desktopHeroImageRef = useRef(null);
+    const desktopHeroLeftRef = useRef(null);
+    const desktopHeroRightRef = useRef(null);
     const desktopHeroLogoRef = useRef(null);
-    const desktopHeroSnakeSvgRef = useRef(null);
-    const heroSnakeHoverRef = useRef(false);
-    const heroSnakeIntervalRef = useRef(null);
-    const [heroSnakePaths, setHeroSnakePaths] = useState([]);
-    const [heroSnakeClip, setHeroSnakeClip] = useState(null);
 
     // Snake border around the gil / "Every home..." image
     const gilSnakeWrapRef = useRef(null);
@@ -947,30 +474,21 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
     }, [product, loading]);
 
     useEffect(() => {
-        const loadProduct = async () => {
-            try {
-                setLoading(true);
-                const productData = await fetchProductById(id);
-                console.log('ThirdTempleProductPage - Loaded product:', productData);
-                setProduct(productData);
-
-                // Set default color if available
-                if (productData?.colors && Array.isArray(productData.colors) && productData.colors.length > 0) {
-                    setSelectedColor(productData.colors[0]);
-                    console.log('ThirdTempleProductPage - Set default color:', productData.colors[0]);
-                }
-            } catch (err) {
-                setError('Failed to load product details');
-                console.error('ThirdTempleProductPage - Error loading product:', err);
-            } finally {
-                setLoading(false);
+        if (productProp) {
+            setProduct(productProp);
+            setLoading(false);
+            setError(null);
+            if (productProp?.colors && Array.isArray(productProp.colors) && productProp.colors.length > 0) {
+                setSelectedColor(productProp.colors[0]);
             }
-        };
-
-        if (id) {
-            loadProduct();
+            return undefined;
         }
-    }, [id]);
+
+        // Fallback if mounted without a resolved product (should not happen via router)
+        setError('Failed to load product details');
+        setLoading(false);
+        return undefined;
+    }, [productProp]);
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -1001,42 +519,6 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, [isSticky, hasReachedTarget]);
-
-    // Product gallery scroll tracking
-    useEffect(() => {
-        const handleProductGalleryScroll = () => {
-            if (productGalleryScrollContainerRef.current) {
-                const container = productGalleryScrollContainerRef.current;
-                let scrollLeft = container.scrollLeft;
-                const maxScroll = container.scrollWidth - container.clientWidth;
-
-                // In RTL mode, scrollLeft is negative or zero when scrolling right
-                // We need to convert it to a positive value
-                if (isHebrew) {
-                    scrollLeft = Math.abs(scrollLeft);
-                }
-
-                const progress = maxScroll > 0 ? scrollLeft / maxScroll : 0;
-                setProductGalleryScrollProgress(progress);
-
-                const childNodes = container.childNodes[0]?.childNodes || [];
-                let totalWidth = 0;
-                for (let i = 0; i < childNodes.length; i++) {
-                    totalWidth += childNodes[i].offsetWidth + 16; // +gap
-                    if (totalWidth >= scrollLeft + container.clientWidth / 2) {
-                        setCurrentProductGalleryIndex(i);
-                        break;
-                    }
-                }
-            }
-        };
-
-        const container = productGalleryScrollContainerRef.current;
-        if (container && productGalleryImages.length > 0) {
-            container.addEventListener('scroll', handleProductGalleryScroll);
-            return () => container.removeEventListener('scroll', handleProductGalleryScroll);
-        }
-    }, [productGalleryImages, isHebrew]);
 
     // Advantages scroll tracking - exact copy from children playing
     useEffect(() => {
@@ -1166,82 +648,6 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                     });
                 }
 
-                // Static gallery items animation
-                if (staticGalleryRef.current) {
-                    // Animate the title separately - slide from side
-                    const staticTitle = staticGalleryRef.current.querySelector('h2');
-                    if (staticTitle) {
-                        gsap.set(staticTitle, { x: isHebrew ? 50 : -50, opacity: 0 });
-                        gsap.to(staticTitle, {
-                            scrollTrigger: {
-                                trigger: staticGalleryRef.current,
-                                start: 'top 75%',
-                                toggleActions: 'play none none reverse'
-                            },
-                            x: 0,
-                            opacity: 1,
-                            duration: 1.2,
-                            ease: 'power2.out'
-                        });
-                    }
-
-                    // Animate gallery items
-                    const galleryItems = staticGalleryRef.current.querySelectorAll('.gallery-item');
-                    galleryItems.forEach((item, index) => {
-                        gsap.set(item, { y: 20, opacity: 0 });
-                        gsap.to(item, {
-                            scrollTrigger: {
-                                trigger: item,
-                                start: 'top 85%',
-                                toggleActions: 'play none none reverse'
-                            },
-                            y: 0,
-                            opacity: 1,
-                            duration: 1.2,
-                            delay: index * 0.15,
-                            ease: 'power1.out'
-                        });
-                    });
-                }
-
-                // Video gallery section animation
-                if (videoGalleryRef.current) {
-                    // Animate the title separately - slide from side
-                    const videoTitle = videoGalleryRef.current.querySelector('h2');
-                    if (videoTitle) {
-                        gsap.set(videoTitle, { x: isHebrew ? 50 : -50, opacity: 0 });
-                        gsap.to(videoTitle, {
-                            scrollTrigger: {
-                                trigger: videoGalleryRef.current,
-                                start: 'top 75%',
-                                toggleActions: 'play none none reverse'
-                            },
-                            x: 0,
-                            opacity: 1,
-                            duration: 1.2,
-                            ease: 'power2.out'
-                        });
-                    }
-
-                    // Animate the content (videos)
-                    const videoContent = videoGalleryRef.current.querySelector('[ref]')?.parentElement;
-                    if (videoContent) {
-                        gsap.set(videoContent, { opacity: 0, y: 15 });
-                        gsap.to(videoContent, {
-                            scrollTrigger: {
-                                trigger: videoGalleryRef.current,
-                                start: 'top 75%',
-                                toggleActions: 'play none none reverse'
-                            },
-                            opacity: 1,
-                            y: 0,
-                            duration: 1.5,
-                            delay: 0.3,
-                            ease: 'power1.out'
-                        });
-                    }
-                }
-
                 // Product features animation
                 if (productFeaturesRef.current) {
                     // Animate the title separately - slide from side
@@ -1280,15 +686,15 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                     });
                 }
 
-                // Children playing section animation
-                if (childrenPlayingRef.current) {
+                // Gallery and children playing sections animation
+                [galleryRef.current, childrenPlayingRef.current].filter(Boolean).forEach((section) => {
                     // Animate the title separately - slide from side
-                    const childrenTitle = childrenPlayingRef.current.querySelector('h2');
+                    const childrenTitle = section.querySelector('h2');
                     if (childrenTitle) {
                         gsap.set(childrenTitle, { x: isHebrew ? 50 : -50, opacity: 0 });
                         gsap.to(childrenTitle, {
                             scrollTrigger: {
-                                trigger: childrenPlayingRef.current,
+                                trigger: section,
                                 start: 'top 75%',
                                 toggleActions: 'play none none reverse'
                             },
@@ -1300,12 +706,12 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                     }
 
                     // Animate the scrolling container separately - fade from bottom
-                    const scrollContainer = childrenPlayingRef.current.querySelector('[data-children-playing-scroll]');
+                    const scrollContainer = section.querySelector('[data-children-playing-scroll]');
                     if (scrollContainer) {
                         gsap.set(scrollContainer, { opacity: 0, y: 15 });
                         gsap.to(scrollContainer, {
                             scrollTrigger: {
-                                trigger: childrenPlayingRef.current,
+                                trigger: section,
                                 start: 'top 75%',
                                 toggleActions: 'play none none reverse'
                             },
@@ -1316,7 +722,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             ease: 'power1.out'
                         });
                     }
-                }
+                });
 
                 // Kit advantages section animation
                 if (kitAdvantagesRef.current) {
@@ -1368,84 +774,33 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
         return () => clearTimeout(timer);
     }, [product]);
 
-    // GSAP Desktop Animations
-    useEffect(() => {
-        // Only run on desktop devices
-        const isDesktop = window.innerWidth >= 900;
-        if (!isDesktop || !product) return;
-
-        console.log('GSAP Desktop Animations starting...');
-
-        const timer = setTimeout(() => {
-            const ctx = gsap.context(() => {
-                // Static gallery desktop animations
-                if (staticGalleryRef.current) {
-                    // Animate text-image pairs
-                    const galleryPairs = staticGalleryRef.current.querySelectorAll('.gallery-pair-0, .gallery-pair-1, .gallery-pair-2, .gallery-pair-3, .gallery-pair-4');
-
-                    galleryPairs.forEach((pair, index) => {
-                        // Find text and image within each pair
-                        const textBox = pair.querySelector('.gallery-text');
-                        const imageBox = pair.querySelector('.gallery-image');
-
-                        if (textBox) {
-                            gsap.set(textBox, { x: -30, opacity: 0 });
-                            gsap.to(textBox, {
-                                scrollTrigger: {
-                                    trigger: pair,
-                                    start: 'top 75%',
-                                    toggleActions: 'play none none reverse'
-                                },
-                                x: 0,
-                                opacity: 1,
-                                duration: 1,
-                                delay: index * 0.1,
-                                ease: 'power2.out'
-                            });
-                        }
-
-                        if (imageBox) {
-                            gsap.set(imageBox, { x: 30, opacity: 0 });
-                            gsap.to(imageBox, {
-                                scrollTrigger: {
-                                    trigger: pair,
-                                    start: 'top 75%',
-                                    toggleActions: 'play none none reverse'
-                                },
-                                x: 0,
-                                opacity: 1,
-                                duration: 1,
-                                delay: 0.2 + (index * 0.1),
-                                ease: 'power2.out'
-                            });
-                        }
-                    });
-                }
-            });
-
-            return () => ctx.revert();
-        }, 100);
-
-        return () => clearTimeout(timer);
-    }, [product]);
-
-    // Desktop hero logo — slide in from the right 1s after the video starts
-    useEffect(() => {
+    // Desktop hero — same timing as the Second Temple video: both pieces slide in over 0.6s once the model
+    // image has loaded, and the logo slides in from the right 0.7s after that starts
+    useLayoutEffect(() => {
         const isDesktop = window.innerWidth >= 900;
         if (!isDesktop || !product) return undefined;
 
-        const video = desktopHeroVideoRef.current;
+        const image = desktopHeroImageRef.current;
+        const leftPiece = desktopHeroLeftRef.current;
+        const rightPiece = desktopHeroRightRef.current;
         const logo = desktopHeroLogoRef.current;
-        if (!video || !logo) return undefined;
+        if (!image || !leftPiece || !rightPiece || !logo) return undefined;
 
         let delayTimer = null;
         let hasAnimated = false;
 
+        gsap.set(leftPiece, { xPercent: -100 });
+        gsap.set(rightPiece, { xPercent: 60 });
         gsap.set(logo, { x: 120, opacity: 0 });
 
         const startLogoSlide = () => {
             if (hasAnimated) return;
             hasAnimated = true;
+            gsap.to([leftPiece, rightPiece], {
+                xPercent: 0,
+                duration: 0.6,
+                ease: 'power2.out',
+            });
             delayTimer = setTimeout(() => {
                 gsap.to(logo, {
                     x: 0,
@@ -1456,156 +811,19 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
             }, 700);
         };
 
-        // `playing` fires when playback actually begins (better than relying on autoplay alone)
-        video.addEventListener('playing', startLogoSlide);
+        image.addEventListener('load', startLogoSlide);
 
-        // If the video already started before the listener was attached
-        if (!video.paused && video.currentTime > 0) {
+        // The image may already be loaded (cached) before the listener was attached
+        if (image.complete && image.naturalWidth > 0) {
             startLogoSlide();
         }
 
         return () => {
-            video.removeEventListener('playing', startLogoSlide);
+            image.removeEventListener('load', startLogoSlide);
             if (delayTimer) clearTimeout(delayTimer);
-            gsap.killTweensOf(logo);
+            gsap.killTweensOf([leftPiece, rightPiece, logo]);
         };
     }, [product]);
-
-    // Animate newly spawned snake lines (appear → disappear); keep looping while hovered
-    useEffect(() => {
-        if (!heroSnakePaths.length || !desktopHeroSnakeSvgRef.current) return undefined;
-
-        // Only start timelines for brand-new paths — do not kill older in-flight lines
-        const nodes = desktopHeroSnakeSvgRef.current.querySelectorAll('.hero-snake-line:not([data-animated])');
-
-        nodes.forEach((node) => {
-            node.setAttribute('data-animated', '1');
-            const pathId = node.getAttribute('data-id');
-            const len = node.getTotalLength();
-            gsap.set(node, {
-                strokeDasharray: len,
-                strokeDashoffset: len,
-                opacity: 1,
-            });
-
-            gsap.timeline({
-                onComplete: () => {
-                    setHeroSnakePaths((prev) => prev.filter((p) => p.id !== pathId));
-                },
-            })
-                .to(node, {
-                    strokeDashoffset: 0,
-                    duration: 0.9 + Math.random() * 0.4,
-                    ease: 'sine.inOut',
-                })
-                .to(node, {
-                    strokeDashoffset: -len,
-                    opacity: 0,
-                    duration: 0.75 + Math.random() * 0.35,
-                    ease: 'sine.inOut',
-                }, '+=0.2');
-        });
-
-        return undefined;
-    }, [heroSnakePaths]);
-
-    const getVideoContentRect = (video) => {
-        const { videoWidth, videoHeight, clientWidth, clientHeight } = video;
-        if (!videoWidth || !videoHeight || !clientWidth || !clientHeight) {
-            return { x: 0, y: 0, w: clientWidth || 0, h: clientHeight || 0 };
-        }
-        const scale = Math.min(clientWidth / videoWidth, clientHeight / videoHeight);
-        const w = videoWidth * scale;
-        const h = videoHeight * scale;
-        return {
-            x: (clientWidth - w) / 2,
-            y: (clientHeight - h) / 2,
-            w,
-            h,
-        };
-    };
-
-    const makePlayfulSnakePath = (rect) => {
-        const inset = 12;
-        const minX = rect.x + inset;
-        const maxX = rect.x + rect.w - inset;
-        const minY = rect.y + inset;
-        const maxY = rect.y + rect.h - inset;
-        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-        const randIn = (min, max) => min + Math.random() * Math.max(0, max - min);
-
-        // Long, gentle single curve — barely bent
-        const x0 = randIn(minX, maxX);
-        const y0 = randIn(minY, maxY);
-        const angle = Math.random() * Math.PI * 2;
-        const length = Math.min(rect.w, rect.h) * (0.35 + Math.random() * 0.3);
-        const x1 = clamp(x0 + Math.cos(angle) * length, minX, maxX);
-        const y1 = clamp(y0 + Math.sin(angle) * length, minY, maxY);
-        const softBend = length * (0.08 + Math.random() * 0.12);
-        const perp = angle + Math.PI / 2;
-        const sign = Math.random() > 0.5 ? 1 : -1;
-        const cx = clamp((x0 + x1) / 2 + Math.cos(perp) * softBend * sign, minX, maxX);
-        const cy = clamp((y0 + y1) / 2 + Math.sin(perp) * softBend * sign, minY, maxY);
-        return `M ${x0.toFixed(1)} ${y0.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
-    };
-
-    const spawnHeroSnakeBatch = () => {
-        const video = desktopHeroVideoRef.current;
-        if (!video || !heroSnakeHoverRef.current) return;
-
-        const rect = getVideoContentRect(video);
-        if (rect.w < 40 || rect.h < 40) return;
-
-        setHeroSnakeClip(rect);
-
-        const lineColor = '#1e3932';
-        const count = Math.random() < 0.75 ? 1 : 2;
-        const paths = Array.from({ length: count }, (_, i) => ({
-            id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
-            d: makePlayfulSnakePath(rect),
-            color: lineColor,
-            width: 1.4 + Math.random() * 0.8,
-        }));
-
-        setHeroSnakePaths((prev) => [...prev, ...paths].slice(-6));
-    };
-
-    const handleHeroVideoHoverEnter = () => {
-        heroSnakeHoverRef.current = true;
-        spawnHeroSnakeBatch();
-        if (heroSnakeIntervalRef.current) clearInterval(heroSnakeIntervalRef.current);
-        heroSnakeIntervalRef.current = setInterval(spawnHeroSnakeBatch, 700);
-    };
-
-    const handleHeroVideoHoverLeave = () => {
-        heroSnakeHoverRef.current = false;
-        if (heroSnakeIntervalRef.current) {
-            clearInterval(heroSnakeIntervalRef.current);
-            heroSnakeIntervalRef.current = null;
-        }
-
-        const nodes = desktopHeroSnakeSvgRef.current?.querySelectorAll('.hero-snake-line');
-        if (!nodes?.length) {
-            setHeroSnakePaths([]);
-            setHeroSnakeClip(null);
-            return;
-        }
-        gsap.killTweensOf(nodes);
-        gsap.to(nodes, {
-            opacity: 0,
-            duration: 0.2,
-            ease: 'power1.in',
-            onComplete: () => {
-                setHeroSnakePaths([]);
-                setHeroSnakeClip(null);
-            },
-        });
-    };
-
-    // Clear hover interval on unmount
-    useEffect(() => () => {
-        if (heroSnakeIntervalRef.current) clearInterval(heroSnakeIntervalRef.current);
-    }, []);
 
     const handleBackClick = () => {
         navigate('/');
@@ -1648,7 +866,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
 
     return (
         <Box sx={{
-            backgroundColor: '#1e3932',
+            backgroundColor: '#1d392d',
             minHeight: '100vh',
             pt: { xs: 10, md: 12 },
             pb: 8,
@@ -1683,7 +901,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                         margin: '16px auto',
                         width: 'calc(100% - 45px)',
                         height: { xs: '55vh', md: '100vh' },
-                        backgroundColor: '#45bdcd',
+                        backgroundColor: '#f5efe3',
                         borderRadius: 4.5,
                         backdropFilter: 'blur(10px)',
                         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
@@ -1692,10 +910,8 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                     }}
                 />
 
-                {/* Desktop hero — video (mobile unchanged) */}
+                {/* Desktop hero — Third Temple image (mobile unchanged) */}
                 <Box
-                    onMouseEnter={handleHeroVideoHoverEnter}
-                    onMouseLeave={handleHeroVideoHoverLeave}
                     sx={{
                         display: { xs: 'none', md: 'flex' },
                         justifyContent: 'center',
@@ -1706,79 +922,70 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                         mt: 2,
                         mb: 10,
                         position: 'relative',
-                        overflow: 'visible',
+                        overflow: 'hidden',
                     }}
                 >
-                    <Box
-                        ref={desktopHeroVideoRef}
-                        component="video"
-                        src="/mikdash_3_hero.webm"
-                        autoPlay
-                        muted
-                        playsInline
-                        preload="auto"
-                        sx={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            borderRadius: '28px',
-                            display: 'block',
-                            backgroundColor: 'transparent',
-                        }}
-                    />
-                    {/* Playful snake lines — continuous while hovered, clipped to video frame */}
+                    {/* Recreates the Second Temple hero video: an arrow piece carrying the model slides in from the left
+                        and the right piece from the right; the gap left between them is the dark stripe */}
                     <Box
                         component="svg"
-                        ref={desktopHeroSnakeSvgRef}
                         aria-hidden
+                        sx={{ position: 'absolute', width: 0, height: 0 }}
+                    >
+                        <defs>
+                            <clipPath id="tt-hero-left" clipPathUnits="objectBoundingBox">
+                                <path d={HERO_LEFT_PIECE_PATH} />
+                            </clipPath>
+                            <clipPath id="tt-hero-right" clipPathUnits="objectBoundingBox">
+                                <path d={HERO_RIGHT_PIECE_PATH} />
+                            </clipPath>
+                        </defs>
+                    </Box>
+                    <Box
                         sx={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
-                            pointerEvents: 'none',
+                            position: 'relative',
+                            width: `min(100%, calc((100vh - 140px) * ${HERO_ASPECT_RATIO}))`,
+                            aspectRatio: String(HERO_ASPECT_RATIO),
+                            borderRadius: HERO_PANEL_BORDER_RADIUS,
                             overflow: 'hidden',
-                            zIndex: 3,
                         }}
                     >
-                        {heroSnakeClip && (
-                            <defs>
-                                <clipPath id="hero-video-snake-clip">
-                                    <rect
-                                        x={heroSnakeClip.x}
-                                        y={heroSnakeClip.y}
-                                        width={heroSnakeClip.w}
-                                        height={heroSnakeClip.h}
-                                        rx={28}
-                                        ry={28}
-                                    />
-                                </clipPath>
-                            </defs>
-                        )}
-                        <g clipPath={heroSnakeClip ? 'url(#hero-video-snake-clip)' : undefined}>
-                            {heroSnakePaths.map((path) => (
-                                <path
-                                    key={path.id}
-                                    className="hero-snake-line"
-                                    data-id={path.id}
-                                    d={path.d}
-                                    fill="none"
-                                    stroke={path.color}
-                                    strokeWidth={path.width}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            ))}
-                        </g>
+                        <Box
+                            ref={desktopHeroLeftRef}
+                            sx={{ position: 'absolute', inset: 0, backgroundColor: '#f5efe3', clipPath: 'url(#tt-hero-left)' }}
+                        >
+                            <Box
+                                ref={desktopHeroImageRef}
+                                component="img"
+                                src={HERO_IMAGE}
+                                alt={isHebrew ? 'בית המקדש השלישי' : 'The Third Temple'}
+                                fetchpriority="high"
+                                sx={{
+                                    position: 'absolute',
+                                    left: DESKTOP_HERO_IMAGE_LEFT,
+                                    top: 0,
+                                    bottom: 0,
+                                    my: 'auto',
+                                    width: '72%',
+                                    height: '102%',
+                                    objectFit: 'contain',
+                                    display: 'block',
+                                }}
+                            />
+                        </Box>
+                        <Box
+                            ref={desktopHeroRightRef}
+                            sx={{ position: 'absolute', inset: 0, backgroundColor: '#f5efe3', clipPath: 'url(#tt-hero-right)' }}
+                        />
                     </Box>
-                    {/* Slides in from the right 1s after video starts — tweak size/position on the wrapper */}
+                    {/* Slides in from the right after the hero image loads — tweak size/position on the wrapper */}
                     <Box
                         sx={{
                             position: 'absolute',
-                            right: { md: '4%', lg: '6%' },
-                            top: '25%',
+                            right: DESKTOP_HERO_LOGO_RIGHT,
+                            top: '31%',
                             transform: 'translateY(-50%)',
-                            width: { md: '22%', lg: '24%' },
+                            width: { md: '17%', lg: '18%' },
                             maxHeight: '50%',
                             zIndex: 2,
                             pointerEvents: 'none',
@@ -1787,8 +994,8 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                         <Box
                             component="img"
                             ref={desktopHeroLogoRef}
-                            src="/mikdash_3_logo.webp"
-                            alt={isHebrew ? 'לוגו המקדש השני' : 'Second Temple Logo'}
+                            src={LOGO_IMAGE}
+                            alt={isHebrew ? 'לוגו המקדש השלישי' : 'Third Temple Logo'}
                             sx={{
                                 width: '100%',
                                 height: 'auto',
@@ -1816,17 +1023,28 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             mt: -10, // Move logo higher (adjust this value)
                         }}
                     >
-                        <img
-                            src="/mikdash_3_logo.webp"
-                            alt={isHebrew ? '   לוגו המקדש השני' : 'Second Temple Logo'}
-                            fetchpriority="high"
-                            style={{
-                                maxWidth: '100%',
-                                width: 'auto',
-                                height: 'auto',
-                                maxHeight: '20%',
-                            }}
-                        />
+                        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowX: 'clip' }}>
+                            <Box
+                                component="img"
+                                src={LOGO_IMAGE}
+                                alt={isHebrew ? 'לוגו המקדש השלישי' : 'Third Temple Logo'}
+                                fetchpriority="high"
+                                sx={{ width: '46%', height: 'auto', display: 'block', mt: MOBILE_HERO_LOGO_TOP, mb: 3 }}
+                            />
+                            <Box
+                                component="img"
+                                src={HERO_IMAGE}
+                                alt={isHebrew ? 'בית המקדש השלישי' : 'The Third Temple'}
+                                sx={{
+                                    width: MOBILE_HERO_IMAGE_WIDTH,
+                                    mt: MOBILE_HERO_IMAGE_TOP,
+                                    maxWidth: 'none',
+                                    flexShrink: 0,
+                                    height: 'auto',
+                                    display: 'block'
+                                }}
+                            />
+                        </Box>
                     </Box>
 
                 </Container>
@@ -1836,7 +1054,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
             <Box
                 ref={textSectionRef}
                 sx={{
-                    backgroundColor: '#162b26',
+                    backgroundColor: '#13271f',
                     py: 6,
                     minHeight: { xs: 'auto', md: 'calc(100vh - 140px)' },
                     display: { xs: 'block', md: 'flex' },
@@ -1871,7 +1089,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                     overflow: 'visible',
                                     cursor: 'pointer',
                                     '& .gil-snake-img': {
-                                        borderColor: '#45bdcd',
+                                        borderColor: ACCENT_COLOR,
                                         transition: 'border-color 0.08s linear'
                                     },
                                     '&:hover .gil-snake-img': {
@@ -1893,14 +1111,14 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                 <Box
                                     component="img"
                                     className="gil-snake-img"
-                                    src=""
-                                    alt={isHebrew ? 'ילד משחק עם דגם המקדש' : 'Child playing with Temple model'}
+                                    src={TEXT_SECTION_IMAGE}
+                                    alt={isHebrew ? 'דגם בית המקדש השלישי' : 'Third Temple model'}
                                     sx={{
                                         display: 'block',
                                         maxWidth: '100%',
                                         height: 'auto',
                                         borderRadius: `${GIL_SNAKE_RADIUS}px`,
-                                        border: `${GIL_SNAKE_STROKE}px solid #45bdcd`,
+                                        border: `${GIL_SNAKE_STROKE}px solid ${ACCENT_COLOR}`,
                                         boxSizing: 'border-box',
                                         padding: '25px',
                                         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
@@ -1934,7 +1152,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                             ry={gilSnakeRx}
                                             pathLength={1}
                                             fill="none"
-                                            stroke="#45bdcd"
+                                            stroke={ACCENT_COLOR}
                                             strokeWidth={GIL_SNAKE_STROKE}
                                             strokeLinecap="butt"
                                             strokeLinejoin="round"
@@ -1959,7 +1177,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="h2"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 400,
                                     fontSize: { xs: '2.2rem', sm: '2.3rem', md: '2.4rem', lg: '2.6rem' },
                                     lineHeight: 1.1,
@@ -1970,7 +1188,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                     mb: 4
                                 }}
                             >
-                                {isHebrew ? 'בכל בית צריך להיות בית המקדש!' : 'Every home needs the Beit Hamikdash!'}
+                                {t.thirdTempleIntroTitle}
                             </Typography>
                             <Typography
                                 ref={subtitleRef}
@@ -1978,36 +1196,14 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                 sx={{
                                     maxWidth: '90%',
                                     ml: 'auto',
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 400,
                                     fontSize: { md: '1.5rem', lg: '1.6rem' },
                                     lineHeight: 1.5,
                                     direction: isHebrew ? 'rtl' : 'ltr',
                                 }}
                             >
-                                {isHebrew ? (
-                                    <>
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>ובבית</span> שלנו צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
-                                        <br />
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
-                                        <br />
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
-                                    </>
-                                ) : (
-                                    <>
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{' '}
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{' '}
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{' '}
-                                        <br />
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{' '}
-                                        <br />
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{' '}
-                                        <span style={{ color: '#45bdcd', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
-                                    </>
-                                )}
+                                {renderHighlighted(t.thirdTempleIntro)}
                             </Typography>
                         </Box>
                     </Box>
@@ -2019,7 +1215,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                         <Typography
                             variant="h2"
                             sx={{
-                                color: '#f5f0e3',
+                                color: '#f5efe3',
                                 fontWeight: 400,
                                 fontSize: { xs: '2.2rem', sm: '2.3rem', md: '2.4rem', lg: '2.6rem' },
                                 lineHeight: 1.1,
@@ -2031,13 +1227,13 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                 mb: 4
                             }}
                         >
-                            {isHebrew ? 'בכל בית צריך להיות בית המקדש!' : 'Every home needs the Beit Hamikdash!'}
+                            {t.thirdTempleIntroTitle}
                         </Typography>
                         <Typography
                             ref={subtitleRef}
                             variant="h5"
                             sx={{
-                                color: '#f5f0e3',
+                                color: '#f5efe3',
                                 fontWeight: 400,
                                 fontSize: { xs: '1.1rem', sm: '1.3rem' },
                                 lineHeight: 1.6,
@@ -2047,256 +1243,39 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                 textAlign: isHebrew ? 'right' : 'left',
                             }}
                         >
-                            {isHebrew ? (
-                                <>
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>במו</span> עיני ראיתי כשנכנסו לגבאליה, בתים עם תמונת המסגד שלהם ברחבת הר הבית שלנו.{' '}
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>במלחמה</span> הזאת ירושלים נמצאת במרכז העולם.{' '}
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>ובבית שלנו</span> צריך לעמוד בגאון דגם בית המקדש – צלמו ושתפו את התמונה של כל המשפחה עם בית המקדש בבית – שכולם יידעו שדוד המלך בדרך לנצח את המלחמה!{' '}
-                                    <br />
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>בית המקדש</span> הוא מקור של קדושה, יציבות, אהבת ישראל ואהבת התורה.{' '}
-                                    <br />
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>בשנות</span> הגלות, הקב"ה רואה בכל יהודי בית מקדש קטן מהלך, שמביא ערכים של קדושה לכל מקום אליו מגיע.{' '}
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>ועכשיו,</span> עם דגם כזה בסלון, כל הילדים בבית חיים את בית המקדש!
-                                </>
-                            ) : (
-                                <>
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>With</span> my own eyes, I saw that when they entered Jabalia, there were homes displaying pictures of their mosque in the plaza of our Temple Mount.{` `}
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>In</span> this war, Jerusalem stands at the center of the world.{` `}
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>And</span> in our home, a Beit Hamikdash model should stand proudly — photograph and share a family picture with the Temple at home — so everyone knows that King David is on the way to win this war!{` `}
-                                    <br />
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>The</span> Beit Hamikdash is a source of holiness, stability, love of Israel, and love of Torah.{` `}
-                                    <br />
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>During</span> the years of exile, Hashem sees every Jew as a small, walking Temple, bringing values of holiness wherever they go.{` `}
-                                    <span style={{ color: '#45bdcd', fontWeight: 700 }}>Now,</span> with a model like this in the living room, every child at home lives the Beit Hamikdash!
-                                </>
-                            )}
+                            {renderHighlighted(t.thirdTempleIntro)}
                         </Typography>
                     </Box>
                 </Container>
             </Box>
 
 
-            {/* Full-Width Hero Image Section */}
-            {/* <Box
-                ref={imageRef}
-                sx={{
-                    position: 'relative',
-                    width: '100vw',
-                    height: { xs: '70vh', sm: '75vh', md: '80vh', lg: '85vh' },
-                    marginLeft: 'calc(-50vw + 50%)',
-                    marginRight: 'calc(-50vw + 50%)',
-                    overflow: 'hidden',
-                    opacity: 1,
-                    transform: 'translateY(50px) scale(0.95)',
-                    filter: 'blur(3px)',
-                    transition: 'all 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }}
-            >
-                <CardMedia
-                    component="img"
-                    sx={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                    }}
-                    image={getImageUrl(
-                        (selectedColor && selectedColor.mainImage) ?
-                            selectedColor.mainImage :
-                            (product.heroImage || product.homepageimage)
-                    )}
-                    alt={isHebrew ? 'המקדש השני' : 'The Second Temple'}
-                /> */}
-
-            {/* Enhanced Gradient Overlay */}
-            {/* <Box
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.11) 0%, rgba(0, 33, 46, 0.06) 50%, rgba(0, 0, 0, 0.3) 100%)',
-                        '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.1) 100%)',
-                        }
-                    }}
-                />
-            </Box> */}
-
-            {/* Static Image Gallery */}
-            {
-                product && (product.extraimages || (selectedColor && selectedColor.extraImages)) && (
-                    <StaticGallerySection
-                        ref={staticGalleryRef}
-                        product={product}
-                        selectedColor={selectedColor}
-                        isHebrew={isHebrew}
-                    />
-                )
-            }
+            {/* Gallery — same layout and behavior as Kids Playing */}
+            <ChildrenPlayingSection
+                ref={galleryRef}
+                media={galleryImages}
+                isHebrew={isHebrew}
+                backgroundColor="#234536"
+                titleHe="גלריה"
+                titleEn="Gallery"
+            />
 
             {/* Children Playing Media Section */}
             <ChildrenPlayingSection
                 ref={childrenPlayingRef}
                 media={product?.childrenPlaying}
                 isHebrew={isHebrew}
-                backgroundColor="#234840"
+                backgroundColor="#234536"
             />
-
-            {/* Horizontal Scrolling Video Gallery */}
-            <Box sx={{
-                backgroundColor: '#234840',
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                py: 6
-            }}>
-                {/* Horizontal Scrolling Video Gallery */}
-                <GallerySection
-                    ref={videoGalleryRef}
-                    product={product}
-                    selectedColor={selectedColor}
-                    isHebrew={isHebrew}
-                />
-            </Box>
 
             {/* Product Features Section */}
             <ProductFeaturesSection ref={productFeaturesRef} product={product} isHebrew={isHebrew} />
-
-            {/* Product Gallery Section - scrolling like children playing */}
-            {productGalleryImages.length > 0 && (
-                <Box
-                    ref={productGalleryRef}
-                    sx={{
-                        backgroundColor: '#234840',
-                        minHeight: '100vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        py: 6
-                    }}>
-                    <Box sx={{
-                        display: 'flex',
-                        justifyContent: isHebrew ? 'flex-end' : 'flex-start',
-                        width: '100%',
-                        mb: 3,
-                    }}>
-                        <Typography
-                            variant="h2"
-                            sx={{
-                                color: '#f5f0e3',
-                                fontWeight: 400,
-                                fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
-                                lineHeight: 1.6,
-                                maxWidth: '80%',
-                                textAlign: isHebrew ? 'right' : 'left',
-                                direction: isHebrew ? 'rtl' : 'ltr',
-                                px: { xs: 4, md: '9%' },
-                            }}
-                        >
-                            {isHebrew ? 'תמונות מקרוב' : 'Product Gallery'}
-                        </Typography>
-                    </Box>
-
-                    <Box
-                        ref={productGalleryScrollContainerRef}
-                        sx={{
-                            overflowX: 'auto',
-                            overflowY: 'hidden',
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': { display: 'none' },
-                            width: '100%',
-                            direction: isHebrew ? 'rtl' : 'ltr'
-                        }}
-                    >
-                        <Box sx={{
-                            display: 'flex',
-                            gap: 3,
-                            py: 1,
-                            alignItems: 'center',
-                            height: { xs: '320px', sm: '450px', md: '500px' }
-                        }}>
-                            {/* Spacer at start */}
-                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
-
-                            {productGalleryImages.map((imagePath, index) => (
-                                <Box key={`pg-${index}`} sx={{
-                                    flexShrink: 0,
-                                    height: '100%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                }}>
-                                    <img
-                                        src={imagePath}
-                                        alt={`${isHebrew ? 'תמונת מוצר' : 'Product image'} ${index + 1}`}
-                                        style={{
-                                            height: '100%',
-                                            width: 'auto',
-                                            objectFit: 'contain',
-                                            borderRadius: '8px',
-                                            display: 'block'
-                                        }}
-                                    />
-                                </Box>
-                            ))}
-
-                            {/* Spacer at end */}
-                            <Box sx={{ flexShrink: 0, width: { xs: '0px', md: '100px' }, height: '1px' }} />
-                        </Box>
-                    </Box>
-
-                    {/* Progress Indicator - exactly like video section */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <Box
-                            sx={{
-                                position: 'relative',
-                                width: '200px',
-                                height: '8px',
-                                backgroundColor: 'rgba(245, 240, 227, 0.3)',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                                if (productGalleryScrollContainerRef.current) {
-                                    const container = productGalleryScrollContainerRef.current;
-                                    const nextIndex = (currentProductGalleryIndex + 1) % productGalleryImages.length;
-                                    const targetChild = container.querySelectorAll('img')[nextIndex];
-                                    if (targetChild) {
-                                        targetChild.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                                    }
-                                }
-                            }}
-                        >
-                            <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: isHebrew ? 'auto' : 0,
-                                right: isHebrew ? 0 : 'auto',
-                                height: '100%',
-                                width: `calc(${productGalleryScrollProgress * 100}%)`,
-                                backgroundColor: '#f5f0e3',
-                                borderRadius: '4px',
-                                transition: 'width 0.1s ease-out'
-                            }} />
-                        </Box>
-                    </Box>
-                </Box>
-            )}
 
             {/* Kit Advantages Section */}
             <Box
                 ref={kitAdvantagesRef}
                 sx={{
-                    backgroundColor: '#162b26',
+                    backgroundColor: '#182f25',
                     py: 6
                 }}>
                 {/* Section Title */}
@@ -2310,7 +1289,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                     <Typography
                         variant="h2"
                         sx={{
-                            color: '#f5f0e3',
+                            color: '#f5efe3',
                             fontWeight: 400,
                             fontSize: { xs: '2rem', sm: '2.2rem', md: '2.4rem', lg: '2.6rem' },
                             lineHeight: 1.6,
@@ -2352,7 +1331,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             width: { xs: '280px', sm: '320px', md: '350px' },
                             height: { xs: '280px', sm: '320px', md: '350px' },
                             backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            border: `1px solid ${ACCENT_COLOR}`,
                             borderRadius: 2,
                             p: 3,
                             display: 'flex',
@@ -2362,7 +1341,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="h5"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.5rem', sm: '1.4rem', md: '1.5rem' },
                                     mb: 2,
@@ -2375,7 +1354,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="body1"
                                 sx={{
-                                    color: 'rgba(245, 240, 227, 0.9)',
+                                    color: 'rgba(245, 239, 227, 0.9)',
                                     fontSize: { xs: '1rem', sm: '1rem' },
                                     lineHeight: 1.4,
                                     textAlign: 'center',
@@ -2395,7 +1374,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             width: { xs: '280px', sm: '320px', md: '350px' },
                             height: { xs: '280px', sm: '320px', md: '350px' },
                             backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            border: `1px solid ${ACCENT_COLOR}`,
                             borderRadius: 2,
                             p: 3,
                             display: 'flex',
@@ -2405,7 +1384,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="h5"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.3rem', sm: '1.4rem', md: '1.5rem' },
                                     mb: 2,
@@ -2418,7 +1397,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="body1"
                                 sx={{
-                                    color: 'rgba(245, 240, 227, 0.9)',
+                                    color: 'rgba(245, 239, 227, 0.9)',
                                     fontSize: { xs: '0.9rem', sm: '1rem' },
                                     lineHeight: 1.4,
                                     textAlign: 'center',
@@ -2438,7 +1417,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             width: { xs: '280px', sm: '320px', md: '350px' },
                             height: { xs: '280px', sm: '320px', md: '350px' },
                             backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            border: `1px solid ${ACCENT_COLOR}`,
                             borderRadius: 2,
                             p: 3,
                             display: 'flex',
@@ -2448,7 +1427,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="h5"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.3rem', sm: '1.4rem', md: '1.5rem' },
                                     mb: 2,
@@ -2461,7 +1440,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="body1"
                                 sx={{
-                                    color: 'rgba(245, 240, 227, 0.9)',
+                                    color: 'rgba(245, 239, 227, 0.9)',
                                     fontSize: { xs: '0.9rem', sm: '1rem' },
                                     lineHeight: 1.4,
                                     textAlign: 'center',
@@ -2481,7 +1460,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             width: { xs: '280px', sm: '320px', md: '350px' },
                             height: { xs: '280px', sm: '320px', md: '350px' },
                             backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            border: `1px solid ${ACCENT_COLOR}`,
                             borderRadius: 2,
                             p: 3,
                             display: 'flex',
@@ -2491,7 +1470,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="h5"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.3rem', sm: '1.4rem', md: '1.5rem' },
                                     mb: 2,
@@ -2504,7 +1483,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="body1"
                                 sx={{
-                                    color: 'rgba(245, 240, 227, 0.9)',
+                                    color: 'rgba(245, 239, 227, 0.9)',
                                     fontSize: { xs: '0.9rem', sm: '1rem' },
                                     lineHeight: 1.4,
                                     textAlign: 'center',
@@ -2524,7 +1503,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             width: { xs: '280px', sm: '320px', md: '350px' },
                             height: { xs: '280px', sm: '320px', md: '350px' },
                             backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            border: `1px solid ${ACCENT_COLOR}`,
                             borderRadius: 2,
                             p: 3,
                             display: 'flex',
@@ -2534,7 +1513,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="h5"
                                 sx={{
-                                    color: '#f5f0e3',
+                                    color: '#f5efe3',
                                     fontWeight: 600,
                                     fontSize: { xs: '1.3rem', sm: '1.4rem', md: '1.5rem' },
                                     mb: 2,
@@ -2547,7 +1526,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             <Typography
                                 variant="body1"
                                 sx={{
-                                    color: 'rgba(245, 240, 227, 0.9)',
+                                    color: 'rgba(245, 239, 227, 0.9)',
                                     fontSize: { xs: '0.9rem', sm: '1rem' },
                                     lineHeight: 1.4,
                                     textAlign: 'center',
@@ -2573,7 +1552,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             position: 'relative',
                             width: '200px',
                             height: '8px',
-                            backgroundColor: 'rgba(245, 240, 227, 0.3)',
+                            backgroundColor: 'rgba(245, 239, 227, 0.3)',
                             borderRadius: '4px',
                             cursor: 'pointer'
                         }}
@@ -2595,7 +1574,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             right: isHebrew ? 0 : 'auto',
                             height: '100%',
                             width: `calc(${advantageScrollProgress * 100}%)`,
-                            backgroundColor: '#f5f0e3',
+                            backgroundColor: '#f5efe3',
                             borderRadius: '4px',
                             transition: 'width 0.1s ease-out'
                         }} />
@@ -2615,22 +1594,22 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                 onClick={handleAddToCart}
                                 disabled={!product || product.quantity <= 0}
                                 sx={{
-                                    backgroundColor: '#f5f0e3',
-                                    color: '#002144',
+                                    backgroundColor: '#f5efe3',
+                                    color: '#1d392d',
                                     width: '80%',
                                     maxWidth: '600px',
                                     padding: { xs: '16px 32px', sm: '20px 40px', md: '24px 48px' },
-                                    fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' },
+                                    fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.8rem' },
                                     fontWeight: 700,
                                     borderRadius: 2,
                                     boxShadow: '0 4px 16px rgba(241, 241, 238, 0.6)',
                                     transition: 'all 0.3s ease',
-                                    border: '2px solid #f5f0e3',
+                                    border: '2px solid #f5efe3',
                                     '&:hover': {
-                                        backgroundColor: '#f5f0e3',
-                                        color: 'rgba(69, 189, 205, 1)',
+                                        backgroundColor: '#f5efe3',
+                                        color: ACCENT_COLOR,
                                         transform: 'translateY(-4px)',
-                                        borderColor: 'rgba(69, 189, 205, 1)'
+                                        borderColor: ACCENT_COLOR
                                     },
                                     '&:disabled': {
                                         backgroundColor: '#666',
@@ -2640,10 +1619,37 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                     }
                                 }}
                             >
-                                {product && product.quantity > 0 ?
-                                    (isHebrew ? 'הוסף לסל' : 'Add to Cart') :
-                                    (isHebrew ? 'בקרוב' : 'Coming Soon')
-                                }
+                                {product && product.quantity > 0 ? (
+                                    <Box
+                                        component="span"
+                                        sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            direction: 'ltr'
+                                        }}
+                                    >
+                                        <Box component="span">
+                                            {isHebrew ? 'הוספה לסל' : 'Add to Cart'}
+                                        </Box>
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                width: 0,
+                                                alignSelf: 'stretch',
+                                                borderLeft: '2.5px solid currentColor',
+                                                opacity: 0.55,
+                                            }}
+                                        />
+                                        <PriceDisplay
+                                            pricing={computeProductPricing(product)}
+                                            format={(n) => `₪${Number.isInteger(n) ? n : n.toFixed(2)}`}
+                                            finalSx={{ color: 'inherit' }}
+                                        />
+                                    </Box>
+                                ) : (
+                                    isHebrew ? 'בקרוב' : 'Coming Soon'
+                                )}
                             </Button>
                         )}
                     </Box>
@@ -2671,8 +1677,8 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             onClick={() => onAddToCart && onAddToCart(product, selectedColor)}
                             disabled={!product || product.quantity <= 0}
                             sx={{
-                                backgroundColor: '#f5f0e3',
-                                color: '#002144',
+                                backgroundColor: '#f5efe3',
+                                color: '#1d392d',
                                 px: { xs: 4, md: 6 },
                                 py: { xs: 1.5, md: 2 },
                                 fontSize: { xs: '1.1rem', md: '1.3rem' },
@@ -2681,12 +1687,12 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                                 boxShadow: '0 4px 16px rgba(241, 241, 238, 0.6)',
                                 transition: 'all 0.3s ease',
                                 minWidth: { xs: '280px', md: '320px' },
-                                border: '2px solid #f5f0e3',
+                                border: '2px solid #f5efe3',
                                 '&:hover': {
-                                    backgroundColor: '#f5f0e3',
-                                    color: 'rgba(69, 189, 205, 1)',
+                                    backgroundColor: '#f5efe3',
+                                    color: ACCENT_COLOR,
                                     transform: 'translateY(-4px)',
-                                    borderColor: 'rgba(69, 189, 205, 1)'
+                                    borderColor: ACCENT_COLOR
                                 },
                                 '&:disabled': {
                                     backgroundColor: '#666',
@@ -2697,7 +1703,7 @@ export default function ThirdTempleProductPage({ onAddToCart }) {
                             }}
                         >
                             {product && product.quantity > 0 ?
-                                (isHebrew ? 'הוסף לסל' : 'Add to Cart') :
+                                (isHebrew ? 'הוספה לסל' : 'Add to Cart') :
                                 (isHebrew ? 'אזל מהמלאי' : 'Out of Stock')
                             }
                         </Button>

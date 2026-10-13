@@ -3,6 +3,7 @@ import { useParams, Navigate } from 'react-router-dom';
 import { fetchProductById, fetchProducts } from '../api/products';
 import ProductDetail from './ProductDetail';
 import MikdashProductPage from './MikdashProductPage';
+import ThirdTempleProductPage from './ThirdTempleProductPage';
 import ProductSeo from '../components/ProductSeo';
 import { Container, CircularProgress, Typography, Button } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
@@ -13,6 +14,7 @@ import {
     findProductBySlug,
     getProductPath,
     isMikdashProduct,
+    isThirdTempleProduct,
     isNumericProductParam
 } from '../utils/productSlug';
 
@@ -147,12 +149,15 @@ export default function ProductPageRouter({ onAddToCart }) {
     }
 
     const showMikdash = isMikdashProduct(product);
+    const showThirdTemple = isThirdTempleProduct(product);
 
     return (
         <>
             <ProductSeo product={product} allProducts={allProducts} />
             {showMikdash ? (
                 <MikdashProductPage product={product} onAddToCart={onAddToCart} />
+            ) : showThirdTemple ? (
+                <ThirdTempleProductPage product={product} onAddToCart={onAddToCart} />
             ) : (
                 <ProductDetail
                     product={product}

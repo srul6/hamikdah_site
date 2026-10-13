@@ -39,6 +39,16 @@ export function isMikdashProduct(product) {
     return he === 'המקדש' || en === 'the temple';
 }
 
+/**
+ * Third Temple product classification (data-driven, not URL-driven).
+ */
+export function isThirdTempleProduct(product) {
+    if (!product) return false;
+    const he = product.name_he && String(product.name_he).trim();
+    const en = product.name_en && String(product.name_en).trim().toLowerCase();
+    return he === 'בית המקדש השלישי' || en === 'the third temple';
+}
+
 function baseSlugForProduct(product) {
     if (!product) return '';
     return (
