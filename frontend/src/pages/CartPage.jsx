@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
     Container, Typography, Box, Button, Card, CardContent, CardMedia,
@@ -31,12 +31,16 @@ import { trackGa4BeginCheckout } from '../analytics/ga4Tracking';
 import { useGifts } from '../gifts/GiftContext';
 import GiftCartProductCards from '../gifts/GiftCartProductCards';
 import BannerSlot from '../banners/BannerSlot';
+import PriceDisplay from '../components/PriceDisplay';
+import { getCartLinePricing } from '../utils/productPricing';
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const { language, isHebrew } = useLanguage();
     const t = translations[language];
     const { ensureGiftsBeforeCheckout } = useGifts();
+    const [pricesChanged, setPricesChanged] = useState(() => !!location.state?.pricesChanged);
 
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -195,6 +199,15 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 <meta name="robots" content="noindex, follow" />
             </Helmet>
             <BannerSlot placement="cart" />
+            {pricesChanged && (
+                <Alert
+                    severity="info"
+                    onClose={() => setPricesChanged(false)}
+                    sx={{ mt: 8, mb: -4, mx: 'auto', maxWidth: 720, direction: isHebrew ? 'rtl' : 'ltr' }}
+                >
+                    {t.cartPricesUpdated}
+                </Alert>
+            )}
             <Typography variant="h3" gutterBottom sx={{
                 textAlign: 'center',
                 mt: 8,
@@ -284,7 +297,10 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         fontWeight: '500',
                                                         fontSize: { xs: '1.1rem', sm: '1.5rem' }
                                                     }}>
-                                                        ₪{Number(item.price || 0).toFixed(2)}
+                                                        <PriceDisplay
+                                                            pricing={getCartLinePricing(item)}
+                                                            finalSx={{ color: 'inherit', fontWeight: 600 }}
+                                                        />
                                                     </Typography>
 
                                                     {/* Product Name - Right side */}
@@ -367,7 +383,11 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                                                         <Typography variant="h6" color="#d8472a" fontWeight="bold" sx={{
                                                             fontSize: { xs: '1.1rem', sm: '1.5rem' }
                                                         }}>
-                                                            ₪{(Number(item.price || 0) * item.quantity).toFixed(2)}
+                                                            <PriceDisplay
+                                                                regularPrice={getCartLinePricing(item).regularPrice * item.quantity}
+                                                                finalPrice={getCartLinePricing(item).finalPrice * item.quantity}
+                                                                finalSx={{ color: 'inherit' }}
+                                                            />
                                                         </Typography>
                                                     </Box>
 

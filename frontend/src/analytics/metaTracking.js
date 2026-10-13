@@ -4,6 +4,7 @@
  */
 
 import { CATEGORY_IDS, hasConsent, bootstrapConsent } from '../consent/consentManager';
+import { computeProductPricing } from '../utils/productPricing';
 import {
     fbqTrack,
     isMetaPixelInitialized,
@@ -69,6 +70,7 @@ function productName(product) {
 
 function productPrice(product) {
     if (!product) return 0;
+    if (product.discount_enabled !== undefined) return computeProductPricing(product).finalPrice;
     return toNumber(product.price);
 }
 

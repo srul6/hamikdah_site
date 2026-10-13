@@ -41,6 +41,26 @@ function ensureOrdersConversionSchema() {
     return ordersConversionSchemaReady;
 }
 
+let productDiscountSchemaReady = null;
+
+/** Product discount columns (idempotent). `price` stays the regular price. */
+function ensureProductDiscountSchema() {
+    if (!productDiscountSchemaReady) {
+        productDiscountSchemaReady = (async () => {
+            await pool.query(`
+                ALTER TABLE products
+                    ADD COLUMN IF NOT EXISTS discount_enabled BOOLEAN NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS discount_type TEXT,
+                    ADD COLUMN IF NOT EXISTS discount_value NUMERIC(10, 2);
+            `);
+        })().catch((err) => {
+            productDiscountSchemaReady = null;
+            throw err;
+        });
+    }
+    return productDiscountSchemaReady;
+}
+
 function normalizeCheckoutSessionId(value) {
     if (value == null || value === '') return null;
     return String(value);
@@ -148,6 +168,7 @@ class DatabaseController {
 
     async getAllProducts() {
         try {
+            await ensureProductDiscountSchema();
             const result = await pool.query(
                 'SELECT * FROM products ORDER BY id ASC'
             );
@@ -175,6 +196,7 @@ class DatabaseController {
                 throw new Error(`Invalid product ID: ${id}`);
             }
 
+            await ensureProductDiscountSchema();
             const result = await pool.query(
                 'SELECT * FROM products WHERE id = $1',
                 [numericId]
@@ -199,13 +221,15 @@ class DatabaseController {
             const desktopHeroImages = desktopHeroImagesArr.length ? JSON.stringify(desktopHeroImagesArr) : null;
             const extraImages = extraImagesArr.length ? JSON.stringify(extraImagesArr) : null;
 
+            await ensureProductDiscountSchema();
             const result = await pool.query(
                 `INSERT INTO products (
                     name_he, name_en, description_he, description_en, 
                     price, quantity, homepageimage, extraimages,
                     buildingtime, pieces, height, length, width,
-                    recommendedage, children_playing, desktop_hero_images, colors
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                    recommendedage, children_playing, desktop_hero_images, colors,
+                    discount_enabled, discount_type, discount_value
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
                 RETURNING *`,
                 [
                     productData.name_he || null,
@@ -224,7 +248,10 @@ class DatabaseController {
                     (productData.recommendedage ?? productData.recommendedAge) || null,
                     childrenPlaying || null,
                     desktopHeroImages || null,
-                    JSON.stringify(normalizeColorsForDb(productData.colors || []))
+                    JSON.stringify(normalizeColorsForDb(productData.colors || [])),
+                    productData.discount_enabled === true,
+                    productData.discount_type || null,
+                    productData.discount_value ?? null
                 ]
             );
             return result.rows[0];
@@ -263,6 +290,9 @@ class DatabaseController {
                 'children_playing',
                 'desktop_hero_images',
                 'colors',
+                'discount_enabled',
+                'discount_type',
+                'discount_value',
                 // camelCase variants used by API/frontend
                 'buildingTime',
                 'recommendedAge',
@@ -305,6 +335,7 @@ class DatabaseController {
                 throw new Error('No fields to update');
             }
 
+            await ensureProductDiscountSchema();
             values.push(id);
             const query = `UPDATE products SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
 

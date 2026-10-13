@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { getImageUrl } from '../utils/imageUtils';
 import { getProductPath } from '../utils/productSlug';
 import { SITE_URL } from '../config';
+import { computeProductPricing } from '../utils/productPricing';
 
 function upsertMeta(attr, key, content) {
     if (typeof document === 'undefined' || content == null || content === '') return null;
@@ -82,7 +83,7 @@ export default function ProductSeo({ product, allProducts = null }) {
         upsertMeta('name', 'twitter:description', description);
         upsertMeta('name', 'twitter:image', absoluteImage);
 
-        const price = product.price != null ? Number(product.price) : undefined;
+        const price = product.price != null ? computeProductPricing(product).finalPrice : undefined;
         const jsonLd = {
             '@context': 'https://schema.org',
             '@type': 'Product',

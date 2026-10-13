@@ -126,12 +126,15 @@ function sanitizeOneLineItem(item, index) {
         return { errors, item: null };
     }
 
+    const regularPrice = parseFloat(item.regular_price);
+
     return {
         errors: [],
         item: {
             id,
             quantity,
             price,
+            ...(Number.isFinite(regularPrice) && regularPrice > price ? { regular_price: regularPrice } : {}),
             name_he: sanitizeOptionalString(item.name_he, LIMITS.productName),
             name_en: sanitizeOptionalString(item.name_en, LIMITS.productName),
             name: sanitizeOptionalString(item.name, LIMITS.productName),

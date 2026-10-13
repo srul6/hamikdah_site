@@ -7,6 +7,7 @@
 import { CATEGORY_IDS, hasConsent, bootstrapConsent } from '../consent/consentManager';
 import { isGtmLoaded } from '../consent/providers/gtm';
 import { isBrowserDebugEnabled } from '../utils/debug';
+import { computeProductPricing } from '../utils/productPricing';
 
 const CURRENCY = 'ILS';
 const PURCHASE_STORAGE_PREFIX = 'ga4_purchase_';
@@ -94,6 +95,7 @@ function productName(product) {
 
 function productPrice(product) {
     if (!product) return 0;
+    if (product.discount_enabled !== undefined) return computeProductPricing(product).finalPrice;
     return toNumber(product.price ?? product.item_price);
 }
 

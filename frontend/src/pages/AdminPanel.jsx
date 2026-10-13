@@ -3,7 +3,7 @@ import {
   Container, Typography, Box, TextField, Button, Grid, Card, CardContent,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Alert, Paper,
   Tabs, Tab, MenuItem, Chip, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TablePagination
+  TableHead, TableRow, TablePagination, Switch, FormControlLabel
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -27,6 +27,8 @@ import VideoUploader from '../components/VideoUploader';
 import { fetchComments, createComment, updateComment, deleteComment } from '../api/comments';
 import { fetchOrders, deleteOrder } from '../api/orders';
 import { setCookie, getCookie, deleteCookie } from '../utils/cookieManager';
+import { computeProductPricing, validateDiscountSettings } from '../utils/productPricing';
+import PriceDisplay from '../components/PriceDisplay';
 import * as XLSX from 'xlsx';
 
 export default function AdminPanel() {
@@ -64,7 +66,10 @@ export default function AdminPanel() {
     recommendedAge: '',
     children_playing: [],
     desktop_hero_images: [],
-    colors: []
+    colors: [],
+    discount_enabled: false,
+    discount_type: 'percentage',
+    discount_value: ''
   });
 
   const [commentFormData, setCommentFormData] = useState({
@@ -275,6 +280,12 @@ export default function AdminPanel() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const discountError = validateDiscountSettings(formData);
+    if (discountError) {
+      alert(discountError);
+      return;
+    }
+
     const productData = {
       name_he: formData.name_he,
       name_en: formData.name_en,
@@ -300,7 +311,10 @@ export default function AdminPanel() {
         : formData.desktop_hero_images
           ? formData.desktop_hero_images.split(',').map(s => s.trim()).filter(Boolean)
           : [],
-      colors: formData.colors || []
+      colors: formData.colors || [],
+      discount_enabled: !!formData.discount_enabled,
+      discount_type: formData.discount_type || null,
+      discount_value: formData.discount_value === '' ? null : parseFloat(formData.discount_value)
     };
 
     try {
@@ -326,7 +340,8 @@ export default function AdminPanel() {
         fetchProducts();
         alert(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
       } else {
-        alert('Error saving product');
+        const data = await response.json().catch(() => ({}));
+        alert(data.error ? `Error saving product: ${data.error}` : 'Error saving product');
       }
     } catch (error) {
       console.error('Error saving product:', error);
@@ -354,7 +369,10 @@ export default function AdminPanel() {
       // API returns `childrenPlaying` / `desktopHeroImages`; older DB fields were `children_playing` / `desktop_hero_images`
       children_playing: normalizeMediaList(product.childrenPlaying ?? product.children_playing),
       desktop_hero_images: normalizeMediaList(product.desktopHeroImages ?? product.desktop_hero_images),
-      colors: product.colors || []
+      colors: product.colors || [],
+      discount_enabled: !!product.discount_enabled,
+      discount_type: product.discount_type || 'percentage',
+      discount_value: product.discount_value ? String(product.discount_value) : ''
     });
     setIsDialogOpen(true);
   };
@@ -404,7 +422,10 @@ export default function AdminPanel() {
       recommendedAge: '',
       children_playing: [],
       desktop_hero_images: [],
-      colors: []
+      colors: [],
+      discount_enabled: false,
+      discount_type: 'percentage',
+      discount_value: ''
     });
   };
 
@@ -909,9 +930,20 @@ export default function AdminPanel() {
                     </Box>
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#0071e3' }}>
-                        ₪{product.price}
-                      </Typography>
+                      <Box>
+                        <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: '#0071e3' }}>
+                          <PriceDisplay pricing={computeProductPricing(product)} />
+                        </Typography>
+                        {computeProductPricing(product).hasDiscount && (
+                          <Chip
+                            size="small"
+                            color="warning"
+                            label={product.discount_type === 'percentage'
+                              ? `${Number(product.discount_value)}% off`
+                              : `₪${Number(product.discount_value).toFixed(2)} off`}
+                          />
+                        )}
+                      </Box>
                       <Typography
                         variant="body2"
                         sx={{
@@ -1450,6 +1482,72 @@ export default function AdminPanel() {
                     required
                     helperText="Number of items in stock"
                   />
+                </Grid>
+                <Grid item xs={12}>
+                  {(() => {
+                    const discountError = validateDiscountSettings(formData);
+                    const preview = computeProductPricing(formData);
+                    const isPercentage = formData.discount_type === 'percentage';
+                    return (
+                      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            Discount
+                          </Typography>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={!!formData.discount_enabled}
+                                onChange={(e) => handleInputChange('discount_enabled', e.target.checked)}
+                              />
+                            }
+                            label={formData.discount_enabled ? 'Enabled' : 'Disabled'}
+                          />
+                        </Box>
+                        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                          <Grid item xs={12} sm={4}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Discount type"
+                              value={formData.discount_type || 'percentage'}
+                              onChange={(e) => handleInputChange('discount_type', e.target.value)}
+                              disabled={!formData.discount_enabled}
+                            >
+                              <MenuItem value="percentage">Percentage (%)</MenuItem>
+                              <MenuItem value="fixed">Fixed amount (₪)</MenuItem>
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <TextField
+                              fullWidth
+                              label={isPercentage ? 'Discount (%)' : 'Discount (₪)'}
+                              type="number"
+                              value={formData.discount_value}
+                              onChange={(e) => handleInputChange('discount_value', e.target.value)}
+                              disabled={!formData.discount_enabled}
+                              inputProps={{ min: 0, step: isPercentage ? 1 : 0.01, max: isPercentage ? 99.99 : undefined }}
+                              error={!!formData.discount_enabled && !!discountError}
+                              helperText={formData.discount_enabled ? (discountError || ' ') : 'Settings are kept while disabled'}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={4} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Customer pays
+                            </Typography>
+                            <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                              <PriceDisplay pricing={preview} />
+                            </Typography>
+                            {preview.hasDiscount && (
+                              <Typography variant="caption" color="text.secondary">
+                                Saves ₪{preview.discountAmount.toFixed(2)}
+                              </Typography>
+                            )}
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    );
+                  })()}
                 </Grid>
                 {/* Show product images in Basic Information only when there are no color variations */}
                 {(!formData.colors || formData.colors.length === 0) && (
@@ -2062,6 +2160,9 @@ export default function AdminPanel() {
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Quantity: {item.quantity || 1} × {item.price} {selectedOrder.currency}
+                          {item.regular_price != null && Number(item.regular_price) > Number(item.price) && (
+                            <> (regular {item.regular_price} {selectedOrder.currency}, discounted)</>
+                          )}
                         </Typography>
                         {item.id && (
                           <Typography variant="caption" color="text.secondary">

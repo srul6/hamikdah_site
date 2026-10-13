@@ -4,7 +4,6 @@ import {
     DialogTitle,
     DialogContent,
     Typography,
-    Button,
     IconButton,
     Box
 } from '@mui/material';
@@ -29,6 +28,24 @@ function Ornament() {
             }}
         />
     );
+}
+
+export const MAX_BANNER_TEXT_LINES = 3;
+
+/**
+ * Banner text lines are stored newline-separated in body_text.
+ * Older banners with more lines than the max get the remainder merged into the last line.
+ */
+export function bannerTextLines(body) {
+    const lines = String(body || '')
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+    if (lines.length <= MAX_BANNER_TEXT_LINES) return lines;
+    return [
+        ...lines.slice(0, MAX_BANNER_TEXT_LINES - 1),
+        lines.slice(MAX_BANNER_TEXT_LINES - 1).join(' ')
+    ];
 }
 
 function sessionKey(placement) {
@@ -123,11 +140,10 @@ export default function BannerSlot({ placement }) {
         .filter(Boolean);
     const heroSrc = images[0] || '';
     const title = banner.title || '';
-    const body = banner.bodyText || banner.body_text || '';
-    const buttonText = banner.buttonText || banner.button_text || '';
-    const buttonLink = banner.buttonLink || banner.button_link || '';
-    const showButton = String(buttonText).trim() && String(buttonLink).trim();
-    const isInternal = String(buttonLink).startsWith('/');
+    const textLines = bannerTextLines(banner.bodyText || banner.body_text || '');
+    const buttonText = String(banner.buttonText || banner.button_text || '').trim();
+    const buttonLink = String(banner.buttonLink || banner.button_link || '').trim();
+    const isInternal = buttonLink.startsWith('/');
 
     return (
         <Dialog
@@ -144,7 +160,7 @@ export default function BannerSlot({ placement }) {
                     borderRadius: 3,
                     backgroundColor: '#f5f0e3',
                     p: 0,
-                    m: 2,
+                    m: 5,
                     overflow: 'hidden'
                 }
             }}
@@ -189,7 +205,7 @@ export default function BannerSlot({ placement }) {
                         justifyContent: 'center',
                         gap: 1,
                         pt: { xs: 2.5, sm: 3 },
-                        pb: 1.5,
+                        pb: { xs: 2, sm: 2.25 },
                         px: { xs: 2, sm: 2.5 },
                         color: '#002144',
                         fontWeight: 700,
@@ -214,50 +230,85 @@ export default function BannerSlot({ placement }) {
                     textAlign: 'center',
                     justifyContent: 'flex-start',
                     pt: title ? 0.5 : { xs: 2.5, sm: 3 },
-                    pb: 2.5,
-                    px: { xs: 2, sm: 2.5 },
+                    pb: { xs: 2.5, sm: 3 },
+                    px: { xs: 2, sm: 3 },
                     overflow: 'visible'
                 }}
             >
-                {body ? (
-                    <Typography
+                {textLines.length > 0 ? (
+                    <Box
                         sx={{
-                            color: '#444',
-                            lineHeight: 1.55,
-                            fontSize: '0.98rem',
-                            textAlign: 'center',
-                            maxWidth: 280,
-                            mb: showButton ? 2 : 0
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
+                            gap: { xs: 2, sm: 2 },
+                            width: '100%',
+                            maxWidth: 300,
+                            mx: 'auto'
                         }}
                     >
-                        {body}
-                    </Typography>
+                        {textLines.map((line, i) => (
+                            <Box
+                                key={i}
+                                component="p"
+                                sx={{
+                                    m: 0,
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: '#d8472a',
+                                    color: '#f5f0e3',
+                                    fontWeight: 400,
+                                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                                    lineHeight: 1.2,
+                                    px: { xs: 1.5, sm: 2 },
+                                    py: { xs: 1.5, sm: 1.5 },
+                                    borderRadius: '0px',
+                                    textAlign: 'center',
+                                    overflowWrap: 'anywhere',
+                                    boxShadow: '0 2px 6px rgba(216, 71, 42, 0.18)'
+                                }}
+                            >
+                                {line}
+                            </Box>
+                        ))}
+                    </Box>
                 ) : null}
 
-                {showButton ? (
-                    <Button
-                        component={isInternal ? RouterLink : 'a'}
-                        to={isInternal ? buttonLink : undefined}
-                        href={!isInternal ? buttonLink : undefined}
-                        target={!isInternal ? '_blank' : undefined}
-                        rel={!isInternal ? 'noopener noreferrer' : undefined}
-                        onClick={dismiss}
-                        variant="contained"
-                        fullWidth
+                {buttonText ? (
+                    <Typography
+                        {...(buttonLink
+                            ? {
+                                component: isInternal ? RouterLink : 'a',
+                                to: isInternal ? buttonLink : undefined,
+                                href: !isInternal ? buttonLink : undefined,
+                                target: !isInternal ? '_blank' : undefined,
+                                rel: !isInternal ? 'noopener noreferrer' : undefined,
+                                onClick: dismiss
+                            }
+                            : {})}
                         sx={{
-                            backgroundColor: '#d8472a',
-                            color: '#f5f0e3',
-                            fontWeight: 700,
-                            py: 1.1,
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            '&:hover': { backgroundColor: '#c03d24' }
+                            display: 'block',
+                            mt: textLines.length > 0 ? { xs: 2.25, sm: 2.5 } : 0,
+                            color: '#6b5f4f',
+                            fontSize: { xs: '0.78rem', sm: '0.82rem' },
+                            fontWeight: 500,
+                            lineHeight: 1.4,
+                            textAlign: 'center',
+                            textDecoration: 'none',
+                            ...(buttonLink && {
+                                cursor: 'pointer',
+                                '&:hover': { color: '#d8472a', textDecoration: 'underline' }
+                            })
                         }}
                     >
                         {buttonText}
-                    </Button>
+                    </Typography>
                 ) : null}
             </DialogContent>
+            <Box aria-hidden sx={{ height: { xs: 6, sm: 8 }, backgroundColor: '#d8472a', flexShrink: 0 }} />
         </Dialog>
     );
 }

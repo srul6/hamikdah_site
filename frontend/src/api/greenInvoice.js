@@ -27,7 +27,9 @@ export const getPaymentForm = async (items, totalAmount, customerInfo, marketing
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to create payment form');
+            const err = new Error(errorData.message || 'Failed to create payment form');
+            err.code = errorData.error;
+            throw err;
         }
 
         return await response.json();

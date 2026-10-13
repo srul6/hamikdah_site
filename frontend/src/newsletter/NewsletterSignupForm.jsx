@@ -609,13 +609,10 @@ export default function NewsletterSignupForm({
                             sx={{
                                 width: '100%',
                                 display: 'flex',
-                                // Button beside the last field (desktop + mobile) — never
-                                // a full-width control under the whole field stack.
-                                flexDirection: 'row-reverse',
-                                gap: useUnderlineMobile ? { xs: 1, sm: 1.25 } : 1.25,
-                                alignItems: useUnderlineMobile
-                                    ? { xs: 'flex-end', sm: 'flex-start' }
-                                    : 'flex-start',
+                                // Desktop: button beside the last field. Mobile: button below all fields.
+                                flexDirection: { xs: 'column', sm: 'row-reverse' },
+                                gap: { xs: 1, sm: 1.25 },
+                                alignItems: { xs: 'stretch', sm: 'flex-start' },
                                 direction: 'ltr'
                             }}
                         >

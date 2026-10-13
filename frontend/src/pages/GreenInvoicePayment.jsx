@@ -23,6 +23,8 @@ import {
 } from '../utils/cookieManager';
 import DOMPurify from 'dompurify';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
+import { getCartLinePricing } from '../utils/productPricing';
+import PriceDisplay from '../components/PriceDisplay';
 import {
     trackGa4AddPaymentInfo,
     savePendingGa4Purchase
@@ -45,7 +47,7 @@ const FIELD_MAX_LEN = {
 export default function GreenInvoicePayment() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { cart: contextCart, isLoading: cartLoading } = useCart();
+    const { cart: contextCart, isLoading: cartLoading, refreshCartPrices } = useCart();
     const { ensureGiftsBeforeCheckout, getFlattenedSelections, giftSelections, promotions } = useGifts();
     const locationState = location.state || {};
     const {
@@ -363,6 +365,11 @@ export default function GreenInvoicePayment() {
             }
         } catch (error) {
             console.error('Payment form error:', error);
+            if (error.code === 'prices_changed') {
+                await refreshCartPrices();
+                navigate('/cart', { replace: true, state: { pricesChanged: true } });
+                return;
+            }
             setError(error.message || t.paymentFailed);
         } finally {
             setIsLoading(false);
@@ -1332,7 +1339,10 @@ export default function GreenInvoicePayment() {
                                         direction: 'ltr'
                                     }}
                                 >
-                                    ₪{(Number(item.price || 0) * item.quantity).toFixed(2)}
+                                    <PriceDisplay
+                                        regularPrice={getCartLinePricing(item).regularPrice * item.quantity}
+                                        finalPrice={getCartLinePricing(item).finalPrice * item.quantity}
+                                    />
                                 </Typography>
                             </Box>
                         ))}

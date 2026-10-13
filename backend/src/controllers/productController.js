@@ -1,6 +1,48 @@
 // backend/src/controllers/productController.js
 const { databaseController } = require('../config/database');
 const { getStorageUrl, getStorageUrls } = require('../utils/storageUtils');
+const { computeProductPricing, validateDiscountSettings } = require('../utils/productPricing');
+
+/**
+ * Attach normalized discount fields + server-computed pricing.
+ * `price` remains the regular price; `finalPrice` is what the customer pays.
+ */
+function withPricing(product) {
+    const pricing = computeProductPricing(product);
+    return {
+        ...product,
+        price: pricing.regularPrice,
+        discount_enabled: pricing.discountEnabled,
+        discount_type: pricing.discountType,
+        discount_value: pricing.discountValue,
+        regularPrice: pricing.regularPrice,
+        finalPrice: pricing.finalPrice,
+        discountAmount: pricing.discountAmount,
+        hasDiscount: pricing.hasDiscount
+    };
+}
+
+const DISCOUNT_KEYS = ['discount_enabled', 'discount_type', 'discount_value'];
+
+/**
+ * Validate discount fields in a create/update body, merged with the existing row (for updates).
+ * Mutates nothing; returns sanitized discount values to persist, or an error.
+ */
+function resolveDiscountUpdate(body, existing) {
+    const touchesDiscount = DISCOUNT_KEYS.some((k) => body[k] !== undefined);
+    const touchesPrice = body.price !== undefined;
+    if (!touchesDiscount && !touchesPrice) return { ok: true, values: null };
+
+    const merged = {
+        price: touchesPrice ? body.price : existing?.price,
+        discount_enabled: body.discount_enabled !== undefined ? body.discount_enabled : existing?.discount_enabled,
+        discount_type: body.discount_type !== undefined ? body.discount_type : existing?.discount_type,
+        discount_value: body.discount_value !== undefined ? body.discount_value : existing?.discount_value
+    };
+    const result = validateDiscountSettings(merged);
+    if (!result.ok) return result;
+    return { ok: true, values: touchesDiscount ? result.values : null };
+}
 
 /**
  * Normalize a "media list" field the same way as `extraimages`:
@@ -90,7 +132,7 @@ exports.getAllProducts = async (req, res) => {
                 childrenPlaying: getStorageUrls(childrenPlayingArray),
                 desktopHeroImages: getStorageUrls(desktopHeroImagesArray)
             };
-            return normalizeProductColors(productWithUrls);
+            return withPricing(normalizeProductColors(productWithUrls));
         });
 
         res.json(productsWithImageUrls);
@@ -127,7 +169,7 @@ exports.getProductById = async (req, res) => {
                 childrenPlaying: getStorageUrls(childrenPlayingArray),
                 desktopHeroImages: getStorageUrls(desktopHeroImagesArray)
             });
-            res.json(productWithImageUrls);
+            res.json(withPricing(productWithImageUrls));
         } else {
             res.status(404).json({ error: 'Product not found' });
         }
@@ -146,8 +188,15 @@ exports.getProductById = async (req, res) => {
 // Create new product
 exports.createProduct = async (req, res) => {
     try {
-        const newProduct = await databaseController.createProduct(req.body);
-        res.status(201).json(newProduct);
+        const discount = resolveDiscountUpdate(req.body || {}, null);
+        if (!discount.ok) {
+            return res.status(400).json({ error: discount.error });
+        }
+        const newProduct = await databaseController.createProduct({
+            ...req.body,
+            ...(discount.values || {})
+        });
+        res.status(201).json(withPricing(newProduct));
     } catch (error) {
         console.error('Error creating product:', error);
         console.error('Error details:', error.message, error.details, error.hint);
@@ -158,7 +207,19 @@ exports.createProduct = async (req, res) => {
 // Update product
 exports.updateProduct = async (req, res) => {
     try {
-        const updatedProduct = await databaseController.updateProduct(req.params.id, req.body);
+        const body = req.body || {};
+        const existing = await databaseController.getProductById(req.params.id);
+        if (!existing) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        const discount = resolveDiscountUpdate(body, existing);
+        if (!discount.ok) {
+            return res.status(400).json({ error: discount.error });
+        }
+        const updatedProduct = await databaseController.updateProduct(req.params.id, {
+            ...body,
+            ...(discount.values || {})
+        });
         if (updatedProduct) {
             const childrenPlayingArray = normalizeMediaList(updatedProduct.children_playing);
             const desktopHeroImagesArray = normalizeMediaList(updatedProduct.desktop_hero_images);
@@ -179,7 +240,7 @@ exports.updateProduct = async (req, res) => {
                 desktopHeroImages: getStorageUrls(desktopHeroImagesArray)
             });
 
-            res.json(productWithImageUrls);
+            res.json(withPricing(productWithImageUrls));
         } else {
             res.status(404).json({ error: 'Product not found' });
         }

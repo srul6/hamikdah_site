@@ -12,6 +12,8 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchProducts } from '../api/products';
+import PriceDisplay from './PriceDisplay';
+import { getCartLinePricing } from '../utils/productPricing';
 import { useNewsletter } from '../newsletter/NewsletterContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -911,7 +913,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                                     </Typography>
 
                                                     <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
-                                                        ₪{Number(item.price || 0).toFixed(2)}
+                                                        <PriceDisplay pricing={getCartLinePricing(item)} />
                                                     </Typography>
 
                                                     {/* Quantity Controls */}

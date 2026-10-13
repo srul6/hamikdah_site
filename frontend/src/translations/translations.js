@@ -147,6 +147,7 @@ export const translations = {
         quantity: 'כמות',
         price: 'מחיר',
         shoppingCart: 'עגלת קניות',
+        cartPricesUpdated: 'חלק מהמחירים בעגלה עודכנו. אנא בדקו את העגלה לפני המעבר לתשלום.',
         orderSummary: 'סיכום הזמנה',
         couponCode: 'קוד קופון',
         enterCouponCode: 'יש לך קופון?',
@@ -543,6 +544,7 @@ export const translations = {
 
         // Cart Page
         shoppingCart: 'Shopping Cart',
+        cartPricesUpdated: 'Some prices in your cart were updated. Please review your cart before checkout.',
         continueShopping: 'Continue Shopping',
         continueToPayment: 'Continue to Payment',
         total: 'Total',

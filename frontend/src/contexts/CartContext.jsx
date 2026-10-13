@@ -1,5 +1,24 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { saveCartToCookie, getCartFromCookie, clearCartCookie } from '../utils/cookieManager';
+import { fetchProducts } from '../api/products';
+import { cartPriceFieldsFromProduct, stripDiscountConfig } from '../utils/productPricing';
+
+/** Re-price cart lines from the catalog; returns the same array when nothing changed. */
+function repriceCart(cart, products) {
+    const byId = new Map((products || []).map((p) => [String(p.id), p]));
+    let changed = false;
+    const next = cart.map((item) => {
+        const product = byId.get(String(item.id));
+        if (!product) return item;
+        const fields = cartPriceFieldsFromProduct(product);
+        if (Number(item.price) === fields.price && Number(item.regularPrice) === fields.regularPrice) {
+            return item;
+        }
+        changed = true;
+        return { ...stripDiscountConfig(item), ...fields };
+    });
+    return changed ? next : cart;
+}
 
 const CartContext = createContext();
 
@@ -15,6 +34,8 @@ export function CartProvider({ children }) {
     // Initialize cart from cookies on mount
     const [cart, setCart] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const cartRef = useRef(cart);
+    cartRef.current = cart;
 
     // Load cart from cookies on mount
     useEffect(() => {
@@ -24,6 +45,19 @@ export function CartProvider({ children }) {
         }
         setIsLoading(false);
     }, []);
+
+    // Cookie prices may be stale (price or discount changed since adding) — sync with the catalog
+    const refreshCartPrices = useCallback(async () => {
+        const products = await fetchProducts();
+        if (!products.length) return false;
+        const changed = repriceCart(cartRef.current, products) !== cartRef.current;
+        setCart((prev) => repriceCart(prev, products));
+        return changed;
+    }, []);
+
+    useEffect(() => {
+        if (!isLoading) refreshCartPrices();
+    }, [isLoading, refreshCartPrices]);
 
     // Save cart to cookies whenever it changes
     useEffect(() => {
@@ -35,6 +69,7 @@ export function CartProvider({ children }) {
                 selectedColor: item.selectedColor,
                 uniqueId: item.uniqueId,
                 price: item.price,
+                regularPrice: item.regularPrice,
                 name_he: item.name_he,
                 name_en: item.name_en,
                 homepageimage: item.homepageimage,
@@ -51,6 +86,7 @@ export function CartProvider({ children }) {
             // Create uniqueId (compatible with existing code)
             const colorId = selectedColor ? selectedColor.name || selectedColor.name_en : null;
             const uniqueId = colorId ? `${product.id}-${colorId}` : product.id;
+            const priceFields = cartPriceFieldsFromProduct(product);
 
             // Check if item already exists in cart
             const existingIndex = prevCart.findIndex(item =>
@@ -62,13 +98,15 @@ export function CartProvider({ children }) {
                 const newCart = [...prevCart];
                 newCart[existingIndex] = {
                     ...newCart[existingIndex],
+                    ...priceFields,
                     quantity: newCart[existingIndex].quantity + quantity
                 };
                 return newCart;
             } else {
                 // Add new item with all necessary fields
                 const newItem = {
-                    ...product,
+                    ...stripDiscountConfig(product),
+                    ...priceFields,
                     quantity: quantity,
                     selectedColor: selectedColor,
                     uniqueId: uniqueId,
@@ -147,7 +185,8 @@ export function CartProvider({ children }) {
         getCartTotal,
         getCartItemCount,
         isInCart,
-        getCartItem
+        getCartItem,
+        refreshCartPrices
     }), [
         cart,
         isLoading,
@@ -158,7 +197,8 @@ export function CartProvider({ children }) {
         getCartTotal,
         getCartItemCount,
         isInCart,
-        getCartItem
+        getCartItem,
+        refreshCartPrices
     ]);
 
     return (

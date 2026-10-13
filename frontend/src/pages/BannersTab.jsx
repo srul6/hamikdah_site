@@ -10,6 +10,12 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { API_ENDPOINTS } from '../config';
 import ImageUploader from '../components/ImageUploader';
+import { bannerTextLines, MAX_BANNER_TEXT_LINES } from '../banners/BannerSlot';
+
+function toLineFields(body) {
+  const lines = bannerTextLines(body);
+  return Array.from({ length: MAX_BANNER_TEXT_LINES }, (_, i) => lines[i] || '');
+}
 
 const PLACEMENTS = [
   { value: 'site_entry', label: 'Site entry' },
@@ -20,7 +26,7 @@ const PLACEMENTS = [
 function emptyForm() {
   return {
     title: '',
-    bodyText: '',
+    textLines: toLineFields(''),
     buttonText: '',
     buttonLink: '',
     placement: 'site_entry',
@@ -68,7 +74,7 @@ export default function BannersTab() {
     setEditing(b);
     setForm({
       title: b.title || '',
-      bodyText: b.bodyText || b.body_text || '',
+      textLines: toLineFields(b.bodyText || b.body_text || ''),
       buttonText: b.buttonText || b.button_text || '',
       buttonLink: b.buttonLink || b.button_link || '',
       placement: b.placement,
@@ -87,7 +93,7 @@ export default function BannersTab() {
     try {
       const payload = {
         title: form.title,
-        bodyText: form.bodyText,
+        bodyText: form.textLines.map((l) => l.trim()).filter(Boolean).join('\n'),
         buttonText: form.buttonText,
         buttonLink: form.buttonLink,
         placement: form.placement,
@@ -172,13 +178,26 @@ export default function BannersTab() {
             {PLACEMENTS.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
           </TextField>
           <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} fullWidth />
-          <TextField label="Body" value={form.bodyText} multiline minRows={2}
-            onChange={(e) => setForm({ ...form, bodyText: e.target.value })} fullWidth />
+          {form.textLines.map((line, i) => (
+            <TextField
+              key={i}
+              label={`Text line ${i + 1}`}
+              value={line}
+              onChange={(e) => {
+                const textLines = [...form.textLines];
+                textLines[i] = e.target.value.replace(/\r?\n/g, ' ');
+                setForm({ ...form, textLines });
+              }}
+              fullWidth
+              helperText={i === 0 ? 'Each line is shown in its own orange box. Leave empty to skip.' : undefined}
+            />
+          ))}
           <TextField label="Button text" value={form.buttonText}
-            onChange={(e) => setForm({ ...form, buttonText: e.target.value })} fullWidth />
+            onChange={(e) => setForm({ ...form, buttonText: e.target.value })} fullWidth
+            helperText="Small text shown at the bottom of the banner (no background)" />
           <TextField label="Button link" value={form.buttonLink}
             onChange={(e) => setForm({ ...form, buttonLink: e.target.value })} fullWidth
-            helperText="Leave empty to hide button" />
+            helperText="Optional — makes the bottom text clickable (e.g. /cart or https://…)" />
           <TextField label="Sort order" type="number" value={form.sortOrder}
             onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} fullWidth />
           <Box sx={{ display: 'flex', gap: 2 }}>

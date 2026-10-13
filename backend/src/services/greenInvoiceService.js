@@ -5,6 +5,48 @@ const logDetails = process.env.NODE_ENV === 'production' ? false : true;
 
 const PRODUCTION_BASE_URL = 'https://api.greeninvoice.co.il/api/v1';
 const SANDBOX_BASE_URL = 'https://sandbox.d.greeninvoice.co.il/api/v1';
+const PRODUCTION_IDP_URL = 'https://api.morning.co';
+const SANDBOX_IDP_URL = 'https://api.sandbox.morning.dev';
+
+/**
+ * Log a failed token request. Status and OAuth error code/description are logged in all
+ * environments; full response bodies only outside production. Never logs credentials or tokens.
+ */
+function logTokenError(method, error) {
+    console.error(`Failed to get GreenInvoice token (${method}):`, error?.message || error);
+    const res = error?.response;
+    if (!res) return;
+    const data = res.data && typeof res.data === 'object' ? res.data : {};
+    console.error(`GreenInvoice ${method} token error:`, {
+        status: res.status,
+        ...(data.error ? { error: data.error } : {}),
+        ...(data.error_description ? { error_description: data.error_description } : {})
+    });
+    if (logDetails) {
+        console.error(`GreenInvoice ${method} token error response body:`, res.data);
+    }
+}
+
+/** OAuth errors the legacy endpoint cannot fix (RFC 6749 error codes from the morning IDP). */
+const OAUTH_NO_FALLBACK_HINTS = {
+    invalid_grant: 'API key expired, revoked or pending (invalid_grant)',
+    unauthorized_client: 'no active subscription or no API access for this account (unauthorized_client)'
+};
+
+/** Fall back to legacy only for network errors, timeouts, 5xx, and 401/403/404 from the IDP. */
+function shouldFallBackToLegacy(error) {
+    const status = error?.response?.status;
+    if (!status) return true;
+    if (status >= 500) return true;
+    return [401, 403, 404].includes(status);
+}
+
+function describeTokenError(error) {
+    const res = error?.response;
+    if (!res) return error?.code || error?.message || 'network error';
+    const code = res.data && typeof res.data === 'object' && res.data.error;
+    return code ? `HTTP ${res.status} ${code}` : `HTTP ${res.status}`;
+}
 
 /**
  * Production deployments (NODE_ENV === 'production') use the existing
@@ -22,6 +64,7 @@ function resolveGreenInvoiceConfig() {
             apiKeySecret: process.env.GREENINVOICE_API_KEY_SECRET,
             // Existing production behavior — unchanged
             baseUrl: process.env.GREENINVOICE_BASE_URL || PRODUCTION_BASE_URL,
+            idpUrl: process.env.GREENINVOICE_IDP_URL || PRODUCTION_IDP_URL,
             pluginId: process.env.CARDCOM_PLUGIN_ID
         };
     }
@@ -31,6 +74,7 @@ function resolveGreenInvoiceConfig() {
         apiKeyId: process.env.GREENINVOICE_SANDBOX_API_KEY_ID,
         apiKeySecret: process.env.GREENINVOICE_SANDBOX_API_KEY_SECRET,
         baseUrl: process.env.GREENINVOICE_SANDBOX_BASE_URL || SANDBOX_BASE_URL,
+        idpUrl: process.env.GREENINVOICE_SANDBOX_IDP_URL || SANDBOX_IDP_URL,
         pluginId: process.env.CARDCOM_SANDBOX_PLUGIN_ID
     };
 }
@@ -42,10 +86,14 @@ class GreenInvoiceService {
         this.apiKeyId = config.apiKeyId;
         this.apiKeySecret = config.apiKeySecret;
         this.baseUrl = config.baseUrl;
+        this.idpUrl = config.idpUrl;
         this.pluginId = config.pluginId;
         this.token = null;
         this.tokenExpiry = null;
+        /** Last successful login method: 'oauth' | 'legacy' */
+        this.authMethod = 'oauth';
 
+        console.log(`GreenInvoice: environment=${this.environment}`);
         if (logDetails) {
             console.log(
                 `GreenInvoice: using ${this.environment} API at ${this.baseUrl}` +
@@ -55,61 +103,117 @@ class GreenInvoiceService {
     }
 
     async getToken() {
+        if (!this.apiKeyId || !this.apiKeySecret) {
+            const missing = [
+                !this.apiKeyId && 'API key ID',
+                !this.apiKeySecret && 'API key secret'
+            ].filter(Boolean).join(' and ');
+            throw new Error(`GreenInvoice ${this.environment} credentials missing: ${missing} not set`);
+        }
+
         // Check if we have a valid token
         if (this.token && this.tokenExpiry && Date.now() < this.tokenExpiry) {
             return this.token;
         }
 
+        // A legacy token has expired: go back to OAuth-first so we leave legacy as soon as OAuth works
+        if (this.authMethod === 'legacy') {
+            this.authMethod = 'oauth';
+        }
+
+        let oauthError;
         try {
-            const response = await axios.post(`${this.baseUrl}/account/token`, {
-                id: this.apiKeyId,
-                secret: this.apiKeySecret
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                timeout: 30000
-            });
-
-            if (logDetails) {
-                console.log(
-                    '[GreenInvoice] POST /account/token response headers:',
-                    JSON.stringify(response.headers, null, 2)
-                );
-            }
-
-            // Extract token from response headers (GreenInvoice specific)
-            const token = response.headers['x-authorization-bearer'] || response.data.token;
-
-            if (!token) {
-                throw new Error('No token received from GreenInvoice');
-            }
-
-            // Set token expiry (GreenInvoice tokens expire in 1 hour)
-            this.token = token;
-            this.tokenExpiry = Date.now() + (55 * 60 * 1000); // 55 minutes to be safe
-
-            if (logDetails) {
-                console.log('JWT token obtained successfully, expires:', new Date(this.tokenExpiry));
-            } else {
-                console.log('GreenInvoice: access token obtained');
-            }
+            const token = await this.getOAuthToken();
+            this.authMethod = 'oauth';
             return token;
+        } catch (err) {
+            oauthError = err;
+        }
 
-        } catch (error) {
-            console.error('Failed to get GreenInvoice token:', error.message || error);
-            if (error.response) {
-                if (logDetails) {
-                    console.error('GreenInvoice token error response:', {
-                        status: error.response.status,
-                        data: error.response.data
-                    });
-                } else {
-                    console.error('GreenInvoice token error HTTP status:', error.response.status);
-                }
+        if (!shouldFallBackToLegacy(oauthError)) {
+            logTokenError('OAuth', oauthError);
+            const hint = OAUTH_NO_FALLBACK_HINTS[oauthError.response?.data?.error];
+            if (hint) {
+                console.error(`GreenInvoice ${this.environment}: ${hint}`);
             }
             throw new Error('Failed to authenticate with GreenInvoice');
         }
+
+        try {
+            const token = await this.getLegacyToken();
+            this.authMethod = 'legacy';
+            console.log(
+                `GreenInvoice: OAuth token request failed (${describeTokenError(oauthError)}); authenticated via legacy /account/token`
+            );
+            return token;
+        } catch (legacyError) {
+            logTokenError('OAuth', oauthError);
+            logTokenError('legacy', legacyError);
+            throw new Error('Failed to authenticate with GreenInvoice');
+        }
+    }
+
+    cacheToken(token, expiresInSeconds) {
+        const lifetimeMs = (Number(expiresInSeconds) > 0 ? Number(expiresInSeconds) : 3600) * 1000;
+        this.token = token;
+        this.tokenExpiry = Date.now() + lifetimeMs - 5 * 60 * 1000;
+        if (logDetails) {
+            console.log('GreenInvoice token obtained, expires:', new Date(this.tokenExpiry));
+        } else {
+            console.log('GreenInvoice: access token obtained');
+        }
+        return token;
+    }
+
+    async getLegacyToken() {
+        const response = await axios.post(`${this.baseUrl}/account/token`, {
+            id: this.apiKeyId,
+            secret: this.apiKeySecret
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            timeout: 30000
+        });
+
+        if (logDetails) {
+            console.log(
+                '[GreenInvoice] POST /account/token response headers:',
+                JSON.stringify(response.headers, null, 2)
+            );
+        }
+
+        // Extract token from response headers (GreenInvoice specific)
+        const token = response.headers['x-authorization-bearer'] || response.data.token;
+        if (!token) {
+            throw new Error('No token received from GreenInvoice');
+        }
+        return this.cacheToken(token, 3600);
+    }
+
+    async getOAuthToken() {
+        const response = await axios.post(
+            `${this.idpUrl}/idp/v1/oauth/token`,
+            {
+                grant_type: 'client_credentials',
+                client_id: this.apiKeyId,
+                client_secret: this.apiKeySecret
+            },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000
+            }
+        );
+        const token = response.data?.accessToken || response.data?.access_token;
+        if (!token) {
+            throw new Error('No OAuth token received from GreenInvoice');
+        }
+        // expiresAt is an absolute Unix timestamp in seconds
+        const expiresAt = Number(response.data?.expiresAt);
+        const lifetimeSeconds = Number.isFinite(expiresAt) && expiresAt > 0
+            ? expiresAt - Math.floor(Date.now() / 1000)
+            : 3600;
+        return this.cacheToken(token, lifetimeSeconds);
     }
 
     async createInvoice(invoiceData) {

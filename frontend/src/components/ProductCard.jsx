@@ -10,6 +10,8 @@ import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getProductPath } from '../utils/productSlug';
 import { useGifts } from '../gifts/GiftContext';
+import { computeProductPricing } from '../utils/productPricing';
+import PriceDisplay from './PriceDisplay';
 
 const SNAKE_COLOR = 'rgb(250, 250, 250)';
 const CARD_RADIUS = 15;
@@ -105,6 +107,7 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
   const productName = isHebrew ? product.name_he : product.name_en;
   const primaryImage = getImageUrl(product.homepageImage || product.homepageimage);
   const hoverImage = useMemo(() => pickHoverImage(product, primaryImage), [product, primaryImage]);
+  const pricing = computeProductPricing(product);
   const giftPromo = promotionForProduct(product?.id);
   const hasGift =
     !!giftPromo &&
@@ -407,7 +410,11 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
                 fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' }
               }}
             >
-              ₪ {Number(product.price || 0).toFixed(2)}
+              <PriceDisplay
+                pricing={pricing}
+                format={(n) => `₪ ${n.toFixed(2)}`}
+                sx={{ justifyContent: 'center' }}
+              />
             </Typography>
 
             <Typography

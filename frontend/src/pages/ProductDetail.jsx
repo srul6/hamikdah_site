@@ -20,6 +20,8 @@ import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getProductPath, isMikdashProduct as checkIsMikdashProduct } from '../utils/productSlug';
 import ChildrenPlayingSection from '../components/ChildrenPlayingSection';
+import PriceDisplay from '../components/PriceDisplay';
+import { computeProductPricing } from '../utils/productPricing';
 
 export default function ProductDetail({
   onAddToCart,
@@ -838,7 +840,12 @@ export default function ProductDetail({
                 transition: 'font-size 0.3s ease, max-width 0.3s ease'
               }}
             >
-              {productName + ' | ' + "₪" + Number(product.price || 0).toFixed(2)}
+              {productName + ' | '}
+              <PriceDisplay
+                pricing={computeProductPricing(product)}
+                regularSx={{ color: '#1d1d1f' }}
+                finalSx={{ color: 'inherit' }}
+              />
             </Typography>
           </Box>
         </Box>
@@ -952,7 +959,7 @@ export default function ProductDetail({
                       {isHebrew ? relatedProduct.name_he : relatedProduct.name_en}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      ₪{Number(relatedProduct.price || 0).toFixed(2)}
+                      <PriceDisplay pricing={computeProductPricing(relatedProduct)} />
                     </Typography>
                   </CardContent>
                 </Card>

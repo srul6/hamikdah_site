@@ -15,6 +15,8 @@ import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import ChildrenPlayingSection from '../components/ChildrenPlayingSection';
 import SnakeScrollGallery from '../components/SnakeScrollGallery';
+import PriceDisplay from '../components/PriceDisplay';
+import { computeProductPricing } from '../utils/productPricing';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -2277,7 +2279,11 @@ export default function MikdashProductPage({ onAddToCart, product: productProp =
                                                 opacity: 0.55,
                                             }}
                                         />
-                                        <Box component="span">₪690</Box>
+                                        <PriceDisplay
+                                            pricing={computeProductPricing(product)}
+                                            format={(n) => `₪${Number.isInteger(n) ? n : n.toFixed(2)}`}
+                                            finalSx={{ color: 'inherit' }}
+                                        />
                                     </Box>
                                 ) : (
                                     isHebrew ? 'בקרוב' : 'Coming Soon'

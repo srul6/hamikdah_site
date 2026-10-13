@@ -4,6 +4,7 @@ const GoogleSheetsService = require('../services/googleSheetsService');
 const { databaseController } = require('../config/database');
 const axios = require('axios'); // Added for testing document types
 const { validateCheckoutRequest } = require('../utils/checkoutValidation');
+const { priceCheckoutItems } = require('../utils/productPricing');
 const clientMessages = require('../utils/clientFacingMessages');
 
 /**
@@ -62,10 +63,23 @@ class GreenInvoiceController {
                     message: clientMessages.BAD_REQUEST
                 });
             }
-            items = validated.items;
             customerInfo = validated.customerInfo;
             let discountAmount = validated.couponDiscount || 0;
             const deliveryFeeAmount = validated.deliveryFee || 0;
+
+            // Product prices (incl. product discounts) always come from the catalog, never the client
+            const catalog = await this.databaseController.getAllProducts();
+            const priced = priceCheckoutItems(validated.items, catalog);
+            if (!priced.ok) {
+                console.warn('Payment form item pricing rejected:', priced.error, dev ? priced.details : '');
+                return res.status(409).json({
+                    success: false,
+                    error: priced.error === 'price_changed' ? 'prices_changed' : priced.error,
+                    message: priced.error === 'price_changed' ? clientMessages.PRICES_CHANGED : clientMessages.BAD_REQUEST
+                });
+            }
+            items = priced.items;
+            const lineSubtotal = priced.subtotal;
 
             // Gift-with-purchase: require complete selections for eligible lines
             const {
@@ -134,7 +148,6 @@ class GreenInvoiceController {
             if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
                 const { computeCouponDiscount } = require('../utils/couponApply');
                 const coupon = await this.databaseController.getCouponByCode(couponCode.trim());
-                const lineSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
                 const applied = computeCouponDiscount(coupon, lineSubtotal);
                 if (!applied.ok) {
                     console.warn('Payment form coupon re-validation failed:', applied.error);
@@ -165,10 +178,22 @@ class GreenInvoiceController {
                 });
             }
 
+            // Amount charged = catalog subtotal − coupon + delivery; must match what the client displayed
+            const serverTotal = Math.round((lineSubtotal - discountAmount + deliveryFeeAmount) * 100) / 100;
+            if (serverTotal <= 0 || Math.abs(serverTotal - parseFloat(totalAmount)) > 0.05) {
+                console.warn('Payment form total mismatch', { server: serverTotal, client: totalAmount });
+                return res.status(409).json({
+                    success: false,
+                    error: 'prices_changed',
+                    message: clientMessages.PRICES_CHANGED
+                });
+            }
+            totalAmount = serverTotal;
+
             const checkoutSessionId = Date.now();
 
             // Installments: each payment ≥ ₪50, at least 1 payment, cap at 6
-            const totalNumeric = parseFloat(totalAmount);
+            const totalNumeric = serverTotal;
             const MIN_PER_PAYMENT = 50;
             const MAX_INSTALLMENTS = 6;
             const numberOfPayments = Math.max(
@@ -245,6 +270,7 @@ class GreenInvoiceController {
                         id: item.id,
                         quantity: item.quantity,
                         price: item.price,
+                        ...(item.regular_price != null ? { regular_price: item.regular_price } : {}),
                         color_name_he: item.color_name_he || '',
                         color_name_en: item.color_name_en || '',
                         uniqueId: item.uniqueId != null ? item.uniqueId : item.id
@@ -442,13 +468,15 @@ class GreenInvoiceController {
                                             item.color_name_he,
                                             item.color_name_en
                                         );
+                                        // `price` is the unit price actually charged (snapshot at checkout)
                                         return {
                                             id: item.id,
                                             uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                                             name_he: names.name_he,
                                             name_en: names.name_en,
                                             quantity: item.quantity || 1,
-                                            price: item.price || 0
+                                            price: item.price || 0,
+                                            ...(item.regular_price != null ? { regular_price: item.regular_price } : {})
                                         };
                                     } else {
                                         console.log('⚠️  Product not found for ID:', item.id);
