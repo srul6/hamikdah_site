@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import {
     Container, Typography, Box, Button, Paper, TextField,
     Grid, CircularProgress, Dialog, DialogTitle,
@@ -486,6 +487,9 @@ export default function GreenInvoicePayment() {
     if (paymentFormHtml || iframeUrl) {
         return (
             <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Helmet>
+                    <meta name="robots" content="noindex, follow" />
+                </Helmet>
                 <Paper elevation={3} sx={{ p: 4 }}>
                     <Typography variant="h4" gutterBottom sx={{ direction: isHebrew ? 'rtl' : 'ltr', mb: 3 }}>
                         {t.securePayment}
@@ -568,6 +572,9 @@ export default function GreenInvoicePayment() {
 
     return (
         <Container maxWidth="lg" sx={{ py: 6 }}>
+            <Helmet>
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             {/* Progress Indicator */}
             <Box sx={{ mt: 8, mb: 6, textAlign: 'center' }}>
                 <Typography variant="h3" sx={{

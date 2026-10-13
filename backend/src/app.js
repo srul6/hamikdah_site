@@ -191,7 +191,7 @@ app.get('/sitemap.xml', async (req, res) => {
         const list = Array.isArray(products) ? products : [];
         const slugMap = buildProductSlugMap(list);
 
-        const staticPaths = ['/', '/about', '/cart', '/terms', '/site-terms', '/privacy', '/returns'];
+        const staticPaths = ['/', '/about', '/terms', '/returns'];
         const urls = staticPaths.map((p) => ({
             loc: `${SITE_ORIGIN}${p === '/' ? '' : p}`,
             priority: p === '/' ? '1.0' : '0.6'

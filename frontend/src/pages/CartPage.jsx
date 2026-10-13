@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
     Container, Typography, Box, Button, Card, CardContent, CardMedia,
     Grid, TextField, IconButton, Alert, Divider, Paper,
@@ -150,6 +151,9 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     if (cart.length === 0) {
         return (
             <Container maxWidth="md" sx={{ pt: 15, pb: 8, textAlign: 'center' }}>
+                <Helmet>
+                    <meta name="robots" content="noindex, follow" />
+                </Helmet>
                 <Box
                     component="img"
                     src="/empty_bag.webp"
@@ -187,6 +191,9 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Helmet>
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             <BannerSlot placement="cart" />
             <Typography variant="h3" gutterBottom sx={{
                 textAlign: 'center',

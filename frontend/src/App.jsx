@@ -31,7 +31,6 @@ import CookieConsentUI from './consent/CookieConsentUI';
 import { NewsletterProvider } from './newsletter/NewsletterContext';
 import NewsletterModal from './newsletter/NewsletterModal';
 import { GiftProvider, useGifts } from './gifts/GiftContext';
-import BannerSlot from './banners/BannerSlot';
 import { trackAddToCart } from './analytics/metaTracking';
 import { trackGa4AddToCart } from './analytics/ga4Tracking';
 
@@ -76,7 +75,6 @@ function AppContent() {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'rgba(245, 240, 227, 0.9)' }}>
-            <BannerSlot placement="site_entry" />
             <Navbar
                 cartCount={cartCount}
                 cart={cart}

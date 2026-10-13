@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Container, Typography, Paper, Link } from '@mui/material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -14,6 +15,9 @@ export default function SiteTerms() {
 
     return (
         <Container maxWidth="md" sx={{ py: 4, mt: 8 }}>
+            <Helmet>
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             <Paper elevation={3} sx={{ p: 4, borderRadius: 2, direction: isHebrew ? 'rtl' : 'ltr' }}>
                 <Typography color="rgb(229, 90, 61)" variant="h4" component="h1" align="center" sx={legalTitleSx}>
                     {isHebrew ? t.siteTerms : t.siteTermsPageTitle}

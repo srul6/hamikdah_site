@@ -31,24 +31,42 @@ function Ornament() {
     );
 }
 
+function sessionKey(placement) {
+    return `banner_seen_${placement}`;
+}
+
+function readSeenIds(placement) {
+    try {
+        const raw = sessionStorage.getItem(sessionKey(placement));
+        const arr = raw ? JSON.parse(raw) : [];
+        return new Set(
+            (Array.isArray(arr) ? arr : []).map((id) => String(id))
+        );
+    } catch (_) {
+        return new Set();
+    }
+}
+
+function writeSeenIds(placement, ids) {
+    try {
+        sessionStorage.setItem(
+            sessionKey(placement),
+            JSON.stringify([...ids].map(String))
+        );
+    } catch (_) {
+        /* ignore */
+    }
+}
+
 /**
- * Active DB banners — same floating Dialog as NewsletterModal
- * (cream card over the page; does not push layout).
- * Dismiss is in-memory only so a refresh shows the banner again.
+ * Active DB banners — same floating Dialog as NewsletterModal.
+ * Shows at most once per browser session (sessionStorage); survives payment reloads.
  */
 export default function BannerSlot({ placement }) {
     const { isHebrew } = useLanguage();
     const [banners, setBanners] = useState([]);
-    const [dismissed, setDismissed] = useState(() => new Set());
-
-    useEffect(() => {
-        // Drop legacy session dismiss so previously closed banners show again
-        try {
-            sessionStorage.removeItem(`banner_dismissed_${placement}`);
-        } catch (_) {
-            /* ignore */
-        }
-    }, [placement]);
+    /** Banner currently open on this mount (kept until user closes). */
+    const [activeId, setActiveId] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -70,16 +88,32 @@ export default function BannerSlot({ placement }) {
         };
     }, [placement]);
 
-    const dismiss = (id) => {
-        setDismissed((prev) => {
-            const next = new Set(prev);
-            next.add(id);
-            return next;
-        });
+    // Pick first unseen banner once per mount; record it so reloads skip it.
+    useEffect(() => {
+        if (activeId != null) return;
+        const seen = readSeenIds(placement);
+        const next = banners.find((b) => b?.id != null && !seen.has(String(b.id)));
+        if (!next) return;
+
+        const id = String(next.id);
+        setActiveId(id);
+        seen.add(id);
+        writeSeenIds(placement, seen);
+    }, [banners, placement, activeId]);
+
+    const dismiss = () => {
+        if (activeId != null) {
+            const seen = readSeenIds(placement);
+            seen.add(String(activeId));
+            writeSeenIds(placement, seen);
+        }
+        setActiveId(null);
     };
 
-    const visible = banners.filter((b) => !dismissed.has(b.id));
-    const banner = visible[0] || null;
+    const banner =
+        activeId != null
+            ? banners.find((b) => String(b.id) === String(activeId)) || null
+            : null;
     const open = Boolean(banner);
 
     if (!banner) return null;
@@ -98,7 +132,7 @@ export default function BannerSlot({ placement }) {
     return (
         <Dialog
             open={open}
-            onClose={() => dismiss(banner.id)}
+            onClose={dismiss}
             maxWidth={false}
             fullWidth={false}
             scroll="body"
@@ -127,7 +161,7 @@ export default function BannerSlot({ placement }) {
                     <Box sx={{ height: { xs: 8, sm: 12 } }} />
                 )}
                 <IconButton
-                    onClick={() => dismiss(banner.id)}
+                    onClick={dismiss}
                     aria-label="close"
                     sx={{
                         position: 'absolute',
@@ -207,7 +241,7 @@ export default function BannerSlot({ placement }) {
                         href={!isInternal ? buttonLink : undefined}
                         target={!isInternal ? '_blank' : undefined}
                         rel={!isInternal ? 'noopener noreferrer' : undefined}
-                        onClick={() => dismiss(banner.id)}
+                        onClick={dismiss}
                         variant="contained"
                         fullWidth
                         sx={{

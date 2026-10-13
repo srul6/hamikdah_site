@@ -14,14 +14,16 @@ import { translations } from '../translations/translations';
 
 /** Same practical email check as checkout (GreenInvoicePayment). */
 function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email);
+    return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(String(email || '').trim());
 }
 
-/** Same practical phone check as checkout (GreenInvoicePayment). */
+/** Same practical phone check as checkout / backend phoneValidation. */
 function isValidPhone(phone) {
-    const phoneRegex = /^(?:\+972|972|0)[\d\-\s]{7,10}$|^\+?[1-9]\d{6,14}$/;
-    return phoneRegex.test(String(phone || '').replace(/[\s\-\(\)]/g, ''));
+    const cleaned = String(phone || '').replace(/[\s\-\(\)]/g, '');
+    return /^(?:\+972|972|0)\d{7,10}$|^\+?[1-9]\d{6,14}$/.test(cleaned);
 }
+
+const ERROR_UNDERLINE = 'rgba(211, 47, 47, 1)';
 
 const orangeFieldSx = {
     '& .MuiOutlinedInput-root': {
@@ -41,11 +43,11 @@ const orangeFieldSx = {
             borderWidth: { xs: '0 0 2px 0', sm: '2px' }
         },
         '&.Mui-error .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(229, 90, 61, 1)',
+            borderColor: ERROR_UNDERLINE,
             borderWidth: { xs: '0 0 2px 0', sm: '1px' }
         },
         '&.Mui-error.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(229, 90, 61, 1)',
+            borderColor: ERROR_UNDERLINE,
             borderWidth: { xs: '0 0 2px 0', sm: '2px' }
         }
     },
@@ -54,6 +56,11 @@ const orangeFieldSx = {
         // Sit the placeholder/text near the underline on mobile
         py: { xs: 0, sm: undefined },
         pb: { xs: '2px', sm: undefined }
+    },
+    '& .MuiFormHelperText-root': {
+        mx: 0,
+        mt: 0.5,
+        fontSize: { xs: '0.75rem', sm: '0.8rem' }
     }
 };
 
@@ -86,6 +93,11 @@ const outlinedFieldSx = {
     },
     '& .MuiOutlinedInput-input': {
         px: 1.75
+    },
+    '& .MuiFormHelperText-root': {
+        mx: 0,
+        mt: 0.5,
+        fontSize: { xs: '0.75rem', sm: '0.8rem' }
     }
 };
 
@@ -176,6 +188,22 @@ export default function NewsletterSignupForm({
         }
 
         if (nextEmailError || nextPhoneError || nextNameError) {
+            // Keep focus near the first invalid field on mobile
+            const firstInvalid =
+                (nextEmailError && 'email') ||
+                (nextPhoneError && 'phone') ||
+                (nextNameError && 'name');
+            if (firstInvalid && typeof document !== 'undefined') {
+                const el = document.querySelector(
+                    `form [name="${firstInvalid}"]`
+                );
+                if (el && typeof el.focus === 'function') {
+                    el.focus({ preventScroll: false });
+                    if (typeof el.scrollIntoView === 'function') {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
             return;
         }
 
@@ -370,13 +398,18 @@ export default function NewsletterSignupForm({
             )}
 
             {(() => {
+                const mobileFieldHeight = 34;
+                const buttonHeight = useUnderlineMobile
+                    ? { xs: mobileFieldHeight, sm: inputHeight }
+                    : inputHeight;
+
                 const textFieldSx = {
                     ...fieldSx,
                     ...inputSx,
                     '& .MuiOutlinedInput-root': {
                         ...fieldSx['& .MuiOutlinedInput-root'],
                         height: useUnderlineMobile
-                            ? { xs: 34, sm: inputHeight }
+                            ? { xs: mobileFieldHeight, sm: inputHeight }
                             : inputHeight,
                         alignItems: useUnderlineMobile
                             ? { xs: 'flex-end', sm: 'center' }
@@ -388,8 +421,8 @@ export default function NewsletterSignupForm({
                         textAlign: outlinedField
                             ? 'center'
                             : isHebrew
-                              ? 'right'
-                              : 'left'
+                                ? 'right'
+                                : 'left'
                     }
                 };
 
@@ -407,12 +440,15 @@ export default function NewsletterSignupForm({
                             },
                             fontWeight: 700,
                             borderRadius: 1,
-                            height: inputHeight,
-                            minHeight: inputHeight,
-                            px: 2,
+                            height: buttonHeight,
+                            minHeight: buttonHeight,
+                            px: { xs: 4.25, sm: 3 },
                             py: 0,
-                            fontSize: { xs: '0.9rem', sm: '1rem' },
-                            minWidth: { xs: 110, sm: 140 },
+                            fontSize: { xs: '0.8rem', sm: '1rem' },
+                            // Homepage mobile: keep button compact next to the underline fields
+                            minWidth: useUnderlineMobile
+                                ? { xs: 'auto', sm: 140 }
+                                : { xs: 110, sm: 140 },
                             width: 'auto',
                             flexShrink: 0,
                             whiteSpace: 'nowrap',
@@ -455,22 +491,6 @@ export default function NewsletterSignupForm({
                     </Button>
                 );
 
-                const fieldError = (message) =>
-                    message ? (
-                        <Typography
-                            variant="caption"
-                            color="error"
-                            sx={{
-                                mt: 0.5,
-                                display: 'block',
-                                textAlign: contentAlign,
-                                fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                            }}
-                        >
-                            {message}
-                        </Typography>
-                    ) : null;
-
                 // Unsubscribe: email + button on one row (desktop), stacked only if needed
                 if (mode === 'unsubscribe') {
                     return (
@@ -492,18 +512,24 @@ export default function NewsletterSignupForm({
                                         setEmail(ev.target.value);
                                         if (emailError) setEmailError('');
                                     }}
+                                    onBlur={() => setEmailError(validateEmailClient(email))}
                                     placeholder={t.newsletterEmailPlaceholder}
                                     inputProps={{
                                         maxLength: 254,
+                                        inputMode: 'email',
+                                        autoComplete: 'email',
                                         'aria-label': t.newsletterEmailPlaceholder
                                     }}
                                     error={Boolean(emailError)}
+                                    helperText={emailError || undefined}
+                                    FormHelperTextProps={{
+                                        sx: { textAlign: contentAlign }
+                                    }}
                                     disabled={loading}
                                     size={compact ? 'small' : 'medium'}
                                     fullWidth
                                     sx={textFieldSx}
                                 />
-                                {fieldError(emailError)}
                             </Box>
                             {submitButton}
                         </Box>
@@ -530,18 +556,24 @@ export default function NewsletterSignupForm({
                                     if (emailError) setEmailError('');
                                     if (alreadySubscribedNotice) setAlreadySubscribedNotice(false);
                                 }}
+                                onBlur={() => setEmailError(validateEmailClient(email))}
                                 placeholder={t.newsletterEmailPlaceholder}
                                 inputProps={{
                                     maxLength: 254,
+                                    inputMode: 'email',
+                                    autoComplete: 'email',
                                     'aria-label': t.newsletterEmailPlaceholder
                                 }}
                                 error={Boolean(emailError)}
+                                helperText={emailError || undefined}
+                                FormHelperTextProps={{
+                                    sx: { textAlign: contentAlign }
+                                }}
                                 disabled={loading}
                                 size={compact ? 'small' : 'medium'}
                                 fullWidth
                                 sx={textFieldSx}
                             />
-                            {fieldError(emailError)}
                         </Box>
 
                         <Box sx={{ width: '100%' }}>
@@ -553,15 +585,24 @@ export default function NewsletterSignupForm({
                                     setPhone(ev.target.value);
                                     if (phoneError) setPhoneError('');
                                 }}
+                                onBlur={() => setPhoneError(validatePhoneClient(phone))}
                                 placeholder={t.phonePlaceholder || t.phone}
-                                inputProps={{ maxLength: 25, 'aria-label': t.phone }}
+                                inputProps={{
+                                    maxLength: 25,
+                                    inputMode: 'tel',
+                                    autoComplete: 'tel',
+                                    'aria-label': t.phone
+                                }}
                                 error={Boolean(phoneError)}
+                                helperText={phoneError || undefined}
+                                FormHelperTextProps={{
+                                    sx: { textAlign: contentAlign }
+                                }}
                                 disabled={loading}
                                 size={compact ? 'small' : 'medium'}
                                 fullWidth
                                 sx={textFieldSx}
                             />
-                            {fieldError(phoneError)}
                         </Box>
 
                         <Box
@@ -571,8 +612,10 @@ export default function NewsletterSignupForm({
                                 // Button beside the last field (desktop + mobile) — never
                                 // a full-width control under the whole field stack.
                                 flexDirection: 'row-reverse',
-                                gap: 1.25,
-                                alignItems: 'flex-start',
+                                gap: useUnderlineMobile ? { xs: 1, sm: 1.25 } : 1.25,
+                                alignItems: useUnderlineMobile
+                                    ? { xs: 'flex-end', sm: 'flex-start' }
+                                    : 'flex-start',
                                 direction: 'ltr'
                             }}
                         >
@@ -585,15 +628,23 @@ export default function NewsletterSignupForm({
                                         setName(ev.target.value);
                                         if (nameError) setNameError('');
                                     }}
+                                    onBlur={() => setNameError(validateNameClient(name))}
                                     placeholder={t.namePlaceholder || t.name}
-                                    inputProps={{ maxLength: 100, 'aria-label': t.name }}
+                                    inputProps={{
+                                        maxLength: 100,
+                                        autoComplete: 'name',
+                                        'aria-label': t.name
+                                    }}
                                     error={Boolean(nameError)}
+                                    helperText={nameError || undefined}
+                                    FormHelperTextProps={{
+                                        sx: { textAlign: contentAlign }
+                                    }}
                                     disabled={loading}
                                     size={compact ? 'small' : 'medium'}
                                     fullWidth
                                     sx={textFieldSx}
                                 />
-                                {fieldError(nameError)}
                             </Box>
                             {submitButton}
                         </Box>

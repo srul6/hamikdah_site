@@ -130,6 +130,7 @@ export default function Home({ onAddToCart }) {
       pb: 0,
       minHeight: '100vh'
     }}>
+      <BannerSlot placement="site_entry" />
       {products.length === 0 ? (
         <Box sx={{
           display: 'flex',
