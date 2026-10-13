@@ -151,17 +151,19 @@ export default function BannerSlot({ placement }) {
             onClose={dismiss}
             maxWidth={false}
             fullWidth={false}
-            scroll="body"
+            scroll="paper"
             dir={isHebrew ? 'rtl' : 'ltr'}
             PaperProps={{
                 sx: {
-                    width: { xs: 'min(92vw, 360px)', sm: 380 },
+                    width: { xs: 'calc(100% - 32px)', sm: 380 },
                     maxWidth: 380,
+                    maxHeight: { xs: 'calc(100% - 32px)', sm: 'calc(100% - 80px)' },
                     borderRadius: 3,
                     backgroundColor: '#f5f0e3',
                     p: 0,
-                    m: 5,
-                    overflow: 'hidden'
+                    m: { xs: 2, sm: 5 },
+                    overflowX: 'hidden',
+                    overflowY: 'auto'
                 }
             }}
         >
