@@ -70,11 +70,11 @@ describe('duplicate signup messaging', () => {
 });
 
 describe('coupon generation uniqueness', () => {
-    it('generates NEWS-prefixed codes that are unique across many draws', () => {
+    it('generates WELCOME-prefixed newsletter codes that are unique across many draws', () => {
         const set = new Set();
         for (let i = 0; i < 200; i += 1) {
             const code = generateCouponCode();
-            assert.match(code, /^NEWS[A-Z0-9]{8}$/);
+            assert.match(code, /^WELCOME[A-Z0-9]{8}$/);
             set.add(code);
         }
         assert.equal(set.size, 200);

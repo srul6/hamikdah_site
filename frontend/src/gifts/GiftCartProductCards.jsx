@@ -37,7 +37,9 @@ export default function GiftCartProductCards({ item }) {
     const { promotionForProduct, giftSelections, setSlotSelection, markGiftsSeenOnCart } =
         useGifts();
 
-    const promo = promotionForProduct(item.id);
+    const isBundle =
+        item?.type === 'bundle' || String(item?.id || '').startsWith('bundle-');
+    const promo = isBundle ? null : promotionForProduct(item.id);
     const books = (promo?.books || []).filter(Boolean);
 
     // Visiting cart with a gift marks gifts as handled (skip checkout banner if complete).
@@ -45,6 +47,7 @@ export default function GiftCartProductCards({ item }) {
         if (promo && books.length) markGiftsSeenOnCart();
     }, [promo, books.length, markGiftsSeenOnCart]);
 
+    if (isBundle) return null;
     if (!promo || !books.length) return null;
 
     const uniqueId = String(item.uniqueId != null ? item.uniqueId : item.id);

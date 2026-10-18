@@ -1,4 +1,84 @@
 const { Resend } = require('resend');
+const { groupOrderItemsForDisplay } = require('../utils/bundleCheckout');
+
+/** Render order lines for admin email — bundles grouped, products unchanged. */
+function renderOrderItemsHtmlRows(safeItems) {
+    const grouped = groupOrderItemsForDisplay(safeItems);
+    return grouped.map((row) => {
+        if (row.kind === 'bundle') {
+            const unit = Number(row.unitPrice) || 0;
+            const regular = Number(row.unitRegularPrice) || 0;
+            const qty = row.quantity || 1;
+            const subLines = (row.components || [])
+                .map((c) => {
+                    const base = c.name_he || c.name_en || 'פריט';
+                    // Strip color suffix from productNameWithColor if already in name; prefer explicit color fields
+                    const color =
+                        c.color_name_he ||
+                        c.color_name_en ||
+                        '';
+                    // Names from webhook already include (color); show as-is for shipping clarity
+                    const label = color && !String(base).includes('(')
+                        ? `${base} - ${color}`
+                        : base;
+                    return `<div style="margin:2px 0 2px 12px;font-size:13px;color:#444;">• ${label}</div>`;
+                })
+                .join('');
+            const regularBit =
+                regular > unit
+                    ? ` (במקום ₪${regular.toFixed(2)})`
+                    : '';
+            return `
+                <tr>
+                    <td>
+                        🎁 באנדל: ${row.name_he || row.name_en || 'באנדל'} x${qty} - ₪${unit.toFixed(2)}${regularBit}
+                        ${subLines}
+                    </td>
+                    <td>${qty}</td>
+                    <td>₪${unit.toFixed(2)}</td>
+                    <td><strong>₪${(unit * qty).toFixed(2)}</strong></td>
+                </tr>
+            `;
+        }
+        const item = row.item;
+        const giftLines = Array.isArray(item.gifts) && item.gifts.length
+            ? `<div style="margin-top:6px;font-size:13px;color:#555;">🎁 מתנות: ${item.gifts.map((g) => g.title || 'ספר מתנה').join(', ')}</div>`
+            : '';
+        return `
+            <tr>
+                <td>${item.name_he || item.name_en || item.name || 'פריט'}${giftLines}</td>
+                <td>${item.quantity || 1}</td>
+                <td>₪${(item.price || 0).toFixed(2)}</td>
+                <td><strong>₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</strong></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderOrderItemsTextLines(safeItems) {
+    const grouped = groupOrderItemsForDisplay(safeItems);
+    return grouped.map((row) => {
+        if (row.kind === 'bundle') {
+            const unit = Number(row.unitPrice) || 0;
+            const regular = Number(row.unitRegularPrice) || 0;
+            const qty = row.quantity || 1;
+            const regularBit =
+                regular > unit ? ` (במקום ₪${regular.toFixed(2)})` : '';
+            const sub = (row.components || [])
+                .map((c) => {
+                    const base = c.name_he || c.name_en || 'פריט';
+                    return `    • ${base}`;
+                })
+                .join('\n');
+            return `- 🎁 באנדל: ${row.name_he || row.name_en || 'באנדל'} x${qty} - ₪${unit.toFixed(2)}${regularBit}\n${sub}`;
+        }
+        const item = row.item;
+        const giftText = Array.isArray(item.gifts) && item.gifts.length
+            ? ` [מתנות: ${item.gifts.map((g) => g.title || 'ספר מתנה').join(', ')}]`
+            : '';
+        return `- ${item.name_he || item.name_en || item.name || 'פריט'} x${item.quantity || 1} - ₪${(item.price || 0).toFixed(2)} (סה"כ: ₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)})${giftText}`;
+    }).join('\n');
+}
 
 class EmailService {
     constructor() {
@@ -318,19 +398,7 @@ class EmailService {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${safeItems.map(item => {
-                                        const giftLines = Array.isArray(item.gifts) && item.gifts.length
-                                            ? `<div style="margin-top:6px;font-size:13px;color:#555;">🎁 מתנות: ${item.gifts.map((g) => g.title || 'ספר מתנה').join(', ')}</div>`
-                                            : '';
-                                        return `
-                                        <tr>
-                                            <td>${item.name_he || item.name_en || item.name || 'פריט'}${giftLines}</td>
-                                            <td>${item.quantity || 1}</td>
-                                            <td>₪${(item.price || 0).toFixed(2)}</td>
-                                            <td><strong>₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</strong></td>
-                                        </tr>
-                                    `;
-                                    }).join('')}
+                                    ${renderOrderItemsHtmlRows(safeItems)}
                                 </tbody>
                             </table>
                             ` : '<p>לא זמין מידע על הפריטים</p>'}
@@ -399,12 +467,7 @@ Form ID: ${formId}
 - עיר: ${customerInfo?.city || 'לא זמין'}
 
 🛍️ פריטים שהוזמנו:
-${safeItems.length > 0 ? safeItems.map(item => {
-    const giftText = Array.isArray(item.gifts) && item.gifts.length
-        ? ` [מתנות: ${item.gifts.map((g) => g.title || 'ספר מתנה').join(', ')}]`
-        : '';
-    return `- ${item.name_he || item.name_en || item.name || 'פריט'} x${item.quantity || 1} - ₪${(item.price || 0).toFixed(2)} (סה"כ: ₪${((item.price || 0) * (item.quantity || 1)).toFixed(2)})${giftText}`;
-}).join('\n') : 'לא זמין מידע על הפריטים'}
+${safeItems.length > 0 ? renderOrderItemsTextLines(safeItems) : 'לא זמין מידע על הפריטים'}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 מערכת ניהול הזמנות - בית המקדש

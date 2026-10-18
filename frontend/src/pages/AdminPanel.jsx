@@ -17,11 +17,17 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
 import QuizIcon from '@mui/icons-material/Quiz';
-import { API_ENDPOINTS } from '../config';
+import ArticleIcon from '@mui/icons-material/Article';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import { API_ENDPOINTS, SITE_URL } from '../config';
 import CouponsTab from './CouponsTab';
 import GiftsTab from './GiftsTab';
 import BannersTab from './BannersTab';
 import FaqsTab from './FaqsTab';
+import HomepageTextTab from './HomepageTextTab';
+import BundlesTab from './BundlesTab';
+import PromoSlidesTab from './PromoSlidesTab';
 import ImageUploader from '../components/ImageUploader';
 import VideoUploader from '../components/VideoUploader';
 import { fetchComments, createComment, updateComment, deleteComment } from '../api/comments';
@@ -29,6 +35,7 @@ import { fetchOrders, deleteOrder } from '../api/orders';
 import { setCookie, getCookie, deleteCookie } from '../utils/cookieManager';
 import { computeProductPricing, validateDiscountSettings } from '../utils/productPricing';
 import PriceDisplay from '../components/PriceDisplay';
+import { slugifyProductName, allocateInitialSlug } from '../utils/productSlug';
 import * as XLSX from 'xlsx';
 
 export default function AdminPanel() {
@@ -69,8 +76,12 @@ export default function AdminPanel() {
     colors: [],
     discount_enabled: false,
     discount_type: 'percentage',
-    discount_value: ''
+    discount_value: '',
+    specialPage: '',
+    slug: ''
   });
+  /** When true, changing name_he no longer auto-fills the slug on create. */
+  const [slugTouched, setSlugTouched] = useState(false);
 
   const [commentFormData, setCommentFormData] = useState({
     name_he: '',
@@ -314,7 +325,9 @@ export default function AdminPanel() {
       colors: formData.colors || [],
       discount_enabled: !!formData.discount_enabled,
       discount_type: formData.discount_type || null,
-      discount_value: formData.discount_value === '' ? null : parseFloat(formData.discount_value)
+      discount_value: formData.discount_value === '' ? null : parseFloat(formData.discount_value),
+      specialPage: formData.specialPage || null,
+      slug: formData.slug != null ? String(formData.slug).trim() : ''
     };
 
     try {
@@ -341,7 +354,7 @@ export default function AdminPanel() {
         alert(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
       } else {
         const data = await response.json().catch(() => ({}));
-        alert(data.error ? `Error saving product: ${data.error}` : 'Error saving product');
+        alert(data.error ? data.error : 'Error saving product');
       }
     } catch (error) {
       console.error('Error saving product:', error);
@@ -351,6 +364,7 @@ export default function AdminPanel() {
 
   const handleEdit = (product) => {
     setEditingProduct(product);
+    setSlugTouched(true);
     setFormData({
       name_he: product.name_he || '',
       name_en: product.name_en || '',
@@ -372,7 +386,9 @@ export default function AdminPanel() {
       colors: product.colors || [],
       discount_enabled: !!product.discount_enabled,
       discount_type: product.discount_type || 'percentage',
-      discount_value: product.discount_value ? String(product.discount_value) : ''
+      discount_value: product.discount_value ? String(product.discount_value) : '',
+      specialPage: product.specialPage || product.special_page || '',
+      slug: product.slug || ''
     });
     setIsDialogOpen(true);
   };
@@ -389,7 +405,8 @@ export default function AdminPanel() {
           fetchProducts();
           alert('Product deleted successfully!');
         } else {
-          alert('Error deleting product');
+          const data = await response.json().catch(() => ({}));
+          alert(data.error || 'Error deleting product');
         }
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -405,6 +422,7 @@ export default function AdminPanel() {
   };
 
   const resetForm = () => {
+    setSlugTouched(false);
     setFormData({
       name_he: '',
       name_en: '',
@@ -425,7 +443,29 @@ export default function AdminPanel() {
       colors: [],
       discount_enabled: false,
       discount_type: 'percentage',
-      discount_value: ''
+      discount_value: '',
+      specialPage: '',
+      slug: ''
+    });
+  };
+
+  const handleProductFieldChange = (field, value) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (
+        !editingProduct &&
+        !slugTouched &&
+        (field === 'name_he' || field === 'name_en')
+      ) {
+        next.slug = allocateInitialSlug(
+          {
+            name_he: field === 'name_he' ? value : next.name_he,
+            name_en: field === 'name_en' ? value : next.name_en
+          },
+          products
+        );
+      }
+      return next;
     });
   };
 
@@ -583,11 +623,29 @@ export default function AdminPanel() {
       // Prepare data for Excel - only specific fields
       const exportData = completedOrders.map(order => {
         // Get items details (without prices)
-        const itemsText = Array.isArray(order.items)
-          ? order.items.map(item =>
-            `${item.name_he || item.name_en} (כמות: ${item.quantity || 1})`
-          ).join('; ')
-          : 'אין פריטים';
+        const itemsText = (() => {
+          if (!Array.isArray(order.items) || !order.items.length) return 'אין פריטים';
+          const bundleKeys = new Set();
+          const parts = [];
+          for (const item of order.items) {
+            if (item.bundleRowKey) {
+              if (bundleKeys.has(item.bundleRowKey)) continue;
+              bundleKeys.add(item.bundleRowKey);
+              const comps = order.items
+                .filter((i) => i.bundleRowKey === item.bundleRowKey)
+                .map((c) => c.name_he || c.name_en || '')
+                .filter(Boolean)
+                .join(', ');
+              parts.push(
+                `באנדל: ${item.bundleName_he || item.bundleName_en || 'באנדל'} x${item.quantity || 1}` +
+                  (comps ? ` (${comps})` : '')
+              );
+            } else {
+              parts.push(`${item.name_he || item.name_en} (כמות: ${item.quantity || 1})`);
+            }
+          }
+          return parts.join('; ');
+        })();
 
         // Format full address
         const fullAddress = `${order.customer_street || ''} ${order.customer_house_number || ''}${order.customer_apartment_number ? `, דירה ${order.customer_apartment_number}` : ''
@@ -840,6 +898,39 @@ export default function AdminPanel() {
           <Tab
             icon={<QuizIcon />}
             label="FAQ"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
+          <Tab
+            icon={<ArticleIcon />}
+            label="Homepage text"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
+          <Tab
+            icon={<Inventory2Icon />}
+            label="באנדלים"
+            iconPosition="start"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px 8px 0 0',
+              mx: 0.5
+            }}
+          />
+          <Tab
+            icon={<CampaignIcon />}
+            label="מודעות"
             iconPosition="start"
             sx={{
               textTransform: 'none',
@@ -1246,7 +1337,19 @@ export default function AdminPanel() {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {Array.isArray(order.items) ? order.items.length : 0}
+                            {(() => {
+                              if (!Array.isArray(order.items)) return 0;
+                              const seenBundles = new Set();
+                              let count = 0;
+                              for (const item of order.items) {
+                                if (item?.bundleRowKey) {
+                                  if (seenBundles.has(item.bundleRowKey)) continue;
+                                  seenBundles.add(item.bundleRowKey);
+                                }
+                                count += 1;
+                              }
+                              return count;
+                            })()}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
@@ -1332,6 +1435,9 @@ export default function AdminPanel() {
       {activeTab === 4 && <GiftsTab />}
       {activeTab === 5 && <BannersTab />}
       {activeTab === 6 && <FaqsTab />}
+      {activeTab === 7 && <HomepageTextTab />}
+      {activeTab === 8 && <BundlesTab />}
+      {activeTab === 9 && <PromoSlidesTab />}
 
       {/* Product Dialog */}
       <Dialog
@@ -1413,7 +1519,7 @@ export default function AdminPanel() {
                     fullWidth
                     label="Product Name (Hebrew)"
                     value={formData.name_he}
-                    onChange={(e) => handleInputChange('name_he', e.target.value)}
+                    onChange={(e) => handleProductFieldChange('name_he', e.target.value)}
                     required
                     dir="rtl"
                     sx={{
@@ -1435,9 +1541,41 @@ export default function AdminPanel() {
                     fullWidth
                     label="Product Name (English)"
                     value={formData.name_en}
-                    onChange={(e) => handleInputChange('name_en', e.target.value)}
+                    onChange={(e) => handleProductFieldChange('name_en', e.target.value)}
                     required
                   />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="סוג דף מוצר"
+                    value={formData.specialPage || ''}
+                    onChange={(e) => handleInputChange('specialPage', e.target.value)}
+                    helperText="קובע איזה תבנית דף תוצג למוצר זה"
+                    SelectProps={{ native: true }}
+                    dir="rtl"
+                  >
+                    <option value="">רגיל</option>
+                    <option value="mikdash">המקדש</option>
+                    <option value="third_temple">בית המקדש השלישי</option>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="כתובת הדף (slug)"
+                    value={formData.slug || ''}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      handleInputChange('slug', e.target.value);
+                    }}
+                    dir="rtl"
+                    helperText="ריק = נגזר משם המוצר. שינוי הערך משנה את כתובת הדף ויוצר קישורים שבורים אם הכתובת הישנה הופצה."
+                  />
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#666', dir: 'ltr' }}>
+                    {SITE_URL}/product/{formData.slug || slugifyProductName(formData.name_he) || '…'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -1576,8 +1714,8 @@ export default function AdminPanel() {
               </Grid>
             </Box>
 
-            {/* Desktop Hero Images Section - only for product "המקדש" */}
-            {formData.name_he && formData.name_he.trim() === 'המקדש' && (
+            {/* Desktop Hero Images Section — mikdash special page only */}
+            {formData.specialPage === 'mikdash' && (
               <Box sx={{
                 mb: 4,
                 p: 3,
@@ -2153,24 +2291,59 @@ export default function AdminPanel() {
                 </Typography>
                 {Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
                   <Box sx={{ pl: 2 }}>
-                    {selectedOrder.items.map((item, index) => (
-                      <Box key={index} sx={{ mb: 2, pb: 2, borderBottom: index < selectedOrder.items.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                          {item.name_he || item.name_en || 'Unknown Product'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Quantity: {item.quantity || 1} × {item.price} {selectedOrder.currency}
-                          {item.regular_price != null && Number(item.regular_price) > Number(item.price) && (
-                            <> (regular {item.regular_price} {selectedOrder.currency}, discounted)</>
-                          )}
-                        </Typography>
-                        {item.id && (
-                          <Typography variant="caption" color="text.secondary">
-                            Product ID: {item.id}
-                          </Typography>
-                        )}
-                      </Box>
-                    ))}
+                    {(() => {
+                      const rows = [];
+                      const seenBundles = new Set();
+                      selectedOrder.items.forEach((item, index) => {
+                        if (item.bundleRowKey) {
+                          if (seenBundles.has(item.bundleRowKey)) return;
+                          seenBundles.add(item.bundleRowKey);
+                          const comps = selectedOrder.items.filter(
+                            (i) => i.bundleRowKey === item.bundleRowKey
+                          );
+                          rows.push(
+                            <Box key={item.bundleRowKey} sx={{ mb: 2, pb: 2, borderBottom: '1px solid #e0e0e0' }}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                🎁 באנדל: {item.bundleName_he || item.bundleName_en || 'Bundle'}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Quantity: {item.quantity || 1} × {item.bundleUnitPrice} {selectedOrder.currency}
+                                {item.bundleUnitRegularPrice != null &&
+                                  Number(item.bundleUnitRegularPrice) > Number(item.bundleUnitPrice) && (
+                                  <> (regular {item.bundleUnitRegularPrice})</>
+                                )}
+                              </Typography>
+                              {comps.map((c) => (
+                                <Typography key={c.uniqueId || c.id} variant="body2" sx={{ pl: 2, color: '#555' }}>
+                                  • {c.name_he || c.name_en}
+                                  {c.id != null ? ` (product ${c.id})` : ''}
+                                </Typography>
+                              ))}
+                            </Box>
+                          );
+                          return;
+                        }
+                        rows.push(
+                          <Box key={index} sx={{ mb: 2, pb: 2, borderBottom: '1px solid #e0e0e0' }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {item.name_he || item.name_en || 'Unknown Product'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Quantity: {item.quantity || 1} × {item.price} {selectedOrder.currency}
+                              {item.regular_price != null && Number(item.regular_price) > Number(item.price) && (
+                                <> (regular {item.regular_price} {selectedOrder.currency}, discounted)</>
+                              )}
+                            </Typography>
+                            {item.id && (
+                              <Typography variant="caption" color="text.secondary">
+                                Product ID: {item.id}
+                              </Typography>
+                            )}
+                          </Box>
+                        );
+                      });
+                      return rows;
+                    })()}
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>

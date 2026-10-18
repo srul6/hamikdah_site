@@ -1,23 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchProducts } from '../api/products';
+import { fetchPromoSlides } from '../api/promoSlides';
 import { Box, Typography, Grid } from '@mui/material';
 import ProductCard from '../components/ProductCard';
+import BundleCard from '../components/BundleCard';
 import VideoCard from '../components/VideoCard';
 import CommentsSection from '../components/CommentsSection';
 import FaqSection from '../components/FaqSection';
+import HomepageTextSection from '../components/HomepageTextSection';
 import NewsletterSection from '../newsletter/NewsletterSection';
 import BannerSlot from '../banners/BannerSlot';
 import HeroSection from '../components/HeroSection';
+import PromoSlider from '../components/PromoSlider';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useBundles } from '../contexts/BundlesContext';
 import { translations } from '../translations/translations';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export default function Home({ onAddToCart }) {
+const HOME_SECTION_SCROLL_MARGIN = { xs: '100px', md: '120px' };
+
+export default function Home({ onAddToCart, onAddBundle }) {
   const [products, setProducts] = useState([]);
+  const [promoSlides, setPromoSlides] = useState([]);
   const { language, isHebrew } = useLanguage();
+  const { bundles } = useBundles();
   const t = translations[language];
 
   // Refs for animations
@@ -36,6 +45,10 @@ export default function Home({ onAddToCart }) {
         console.error('Error loading products:', error);
         setProducts([]); // Set empty array on error
       });
+
+    fetchPromoSlides()
+      .then((slides) => setPromoSlides(Array.isArray(slides) ? slides : []))
+      .catch(() => setPromoSlides([]));
   }, []);
 
   // Animation effect - slide from left to right
@@ -154,6 +167,15 @@ export default function Home({ onAddToCart }) {
             <HeroSection products={products} />
           </Box>
 
+          {/* Promo slides — same width as hero rectangle */}
+          <Box sx={{
+            maxWidth: 'calc(100% - 32px)',
+            margin: '0 auto',
+            px: 0
+          }}>
+            <PromoSlider slides={promoSlides} />
+          </Box>
+
           {/* Text Section - Title and description */}
           <Box sx={{
             maxWidth: '100%', // Changed to max width
@@ -215,11 +237,15 @@ export default function Home({ onAddToCart }) {
 
 
           {/* Product Cards - 2 columns on large screens */}
-          <Box sx={{
-            maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
-            margin: '0 auto',
-            px: 0 // Remove horizontal padding to match navbar width exactly
-          }}>
+          <Box
+            id="home-products"
+            sx={{
+              maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
+              margin: '0 auto',
+              px: 0, // Remove horizontal padding to match navbar width exactly
+              scrollMarginTop: HOME_SECTION_SCROLL_MARGIN
+            }}
+          >
             <Grid container spacing={3} justifyContent="center">
               {products.slice(0, 2).map(product => (
                 <Grid item xs={12} md={6} key={product.id}>
@@ -270,40 +296,64 @@ export default function Home({ onAddToCart }) {
           </Box>
 
           {/* Video - Full width */}
-          <Box sx={{
-            maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
-            margin: '0 auto',
-            px: 0 // Remove horizontal padding to match navbar width exactly
-          }}>
+          <Box
+            id="home-video"
+            sx={{
+              maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
+              margin: '0 auto',
+              px: 0, // Remove horizontal padding to match navbar width exactly
+              scrollMarginTop: HOME_SECTION_SCROLL_MARGIN
+            }}
+          >
             <VideoCard />
           </Box>
 
-          {/* Remaining Product Cards - 2 columns on large screens */}
-          <Box sx={{
-            maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
-            margin: '0 auto',
-            px: 0, // Remove horizontal padding to match navbar width exactly
-            mb: { xs: 8, md: 12 }
-          }}>
+          {/* Remaining Product Cards + Bundles - 2 columns on large screens */}
+          <Box
+            id="home-catalog"
+            sx={{
+              maxWidth: 'calc(100% - 32px)', // Match navbar width exactly
+              margin: '0 auto',
+              px: 0, // Remove horizontal padding to match navbar width exactly
+              mb: { xs: 8, md: 12 },
+              scrollMarginTop: HOME_SECTION_SCROLL_MARGIN
+            }}
+          >
             <Grid container spacing={3} justifyContent="center">
               {products.slice(2).map(product => (
                 <Grid item xs={12} md={6} key={product.id}>
                   <ProductCard product={product} allProducts={products} onAddToCart={onAddToCart} />
                 </Grid>
               ))}
+              {bundles.map((bundle) => (
+                <Grid item xs={12} md={6} key={`bundle-${bundle.id}`}>
+                  <BundleCard bundle={bundle} onAddBundle={onAddBundle} />
+                </Grid>
+              ))}
             </Grid>
           </Box>
 
+          {/* Optional admin-managed text (hidden when empty) */}
+          <Box id="home-homepage-text" sx={{ scrollMarginTop: HOME_SECTION_SCROLL_MARGIN }}>
+            <HomepageTextSection />
+          </Box>
+
           {/* Testimonials Gallery - Full width */}
-          <CommentsSection />
+          <Box id="home-testimonials" sx={{ scrollMarginTop: HOME_SECTION_SCROLL_MARGIN }}>
+            <CommentsSection />
+          </Box>
 
           {/* FAQ */}
-          <FaqSection />
+          <Box id="home-faq" sx={{ scrollMarginTop: HOME_SECTION_SCROLL_MARGIN }}>
+            <FaqSection />
+          </Box>
 
           <BannerSlot placement="homepage_section" />
 
           {/* Newsletter signup */}
-          <NewsletterSection />
+          <Box id="home-newsletter" sx={{ scrollMarginTop: HOME_SECTION_SCROLL_MARGIN }}>
+            <NewsletterSection />
+          </Box>
         </>
       )}
     </Box>

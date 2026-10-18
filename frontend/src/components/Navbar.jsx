@@ -20,7 +20,12 @@ import { translations } from '../translations/translations';
 import { getImageUrl } from '../utils/imageUtils';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
 import { getProductPath } from '../utils/productSlug';
+import { getBundlePath } from '../utils/bundleSlug';
 import { useGifts } from '../gifts/GiftContext';
+import { useBundles } from '../contexts/BundlesContext';
+import BundleImage from './BundleImage';
+import BundleCartLine from './BundleCartLine';
+import { isBundleCartItem, cartHasUnavailableItems } from '../utils/bundleCart';
 
 // Add CSS animation for smooth slide-down
 const slideDownAnimation = `
@@ -49,11 +54,13 @@ const slideDownAnimation = `
 
 export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuantity }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isBundlesExpanded, setIsBundlesExpanded] = useState(false);
     const [isCartExpanded, setIsCartExpanded] = useState(false);
     const [products, setProducts] = useState([]);
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileProductsPage, setIsMobileProductsPage] = useState(false);
+    const [isMobileBundlesPage, setIsMobileBundlesPage] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [discount, setDiscount] = useState(0);
@@ -64,9 +71,12 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
     const navigate = useNavigate();
     const { openNewsletterModal } = useNewsletter();
     const { ensureGiftsBeforeCheckout } = useGifts();
+    const { bundles, hasBundles } = useBundles();
 
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
+    const bundlesMenuRef = useRef(null);
+    const bundlesButtonRef = useRef(null);
     const cartMenuRef = useRef(null);
     const cartButtonRef = useRef(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -108,6 +118,15 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                 }
             }
 
+            if (isBundlesExpanded) {
+                const isClickInsideMenu = bundlesMenuRef.current && bundlesMenuRef.current.contains(event.target);
+                const isClickInsideButton = bundlesButtonRef.current && bundlesButtonRef.current.contains(event.target);
+
+                if (!isClickInsideMenu && !isClickInsideButton) {
+                    setIsBundlesExpanded(false);
+                }
+            }
+
             // Handle cart menu
             if (isCartExpanded) {
                 const isClickInsideCartMenu = cartMenuRef.current && cartMenuRef.current.contains(event.target);
@@ -119,7 +138,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
             }
         };
 
-        if (isExpanded || isCartExpanded) {
+        if (isExpanded || isBundlesExpanded || isCartExpanded) {
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside);
         }
@@ -128,12 +147,21 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
         };
-    }, [isExpanded, isCartExpanded]);
+    }, [isExpanded, isBundlesExpanded, isCartExpanded]);
 
     const handleProductsHover = () => {
         if (!isMobile && !isExpanded) {
             setIsExpanded(true);
+            setIsBundlesExpanded(false);
             setIsCartExpanded(false); // Close cart when opening products
+        }
+    };
+
+    const handleBundlesHover = () => {
+        if (!isMobile && !isBundlesExpanded && hasBundles) {
+            setIsBundlesExpanded(true);
+            setIsExpanded(false);
+            setIsCartExpanded(false);
         }
     };
 
@@ -142,20 +170,24 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
         if (!isMobile && !isCartExpanded && location.pathname !== '/cart') {
             setIsCartExpanded(true);
             setIsExpanded(false); // Close products when opening cart
+            setIsBundlesExpanded(false);
         }
     };
 
     const handleHeaderLeave = () => {
         if (!isMobile) {
             setIsExpanded(false);
+            setIsBundlesExpanded(false);
             setIsCartExpanded(false);
         }
     };
 
     const handleProductClick = () => {
         setIsExpanded(false);
+        setIsBundlesExpanded(false);
         setIsMobileMenuOpen(false);
         setIsMobileProductsPage(false);
+        setIsMobileBundlesPage(false);
     };
 
     const handleProductsClick = (e) => {
@@ -165,11 +197,27 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
         if (isMobile) {
             // Open products page in mobile menu
             setIsMobileProductsPage(true);
+            setIsMobileBundlesPage(false);
         } else {
             // On desktop, just open the menu if it's not already open
             if (!isExpanded) {
                 setIsExpanded(true);
+                setIsBundlesExpanded(false);
             }
+        }
+    };
+
+    const handleBundlesClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!hasBundles) return;
+
+        if (isMobile) {
+            setIsMobileBundlesPage(true);
+            setIsMobileProductsPage(false);
+        } else if (!isBundlesExpanded) {
+            setIsBundlesExpanded(true);
+            setIsExpanded(false);
         }
     };
 
@@ -179,12 +227,14 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
         if (isMobileMenuOpen) {
             setIsMobileMenuOpen(false);
             setIsMobileProductsPage(false);
+            setIsMobileBundlesPage(false);
         }
     };
 
     const handleContactClick = (e) => {
         e.preventDefault();
         setIsExpanded(false);
+        setIsBundlesExpanded(false);
         setIsCartExpanded(false);
         const footer = document.getElementById('site-footer');
         if (footer) {
@@ -195,16 +245,21 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
     const handleMobileMenuToggle = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
         setIsMobileProductsPage(false);
+        setIsMobileBundlesPage(false);
     };
 
     const handleMobileMenuClose = () => {
         setIsMobileMenuOpen(false);
         setIsMobileProductsPage(false);
+        setIsMobileBundlesPage(false);
     };
 
     const handleBackToMainMenu = () => {
         setIsMobileProductsPage(false);
+        setIsMobileBundlesPage(false);
     };
+
+    const isMobileSubPage = isMobileProductsPage || isMobileBundlesPage;
 
     const handleLanguageToggle = () => {
         toggleLanguage();
@@ -223,6 +278,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
             setIsCartExpanded(!isCartExpanded);
             if (!isCartExpanded) {
                 setIsExpanded(false); // Close products menu when opening cart
+                setIsBundlesExpanded(false);
             }
         }
     };
@@ -452,6 +508,46 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     </Typography>
                                 </Box>
 
+                                {hasBundles && (
+                                    <>
+                                        {/* Separator */}
+                                        <Typography
+                                            variant="body1"
+                                            sx={{
+                                                color: '#86868b',
+                                                fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                                fontWeight: 400,
+                                                mx: 0,
+                                                display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' }
+                                            }}
+                                        >
+                                            |
+                                        </Typography>
+
+                                        <Box
+                                            ref={bundlesButtonRef}
+                                            onMouseEnter={handleBundlesHover}
+                                            onClick={handleBundlesClick}
+                                        >
+                                            <Typography
+                                                variant="body1"
+                                                sx={{
+                                                    color: '#1d1d1f',
+                                                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem', lg: '1.4rem' },
+                                                    fontWeight: 400,
+                                                    cursor: 'pointer',
+                                                    transition: 'color 0.2s ease',
+                                                    '&:hover': {
+                                                        color: 'rgba(199, 61, 34, 1)'
+                                                    }
+                                                }}
+                                            >
+                                                {t.bundles}
+                                            </Typography>
+                                        </Box>
+                                    </>
+                                )}
+
                                 {/* Separator */}
                                 <Typography
                                     variant="body1"
@@ -576,7 +672,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                         {/* Hebrew Mode: Hamburger first, then Cart */}
                         {isMobile && isHebrew && (
                             <IconButton
-                                onClick={isMobileProductsPage ? handleBackToMainMenu : handleMobileMenuToggle}
+                                onClick={isMobileSubPage ? handleBackToMainMenu : handleMobileMenuToggle}
                                 sx={{
                                     color: 'rgba(173, 153, 103, 0.9)',
                                     transition: 'color 0.2s ease',
@@ -590,7 +686,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                 }}
                             >
                                 {isMobileMenuOpen ? (
-                                    isMobileProductsPage ? <ArrowBackIcon /> : <CloseIcon />
+                                    isMobileSubPage ? <ArrowBackIcon /> : <CloseIcon />
                                 ) : (
                                     <MenuIcon />
                                 )}
@@ -648,7 +744,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                         {/* English Mode: Cart first, then Hamburger */}
                         {isMobile && !isHebrew && (
                             <IconButton
-                                onClick={isMobileProductsPage ? handleBackToMainMenu : handleMobileMenuToggle}
+                                onClick={isMobileSubPage ? handleBackToMainMenu : handleMobileMenuToggle}
                                 sx={{
                                     color: 'rgba(173, 153, 103, 0.9)',
                                     transition: 'color 0.2s ease',
@@ -662,7 +758,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                 }}
                             >
                                 {isMobileMenuOpen ? (
-                                    isMobileProductsPage ? <ArrowBackIcon /> : <CloseIcon />
+                                    isMobileSubPage ? <ArrowBackIcon /> : <CloseIcon />
                                 ) : (
                                     <MenuIcon />
                                 )}
@@ -795,6 +891,118 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                     </Box>
                 )}
 
+                {/* Desktop: Bundles Expanding Menu */}
+                {!isMobile && isBundlesExpanded && hasBundles && (
+                    <Box
+                        ref={bundlesMenuRef}
+                        sx={{
+                            backgroundColor: 'rgba(245, 240, 227, 0.95)',
+                            backdropFilter: 'blur(25px)',
+                            borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+                            height: 'auto',
+                            maxHeight: '500px',
+                            overflow: 'auto',
+                            transition: 'all 0.3s ease',
+                            py: 3,
+                            px: 3,
+                            opacity: 1,
+                            visibility: 'visible',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            animation: 'slideDown 0.3s ease',
+                            position: 'relative',
+                            zIndex: 1001,
+                            borderRadius: '0 0 15px 15px',
+                            marginTop: '-1px',
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))' },
+                                gap: 2,
+                                width: 'min(800px, 100%)',
+                                maxWidth: { xs: '400px', sm: '600px', md: '800px' },
+                                position: 'relative',
+                                mx: 'auto'
+                            }}
+                        >
+                            {bundles.map((bundle, index) => {
+                                const row = Math.floor(index / 3);
+                                const totalRows = Math.ceil(bundles.length / 3);
+                                const isLastRow = row === totalRows - 1;
+                                const name = isHebrew ? bundle.name_he : bundle.name_en;
+                                const soldOut = bundle.available === false;
+
+                                return (
+                                    <Box key={bundle.id} sx={{ position: 'relative', minWidth: 0 }}>
+                                        <Box
+                                            component={Link}
+                                            to={getBundlePath(bundle)}
+                                            sx={{
+                                                textDecoration: 'none',
+                                                color: 'inherit',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                height: '100%',
+                                                minWidth: 0,
+                                                marginX: { xs: '8px', sm: '8px', md: '15px' },
+                                                ...(isLastRow ? { marginTop: '0px' } : { marginTop: { xs: '10px', sm: '10px', md: '20px' } }),
+                                                '&:hover .product-name-text': {
+                                                    width: '70%',
+                                                    marginX: 'auto',
+                                                    color: 'white',
+                                                    backgroundColor: 'rgb(216, 71, 42)',
+                                                    transition: 'background-color 0.3s ease',
+                                                }
+                                            }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleProductClick();
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: '100%',
+                                                    height: { xs: '100px', sm: '100px', md: '140px' },
+                                                    borderRadius: 2,
+                                                    border: '1px solid rgb(216, 71, 42)',
+                                                    backgroundColor: 'transparent',
+                                                    overflow: 'hidden',
+                                                    cursor: 'pointer',
+                                                    mb: { xs: 0.5, sm: 0.5, md: 1 },
+                                                    opacity: soldOut ? 0.65 : 1
+                                                }}
+                                            >
+                                                <BundleImage bundle={bundle} alt={name} />
+                                            </Box>
+
+                                            <Typography
+                                                className="product-name-text"
+                                                variant="body2"
+                                                sx={{
+                                                    color: '#1d1d1f',
+                                                    fontWeight: 500,
+                                                    fontSize: { xs: '0.75rem', sm: '0.75rem', md: '0.9rem' },
+                                                    textAlign: 'center',
+                                                    lineHeight: 1.3,
+                                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                                    mt: { xs: 0.25, sm: 0.25, md: 0.5 },
+                                                    px: { xs: 0.5, sm: 0.5, md: 1 },
+                                                    py: { xs: 0.25, sm: 0.25, md: 0.5 },
+                                                }}
+                                            >
+                                                {name}
+                                                {soldOut ? ` · ${t.bundleSoldOut}` : ''}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                )}
+
                 {/* Desktop: Cart Dropdown */}
                 {!isMobile && isCartExpanded && (
                     <Box
@@ -860,111 +1068,123 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                             <>
                                 {/* Cart Items */}
                                 <Box sx={{ px: 2, maxHeight: '300px', overflow: 'auto' }}>
-                                    {cart.map((item, index) => (
-                                        <Box key={item.id}>
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    py: 2,
-                                                    gap: 2,
-                                                    direction: isHebrew ? 'rtl' : 'ltr'
-                                                }}
-                                            >
-                                                {/* Product Image */}
-                                                <Box
-                                                    sx={{
-                                                        width: 40,
-                                                        height: 40,
-                                                        borderRadius: 2,
-                                                        overflow: 'hidden',
-                                                        flexShrink: 0
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={
-                                                            (item.selectedColor && item.selectedColor.mainImage) ?
-                                                                item.selectedColor.mainImage :
-                                                                (item.homepageimage || '/logo.png')
-                                                        }
-                                                        alt={getCartItemDisplayName(item, isHebrew)}
-                                                        style={{
-                                                            width: '100%',
-                                                            height: '100%',
-                                                            objectFit: 'cover'
-                                                        }}
-                                                    />
-                                                </Box>
-
-                                                {/* Product Details */}
-                                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{
-                                                            fontWeight: 600,
-                                                            color: '#1d1d1f',
-                                                            mb: 0.5,
-                                                            overflow: 'hidden',
-                                                            textOverflow: 'ellipsis',
-                                                            whiteSpace: 'nowrap'
-                                                        }}
-                                                    >
-                                                        {getCartItemDisplayName(item, isHebrew)}
-                                                    </Typography>
-
-                                                    <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
-                                                        <PriceDisplay pricing={getCartLinePricing(item)} />
-                                                    </Typography>
-
-                                                    {/* Quantity Controls */}
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => handleQuantityChange(item.uniqueId || item.id, item.quantity - 1)}
-                                                            sx={{
-                                                                width: 20,
-                                                                height: 20,
-                                                                backgroundColor: 'rgba(229, 90, 61, 0.1)',
-                                                                '&:hover': { backgroundColor: 'rgba(229, 90, 61, 0.2)' }
-                                                            }}
-                                                        >
-                                                            <RemoveIcon sx={{ fontSize: 12 }} />
-                                                        </IconButton>
-                                                        <Typography variant="body2" sx={{ minWidth: 16, textAlign: 'center', fontSize: '0.75rem' }}>
-                                                            {item.quantity}
-                                                        </Typography>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => handleQuantityChange(item.uniqueId || item.id, item.quantity + 1)}
-                                                            sx={{
-                                                                width: 20,
-                                                                height: 20,
-                                                                backgroundColor: 'rgba(229, 90, 61, 0.1)',
-                                                                '&:hover': { backgroundColor: 'rgba(229, 90, 61, 0.2)' }
-                                                            }}
-                                                        >
-                                                            <AddIcon sx={{ fontSize: 12 }} />
-                                                        </IconButton>
-                                                    </Box>
-                                                </Box>
-
-                                                {/* Remove Button */}
+                                    {cart.map((item) => {
+                                        const qtyControls = (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => onRemoveFromCart(item.uniqueId || item.id)}
+                                                    onClick={() => handleQuantityChange(item.uniqueId || item.id, item.quantity - 1)}
                                                     sx={{
-                                                        color: '#999',
-                                                        '&:hover': { color: 'rgba(199, 61, 34, 1)' }
+                                                        width: 20,
+                                                        height: 20,
+                                                        backgroundColor: 'rgba(229, 90, 61, 0.1)',
+                                                        '&:hover': { backgroundColor: 'rgba(229, 90, 61, 0.2)' }
                                                     }}
                                                 >
-                                                    <DeleteIcon sx={{ fontSize: 16 }} />
+                                                    <RemoveIcon sx={{ fontSize: 12 }} />
+                                                </IconButton>
+                                                <Typography variant="body2" sx={{ minWidth: 16, textAlign: 'center', fontSize: '0.75rem' }}>
+                                                    {item.quantity}
+                                                </Typography>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleQuantityChange(item.uniqueId || item.id, item.quantity + 1)}
+                                                    sx={{
+                                                        width: 20,
+                                                        height: 20,
+                                                        backgroundColor: 'rgba(229, 90, 61, 0.1)',
+                                                        '&:hover': { backgroundColor: 'rgba(229, 90, 61, 0.2)' }
+                                                    }}
+                                                >
+                                                    <AddIcon sx={{ fontSize: 12 }} />
                                                 </IconButton>
                                             </Box>
+                                        );
+                                        const removeBtn = (
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => onRemoveFromCart(item.uniqueId || item.id)}
+                                                sx={{
+                                                    color: '#999',
+                                                    '&:hover': { color: 'rgba(199, 61, 34, 1)' }
+                                                }}
+                                            >
+                                                <DeleteIcon sx={{ fontSize: 16 }} />
+                                            </IconButton>
+                                        );
 
-                                            <Divider sx={{ mx: 1 }} />
+                                        return (
+                                            <Box key={item.uniqueId || item.id}>
+                                                {isBundleCartItem(item) ? (
+                                                    <BundleCartLine
+                                                        item={item}
+                                                        quantityControls={qtyControls}
+                                                        removeControl={removeBtn}
+                                                    />
+                                                ) : (
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            py: 2,
+                                                            gap: 2,
+                                                            direction: isHebrew ? 'rtl' : 'ltr'
+                                                        }}
+                                                    >
+                                                        <Box
+                                                            sx={{
+                                                                width: 40,
+                                                                height: 40,
+                                                                borderRadius: 2,
+                                                                overflow: 'hidden',
+                                                                flexShrink: 0
+                                                            }}
+                                                        >
+                                                            <img
+                                                                src={
+                                                                    (item.selectedColor && item.selectedColor.mainImage)
+                                                                        ? item.selectedColor.mainImage
+                                                                        : (item.homepageimage || '/logo.png')
+                                                                }
+                                                                alt={getCartItemDisplayName(item, isHebrew)}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    height: '100%',
+                                                                    objectFit: 'cover'
+                                                                }}
+                                                            />
+                                                        </Box>
 
-                                        </Box>
-                                    ))}
+                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                            <Typography
+                                                                variant="body2"
+                                                                sx={{
+                                                                    fontWeight: 600,
+                                                                    color: '#1d1d1f',
+                                                                    mb: 0.5,
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                            >
+                                                                {getCartItemDisplayName(item, isHebrew)}
+                                                            </Typography>
+
+                                                            <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
+                                                                <PriceDisplay pricing={getCartLinePricing(item)} />
+                                                            </Typography>
+
+                                                            {qtyControls}
+                                                        </Box>
+
+                                                        {removeBtn}
+                                                    </Box>
+                                                )}
+
+                                                <Divider sx={{ mx: 1 }} />
+                                            </Box>
+                                        );
+                                    })}
                                 </Box>
 
 
@@ -993,7 +1213,9 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     <Button
                                         variant="contained"
                                         fullWidth
+                                        disabled={cartHasUnavailableItems(cart)}
                                         onClick={() => {
+                                            if (cartHasUnavailableItems(cart)) return;
                                             setIsCartExpanded(false);
                                             ensureGiftsBeforeCheckout(() => {
                                                 navigate('/payment', {
@@ -1014,13 +1236,31 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                             py: 1.2,
                                             mb: 1,
                                             fontWeight: 600,
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(229, 90, 61, 0.9)'
-                                                }
+                                            '&:hover': {
+                                                backgroundColor: 'rgba(229, 90, 61, 0.9)'
+                                            },
+                                            '&:disabled': {
+                                                backgroundColor: '#ccc',
+                                                color: '#999'
+                                            }
+                                        }}
+                                    >
+                                        {isHebrew ? 'המשך לתשלום' : 'Proceed to Checkout'}
+                                    </Button>
+                                    {cartHasUnavailableItems(cart) && (
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                display: 'block',
+                                                mb: 1,
+                                                color: '#d8472a',
+                                                textAlign: 'center',
+                                                direction: isHebrew ? 'rtl' : 'ltr'
                                             }}
                                         >
-                                            {isHebrew ? 'המשך לתשלום' : 'Proceed to Checkout'}
-                                        </Button>
+                                            {t.cartHasUnavailableItems}
+                                        </Typography>
+                                    )}
 
                                     {/* Go to Cart Page Link */}
                                     <Link to="/cart" style={{ textDecoration: 'none' }}>
@@ -1064,7 +1304,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                         }}
                     >
                         {/* Main Menu or Products Page */}
-                        {!isMobileProductsPage ? (
+                        {!isMobileSubPage ? (
                             // Main Menu
                             <Box sx={{ height: '100%', mt: 5, ml: 1, display: 'flex', flexDirection: 'column' }}>
                                 {/* Menu Items */}
@@ -1130,6 +1370,39 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                             }}
                                         />
                                     </ListItem>
+
+                                    {/* Bundles */}
+                                    {hasBundles && (
+                                        <ListItem
+                                            button
+                                            onClick={handleBundlesClick}
+                                            sx={{
+                                                borderRadius: 0,
+                                                backgroundColor: 'transparent',
+                                                cursor: 'pointer',
+                                                opacity: 0,
+                                                animation: 'fadeInUp 0.6s ease 0.15s forwards',
+                                                '&:hover': {
+                                                    backgroundColor: 'transparent',
+                                                    '& .MuiListItemText-primary': {
+                                                        color: 'rgba(199, 61, 34, 1)'
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <ListItemText
+                                                primary={t.bundles}
+                                                primaryTypographyProps={{
+                                                    fontSize: '2.5rem',
+                                                    mb: -1.5,
+                                                    fontWeight: 400,
+                                                    color: '#1d1d1f',
+                                                    cursor: 'pointer',
+                                                    transition: 'color 0.2s ease'
+                                                }}
+                                            />
+                                        </ListItem>
+                                    )}
 
                                     {/* About Us */}
                                     <Link to="/about" style={{ textDecoration: 'none', color: 'inherit' }} onClick={handleMobileMenuClose}>
@@ -1240,7 +1513,7 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                     </ListItem>
                                 </List>
                             </Box>
-                        ) : (
+                        ) : isMobileProductsPage ? (
                             // Products Page
                             <Box sx={{ height: '100%', mt: 6, display: 'flex', flexDirection: 'column' }}>
                                 {/* Products List */}
@@ -1282,6 +1555,68 @@ export default function Navbar({ cartCount, cart, onRemoveFromCart, onUpdateQuan
                                             </ListItem>
                                         </Link>
                                     ))}
+                                </List>
+                            </Box>
+                        ) : (
+                            // Bundles Page — text-only list with subtle dividers
+                            <Box sx={{ height: '100%', mt: 6, display: 'flex', flexDirection: 'column' }}>
+                                <List sx={{ flex: 1 }}>
+                                    {bundles.map((bundle, index) => {
+                                        const name = isHebrew ? bundle.name_he : bundle.name_en;
+                                        const soldOut = bundle.available === false;
+                                        const isLast = index === bundles.length - 1;
+                                        return (
+                                            <React.Fragment key={bundle.id}>
+                                                <Link
+                                                    to={getBundlePath(bundle)}
+                                                    style={{ textDecoration: 'none', color: 'inherit' }}
+                                                    onClick={handleProductClick}
+                                                >
+                                                    <ListItem
+                                                        sx={{
+                                                            borderRadius: 0,
+                                                            backgroundColor: 'transparent',
+                                                            ml: 1,
+                                                            mt: index === 0 ? 0 : -1,
+                                                            cursor: 'pointer',
+                                                            opacity: 0,
+                                                            animation: `fadeInUp 0.6s ease ${0.1 * index}s forwards`,
+                                                            '&:hover': {
+                                                                backgroundColor: 'transparent',
+                                                                '& .MuiListItemText-primary': {
+                                                                    color: 'rgba(199, 61, 34, 1)'
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        <ListItemText
+                                                            primary={soldOut ? `${name} · ${t.bundleSoldOut}` : name}
+                                                            primaryTypographyProps={{
+                                                                fontSize: '2.5rem',
+                                                                fontWeight: 400,
+                                                                color: '#1d1d1f',
+                                                                cursor: 'pointer',
+                                                                transition: 'color 0.2s ease'
+                                                            }}
+                                                        />
+                                                    </ListItem>
+                                                </Link>
+                                                {!isLast && (
+                                                    <Box
+                                                        aria-hidden
+                                                        sx={{
+                                                            width: '55%',
+                                                            maxWidth: 220,
+                                                            height: '1px',
+                                                            backgroundColor: 'rgba(199, 61, 34, 0.22)',
+                                                            ml: 2,
+                                                            my: 0.5
+                                                        }}
+                                                    />
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
                                 </List>
                             </Box>
                         )}

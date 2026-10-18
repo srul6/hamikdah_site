@@ -23,5 +23,8 @@ export const API_ENDPOINTS = {
     newsletter: `${API_BASE_URL}/api/newsletter`,
     gifts: `${API_BASE_URL}/api/gifts`,
     banners: `${API_BASE_URL}/api/banners`,
-    faq: `${API_BASE_URL}/api/faq`
+    faq: `${API_BASE_URL}/api/faq`,
+    homepageText: `${API_BASE_URL}/api/homepage-text`,
+    bundles: `${API_BASE_URL}/api/bundles`,
+    promoSlides: `${API_BASE_URL}/api/promo-slides`
 };

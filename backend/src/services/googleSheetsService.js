@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
+const { groupOrderItemsForDisplay } = require('../utils/bundleCheckout');
 
 class GoogleSheetsService {
     constructor() {
@@ -127,14 +128,39 @@ class GoogleSheetsService {
             return 'לא זמין מידע על הפריטים';
         }
 
-        return safeItems
-            .map((item) => {
+        return groupOrderItemsForDisplay(safeItems)
+            .map((row) => {
+                if (row.kind === 'bundle') {
+                    const qty = row.quantity || 1;
+                    const price = parseFloat(row.unitPrice) || 0;
+                    const comps = (row.components || [])
+                        .map((c) => {
+                            const base = c.name_he || c.name_en || 'פריט';
+                            // Prefer bare product name + color; names may already include (color)
+                            const color = c.color_name_he || c.color_name_en || '';
+                            if (color && !String(base).includes('(')) {
+                                return `${base} [${color}]`;
+                            }
+                            // Extract trailing (color) for sheet format
+                            const m = String(base).match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+                            if (m) return `${m[1].trim()} [${m[2].trim()}]`;
+                            return base;
+                        })
+                        .join(', ');
+                    return `[באנדל] ${row.name_he || row.name_en || 'באנדל'} x${qty} (₪${price.toFixed(2)} each: ${comps})`;
+                }
+                const item = row.item;
                 const name = item.name_he || item.name_en || item.name || 'פריט';
                 const quantity = item.quantity || 1;
                 const price = parseFloat(item.price) || 0;
                 return `${name} x${quantity} (₪${price.toFixed(2)} each)`;
             })
             .join('; ');
+    }
+
+    /** Column R: whether the order contains any bundle lines. */
+    orderHasBundles(items) {
+        return groupOrderItemsForDisplay(items || []).some((r) => r.kind === 'bundle');
     }
 
     buildOrderRow(orderData) {
@@ -164,6 +190,7 @@ class GoogleSheetsService {
         const numericAmount = parseFloat(amount);
         const amountDisplay = Number.isNaN(numericAmount) ? (amount ?? 'לא זמין') : numericAmount;
 
+        // Columns A–Q unchanged; column R = באנדל? (כן/לא). Add header "באנדל?" in R1 manually once.
         return [
             formId || 'לא זמין',
             status || 'לא זמין',
@@ -181,7 +208,8 @@ class GoogleSheetsService {
             customerInfo?.floor || 'לא צוין',
             customerInfo?.city || 'לא זמין',
             dedication || 'לא צוין',
-            this.serializeItems(items)
+            this.serializeItems(items),
+            this.orderHasBundles(items) ? 'כן' : 'לא'
         ];
     }
 
@@ -196,7 +224,7 @@ class GoogleSheetsService {
             if (!tabName) return false;
 
             const row = this.buildOrderRow(orderData);
-            const range = this.formatSheetRange('A:Q');
+            const range = this.formatSheetRange('A:R');
 
             await this.sheetsClient.spreadsheets.values.append({
                 spreadsheetId: this.spreadsheetId,

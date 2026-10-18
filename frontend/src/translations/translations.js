@@ -1,7 +1,18 @@
 export const translations = {
     HE: {
         // Navbar
-        products: 'מוצרים',
+        products: 'הערכות',
+        bundles: 'באנדלים',
+        bundleSoldOut: 'אזל מהמלאי',
+        bundleNotFound: 'הבאנדל לא נמצא',
+        bundleLoadError: 'אירעה שגיאה בטעינת הבאנדל',
+        bundleSectionLabel: 'ערכה',
+        viewFullProductPage: 'לדף המוצר המלא',
+        colors: 'צבעים',
+        bundleSavings: 'חסכון של ₪{amount} ({percent}%)',
+        bundleAddToCart: 'הוספה לסל',
+        bundleCartUnavailable: 'אזל מהמלאי',
+        cartHasUnavailableItems: 'יש פריטים שאינם זמינים בעגלה — הסירו אותם לפני המעבר לתשלום',
         aboutUs: 'מי אנחנו',
         contact: 'יצירת קשר',
         home: 'דף הבית',
@@ -40,7 +51,7 @@ export const translations = {
 
         // Home Page
         heroTagline: 'מתנות שמעצבות את הלב',
-        deliveryWithin7Days: 'משלוח תוך 7 ימי עסקים',
+        deliveryWithin7Days: 'משלוח עד 7 ימי עסקים',
         addToCart: 'הוספה לעגלה',
         loadingProducts: '..תנו לנו שנייה',
         mainTitle: 'הילדים בונים|ובית המקדש מתעורר לחיים!',
@@ -49,6 +60,13 @@ export const translations = {
         secondDescription: 'המקדש השני - המוצר שממנו הכל התחיל.',
         whatOurCustomersSay: 'לקוחות מספרים',
         whatOurCustomersSaySubtitle: 'הלקוחות שלנו - כלומר אתם - כותבים לנו הודעות שבלעדיהן היה קשה יותר לקום בבוקר. תודה על זה :)',
+
+        // Promo slider
+        promoSliderRegion: 'מצגת מבצעים',
+        promoSliderPrev: 'שקופית קודמת',
+        promoSliderNext: 'שקופית הבאה',
+        promoSliderPause: 'השהה מצגת',
+        promoSliderPlay: 'הפעל מצגת',
 
         // FAQ
         faqTitle: 'שאלה טובה',
@@ -403,6 +421,17 @@ export const translations = {
         // Navbar
         home: 'Home',
         products: 'Products',
+        bundles: 'Bundles',
+        bundleSoldOut: 'Sold out',
+        bundleNotFound: 'Bundle not found',
+        bundleLoadError: 'Something went wrong loading this bundle',
+        bundleSectionLabel: 'Kit',
+        viewFullProductPage: 'View full product page',
+        colors: 'Colors',
+        bundleSavings: 'Save ₪{amount} ({percent}%)',
+        bundleAddToCart: 'Add to cart',
+        bundleCartUnavailable: 'Sold out',
+        cartHasUnavailableItems: 'Your cart has unavailable items — remove them before checkout',
         aboutUs: 'About Us',
         contact: 'Contact',
 
@@ -449,6 +478,11 @@ export const translations = {
         secondTitle: 'Discover Our Products',
         secondDescription: 'Each product is carefully selected to enrich your Jewish holiday and tradition experience at home',
         whatOurCustomersSay: 'What Our Customers Say',
+        promoSliderRegion: 'Promotions carousel',
+        promoSliderPrev: 'Previous slide',
+        promoSliderNext: 'Next slide',
+        promoSliderPause: 'Pause carousel',
+        promoSliderPlay: 'Play carousel',
         whatOurCustomersSaySubtitle: 'Our customers — that is, you — write us messages that brighten our day. Thank you for that :)',
 
         // FAQ

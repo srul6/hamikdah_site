@@ -156,7 +156,7 @@ export default function CommentsSection() {
                 <Typography
                     variant="h3"
                     sx={{
-                        fontWeight: 400,
+                        fontWeight: 600,
                         color: '#1d1d1f',
                         mb: 1,
                         fontSize: { xs: '2rem', sm: '2.4rem', md: '2.8rem' },

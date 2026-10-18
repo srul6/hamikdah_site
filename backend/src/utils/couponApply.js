@@ -2,6 +2,22 @@
  * Shared coupon apply math — used by /api/coupons/apply and checkout re-validation.
  */
 
+const { NEWSLETTER_COUPON_PREFIX } = require('./newsletterTokens');
+
+/**
+ * Newsletter-signup coupons only.
+ * Primary marker: coupons.subscriber_id (set only by newsletterService).
+ * Fallback: code prefix WELCOME (generateCouponCode) — never the discount value.
+ */
+function isNewsletterCoupon(coupon) {
+    if (!coupon) return false;
+    if (coupon.subscriberId != null && coupon.subscriberId !== '') return true;
+    const code = String(coupon.code || '').toUpperCase().trim();
+    return code.startsWith(NEWSLETTER_COUPON_PREFIX);
+}
+
+const BUNDLE_COUPON_REJECT_HE = 'קופון זה אינו תקף על באנדלים';
+
 function computeCouponDiscount(coupon, totalAmount) {
     if (!coupon || !coupon.isActive) {
         return { ok: false, error: 'inactive' };
@@ -52,5 +68,8 @@ function computeCouponDiscount(coupon, totalAmount) {
 }
 
 module.exports = {
-    computeCouponDiscount
+    computeCouponDiscount,
+    isNewsletterCoupon,
+    BUNDLE_COUPON_REJECT_HE,
+    NEWSLETTER_COUPON_PREFIX
 };

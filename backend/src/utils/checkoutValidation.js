@@ -94,10 +94,81 @@ function validateCustomerInfo(customerInfo) {
     };
 }
 
+function sanitizeQuantityAndPrice(item, index) {
+    const errors = [];
+    let quantity = parseInt(item.quantity, 10);
+    if (Number.isNaN(quantity) || quantity < 1) {
+        errors.push(`Item ${index}: quantity must be at least 1`);
+        return { errors, quantity: null, price: null };
+    }
+    if (quantity > 999) {
+        errors.push(`Item ${index}: quantity must be at most 999`);
+        return { errors, quantity: null, price: null };
+    }
+
+    let price = parseFloat(item.price);
+    if (Number.isNaN(price) || price < 0) {
+        errors.push(`Item ${index}: price must be a valid non-negative number`);
+        return { errors, quantity: null, price: null };
+    }
+    if (price > 1e7) {
+        errors.push(`Item ${index}: price is too large`);
+        return { errors, quantity: null, price: null };
+    }
+    return { errors: [], quantity, price };
+}
+
+function sanitizeBundleLineItem(item, index) {
+    const errors = [];
+    const bundleId = parseInt(item.bundleId, 10);
+    if (!Number.isFinite(bundleId) || bundleId <= 0) {
+        errors.push(`Item ${index}: bundleId must be a positive integer`);
+        return { errors, item: null };
+    }
+
+    const qp = sanitizeQuantityAndPrice(item, index);
+    if (qp.errors.length) return { errors: qp.errors, item: null };
+
+    if (!Array.isArray(item.selection)) {
+        errors.push(`Item ${index}: selection must be an array`);
+        return { errors, item: null };
+    }
+
+    const selection = item.selection.map((s) => ({
+        productId: s && s.productId != null ? s.productId : null,
+        colorId: s && s.colorId != null && s.colorId !== '' ? s.colorId : null
+    }));
+
+    const uniqueId =
+        item.uniqueId != null && String(item.uniqueId).trim() !== ''
+            ? truncate(stripControlChars(String(item.uniqueId).trim()), LIMITS.idString * 4)
+            : `bundle-${bundleId}`;
+
+    return {
+        errors: [],
+        item: {
+            type: 'bundle',
+            bundleId,
+            quantity: qp.quantity,
+            price: qp.price,
+            uniqueId,
+            selection
+        }
+    };
+}
+
 function sanitizeOneLineItem(item, index) {
     const errors = [];
     if (!item || typeof item !== 'object') {
         return { errors: [`Item ${index}: must be an object`], item: null };
+    }
+
+    if (item.type != null && item.type !== '' && item.type !== 'bundle') {
+        return { errors: [`Item ${index}: unknown type "${item.type}"`], item: null };
+    }
+
+    if (item.type === 'bundle') {
+        return sanitizeBundleLineItem(item, index);
     }
 
     const id = item.id;
@@ -106,35 +177,23 @@ function sanitizeOneLineItem(item, index) {
         return { errors, item: null };
     }
 
-    let quantity = parseInt(item.quantity, 10);
-    if (Number.isNaN(quantity) || quantity < 1) {
-        errors.push(`Item ${index}: quantity must be at least 1`);
-        return { errors, item: null };
-    }
-    if (quantity > 999) {
-        errors.push(`Item ${index}: quantity must be at most 999`);
-        return { errors, item: null };
-    }
-
-    let price = parseFloat(item.price);
-    if (Number.isNaN(price) || price < 0) {
-        errors.push(`Item ${index}: price must be a valid non-negative number`);
-        return { errors, item: null };
-    }
-    if (price > 1e7) {
-        errors.push(`Item ${index}: price is too large`);
-        return { errors, item: null };
-    }
+    const qp = sanitizeQuantityAndPrice(item, index);
+    if (qp.errors.length) return { errors: qp.errors, item: null };
 
     const regularPrice = parseFloat(item.regular_price);
+    const uniqueId =
+        item.uniqueId != null && String(item.uniqueId).trim() !== ''
+            ? truncate(stripControlChars(String(item.uniqueId).trim()), LIMITS.idString * 4)
+            : undefined;
 
     return {
         errors: [],
         item: {
             id,
-            quantity,
-            price,
-            ...(Number.isFinite(regularPrice) && regularPrice > price ? { regular_price: regularPrice } : {}),
+            quantity: qp.quantity,
+            price: qp.price,
+            ...(Number.isFinite(regularPrice) && regularPrice > qp.price ? { regular_price: regularPrice } : {}),
+            ...(uniqueId != null ? { uniqueId } : {}),
             name_he: sanitizeOptionalString(item.name_he, LIMITS.productName),
             name_en: sanitizeOptionalString(item.name_en, LIMITS.productName),
             name: sanitizeOptionalString(item.name, LIMITS.productName),

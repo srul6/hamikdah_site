@@ -32,7 +32,267 @@ import { useGifts } from '../gifts/GiftContext';
 import GiftCartProductCards from '../gifts/GiftCartProductCards';
 import BannerSlot from '../banners/BannerSlot';
 import PriceDisplay from '../components/PriceDisplay';
+import BundleImage from '../components/BundleImage';
+import {
+    BundleCartComponentLines,
+    useBundleCartDisplay
+} from '../components/BundleCartLine';
 import { getCartLinePricing } from '../utils/productPricing';
+import { isBundleCartItem, cartHasUnavailableItems } from '../utils/bundleCart';
+
+function CartPageBundleCard({ item, isHebrew, t, onRemove, onUpdateQuantity }) {
+    const { path, name, imageBundle, pending } = useBundleCartDisplay(item);
+    return (
+        <CartPageCardShell
+            item={item}
+            isHebrew={isHebrew}
+            t={t}
+            onRemove={onRemove}
+            onUpdateQuantity={onUpdateQuantity}
+            imagePath={path}
+            displayName={name}
+            imageNode={(
+                <Box sx={{
+                    height: { xs: 200, sm: 220, md: 240 },
+                    width: '100%',
+                    overflow: 'hidden',
+                    cursor: 'pointer'
+                }}>
+                    {!pending && <BundleImage bundle={imageBundle} alt={name} />}
+                </Box>
+            )}
+            nameExtra={<BundleCartComponentLines item={item} sx={{ mt: 0.5 }} />}
+            dimmed={item.available === false}
+        />
+    );
+}
+
+function CartPageProductCard({ item, isHebrew, t, onRemove, onUpdateQuantity }) {
+    const displayName = getCartItemDisplayName(item, isHebrew);
+    return (
+        <CartPageCardShell
+            item={item}
+            isHebrew={isHebrew}
+            t={t}
+            onRemove={onRemove}
+            onUpdateQuantity={onUpdateQuantity}
+            imagePath={getProductPath(item)}
+            displayName={displayName}
+            imageNode={(
+                <CardMedia
+                    component="img"
+                    height={{ xs: 200, sm: 220, md: 240 }}
+                    image={
+                        (item.selectedColor && item.selectedColor.mainImage)
+                            ? item.selectedColor.mainImage
+                            : (item.homepageimage || '/logo.png')
+                    }
+                    alt={displayName}
+                    sx={{
+                        objectFit: 'cover',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease',
+                        '&:hover': { transform: 'scale(1.02)' }
+                    }}
+                />
+            )}
+        />
+    );
+}
+
+function CartPageCardShell({
+    item, isHebrew, t, onRemove, onUpdateQuantity,
+    imagePath, displayName, imageNode, nameExtra = null, dimmed = false
+}) {
+    return (
+        <Card sx={{
+            mb: 2,
+            backgroundColor: 'transparent',
+            border: '1px solid rgba(229, 90, 61, 1)',
+            boxShadow: 'none',
+            borderRadius: 2,
+            overflow: 'hidden',
+            maxWidth: { xs: '250px', md: '400px' },
+            width: '100%',
+            mx: 'auto',
+            opacity: dimmed ? 0.85 : 1
+        }}>
+            <Grid container sx={{ width: '100%' }}>
+                <Grid item xs={12} sm={4} md={3}>
+                    <Link to={imagePath} style={{ textDecoration: 'none' }}>
+                        {imageNode}
+                    </Link>
+                </Grid>
+
+                <Grid item xs={12} sm={8} md={9} sx={{ width: '100%' }}>
+                    <CardContent sx={{
+                        height: '100%',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: { xs: '100px', sm: '220px', md: '240px' },
+                        p: 0
+                    }}>
+                        <Box sx={{
+                            width: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            height: '100%',
+                            p: 3
+                        }}>
+                            <Box sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                borderBottom: '1px solid rgba(216, 71, 42, 0.38)',
+                                pb: 2,
+                                mb: 1
+                            }}>
+                                <Typography variant="body1" sx={{
+                                    fontWeight: '500',
+                                    fontSize: { xs: '1.1rem', sm: '1.5rem' }
+                                }}>
+                                    <PriceDisplay
+                                        pricing={getCartLinePricing(item)}
+                                        finalSx={{ color: 'inherit', fontWeight: 600 }}
+                                    />
+                                </Typography>
+
+                                <Box sx={{
+                                    direction: isHebrew ? 'rtl' : 'ltr',
+                                    maxWidth: '60%',
+                                    textAlign: 'right'
+                                }}>
+                                    <Typography
+                                        component={Link}
+                                        to={imagePath}
+                                        variant="h6"
+                                        sx={{
+                                            fontWeight: '500',
+                                            fontSize: { xs: '1.1rem', sm: '1.5rem' },
+                                            lineHeight: '1.1',
+                                            textDecoration: 'none',
+                                            color: 'inherit',
+                                            display: 'block',
+                                            '&:hover': { color: '#d8472a' }
+                                        }}
+                                    >
+                                        {displayName}
+                                    </Typography>
+                                    {nameExtra}
+                                </Box>
+                            </Box>
+
+                            <Box sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <IconButton
+                                    onClick={() => onUpdateQuantity(item.uniqueId || item.id, item.quantity - 1)}
+                                    disabled={item.quantity <= 1}
+                                    size="small"
+                                    sx={{ '&:hover': { color: ' #d8472a' } }}
+                                >
+                                    <RemoveIcon />
+                                </IconButton>
+
+                                <Typography variant="h6" sx={{
+                                    minWidth: '40px',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                    fontSize: { xs: '1rem', sm: '1.45rem' }
+                                }}>
+                                    {item.quantity}
+                                </Typography>
+
+                                <IconButton
+                                    onClick={() => onUpdateQuantity(item.uniqueId || item.id, item.quantity + 1)}
+                                    size="small"
+                                    sx={{ '&:hover': { color: '#d8472a' } }}
+                                >
+                                    <AddIcon />
+                                </IconButton>
+                            </Box>
+
+                            <Box sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-end',
+                                borderTop: '1px solid rgba(216, 71, 42, 0.38)',
+                                pt: 1,
+                                mb: -3,
+                                mt: 1
+                            }}>
+                                <Box sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-start'
+                                }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{
+                                        direction: isHebrew ? 'rtl' : 'ltr',
+                                        mb: { xs: -0.5, sm: -1 },
+                                        fontSize: { xs: '0.75rem', sm: '1rem' }
+                                    }}>
+                                        {t.total}
+                                    </Typography>
+                                    <Typography variant="h6" color="#d8472a" fontWeight="bold" sx={{
+                                        fontSize: { xs: '1.1rem', sm: '1.5rem' }
+                                    }}>
+                                        <PriceDisplay
+                                            regularPrice={getCartLinePricing(item).regularPrice * item.quantity}
+                                            finalPrice={getCartLinePricing(item).finalPrice * item.quantity}
+                                            finalSx={{ color: 'inherit' }}
+                                        />
+                                    </Typography>
+                                </Box>
+
+                                <IconButton
+                                    onClick={() => onRemove(item.uniqueId || item.id)}
+                                    size="small"
+                                    sx={{
+                                        color: '#d8472a',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(229, 90, 61, 1)',
+                                            color: 'rgb(236, 230, 229)',
+                                        }
+                                    }}
+                                >
+                                    <DeleteIcon />
+                                </IconButton>
+                            </Box>
+                        </Box>
+                    </CardContent>
+                </Grid>
+            </Grid>
+        </Card>
+    );
+}
+
+function CartPageLineCard({ item, isBundle, isHebrew, t, onRemove, onUpdateQuantity }) {
+    if (isBundle) {
+        return (
+            <CartPageBundleCard
+                item={item}
+                isHebrew={isHebrew}
+                t={t}
+                onRemove={onRemove}
+                onUpdateQuantity={onUpdateQuantity}
+            />
+        );
+    }
+    return (
+        <CartPageProductCard
+            item={item}
+            isHebrew={isHebrew}
+            t={t}
+            onRemove={onRemove}
+            onUpdateQuantity={onUpdateQuantity}
+        />
+    );
+}
 
 export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     const navigate = useNavigate();
@@ -81,7 +341,8 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 },
                 body: JSON.stringify({
                     code: couponCode.trim(),
-                    totalAmount: subtotal
+                    totalAmount: subtotal,
+                    hasBundles: cart.some((item) => isBundleCartItem(item))
                 })
             });
 
@@ -91,7 +352,12 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 setAppliedCoupon(data);
                 setCouponCode('');
             } else {
-                setCouponError((isHebrew ? data.message_he : data.message_en) || t.couponNotFound);
+                setCouponError(
+                    (isHebrew
+                        ? (data.message_he || data.message)
+                        : (data.message_en || data.message))
+                    || t.couponNotFound
+                );
             }
         } catch (error) {
             setCouponError(t.networkErrorRetry);
@@ -109,6 +375,7 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
     // Continue to payment
     const handleContinueToPayment = () => {
         if (cart.length === 0) return;
+        if (cartHasUnavailableItems(cart)) return;
 
         const proceed = () => {
             saveHomeDeliveryPreference(homeDelivery);
@@ -222,198 +489,22 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                 {/* Cart Items */}
                 <Grid item xs={12} md={6}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        {cart.map((item) => (
+                        {cart.map((item) => {
+                            const isBundle = isBundleCartItem(item);
+                            return (
                             <React.Fragment key={item.uniqueId || item.id}>
-                            <Card sx={{
-                                mb: 2,
-                                backgroundColor: 'transparent', // Transparent background
-                                border: '1px solid rgba(229, 90, 61, 1)', // Same color as cart text
-                                boxShadow: 'none', // Remove shadow since we have border
-                                borderRadius: 2,
-                                overflow: 'hidden',
-                                maxWidth: { xs: '250px', md: '400px' }, // 250px mobile, 400px desktop
-                                width: '100%', // Ensure cards take full available width up to max
-                                mx: 'auto', // Center the card horizontally
-                            }}>
-                                <Grid container sx={{ width: '100%' }}>
-                                    {/* Product Image */}
-                                    <Grid item xs={12} sm={4} md={3}>
-                                        <Link to={getProductPath(item)} style={{ textDecoration: 'none' }}>
-                                            <CardMedia
-                                                component="img"
-                                                height={{ xs: 200, sm: 220, md: 240 }}
-                                                image={
-                                                    (item.selectedColor && item.selectedColor.mainImage) ?
-                                                        item.selectedColor.mainImage :
-                                                        (item.homepageimage || '/logo.png')
-                                                }
-                                                alt={getCartItemDisplayName(item, isHebrew)}
-                                                sx={{
-                                                    objectFit: 'cover',
-                                                    cursor: 'pointer',
-                                                    transition: 'transform 0.2s ease',
-                                                    '&:hover': {
-                                                        transform: 'scale(1.02)'
-                                                    }
-                                                }}
-                                            />
-                                        </Link>
-                                    </Grid>
-
-                                    {/* Product Details */}
-                                    <Grid item xs={12} sm={8} md={9} sx={{ width: '100%' }}>
-                                        <CardContent sx={{
-                                            height: '100%',
-                                            width: '100%',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            justifyContent: 'space-between',
-                                            minHeight: { xs: '100px', sm: '220px', md: '240px' },
-                                            p: 0// Remove default padding to use full width
-                                        }}>
-                                            {/* Single Container for All Product Details */}
-                                            <Box sx={{
-                                                width: '100%',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                justifyContent: 'space-between',
-                                                height: '100%',
-                                                p: 3,
-
-
-                                                // Add padding to the container instead
-                                            }}>
-                                                {/* Top Row: Product Name (right) and Price (left) */}
-                                                <Box sx={{
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'flex-start',
-                                                    borderBottom: '1px solid rgba(216, 71, 42, 0.38)',
-                                                    pb: 2,
-                                                    mb: 1
-                                                }}>
-                                                    {/* Price per unit - Left side */}
-                                                    <Typography variant="body1" sx={{
-                                                        fontWeight: '500',
-                                                        fontSize: { xs: '1.1rem', sm: '1.5rem' }
-                                                    }}>
-                                                        <PriceDisplay
-                                                            pricing={getCartLinePricing(item)}
-                                                            finalSx={{ color: 'inherit', fontWeight: 600 }}
-                                                        />
-                                                    </Typography>
-
-                                                    {/* Product Name - Right side */}
-                                                    <Typography variant="h6" sx={{
-                                                        direction: isHebrew ? 'rtl' : 'ltr',
-                                                        maxWidth: '60%',
-                                                        fontWeight: '500',
-                                                        fontSize: { xs: '1.1rem', sm: '1.5rem' },
-                                                        lineHeight: '1.1',
-                                                        textAlign: 'right',
-                                                    }}>
-                                                        {getCartItemDisplayName(item, isHebrew)}
-                                                    </Typography>
-
-
-                                                </Box>
-
-                                                {/* Middle Row: Quantity Controls */}
-                                                <Box sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-
-                                                }}>
-                                                    <IconButton
-                                                        onClick={() => onUpdateQuantity(item.uniqueId || item.id, item.quantity - 1)}
-                                                        disabled={item.quantity <= 1}
-                                                        size="small"
-                                                        sx={{
-                                                            '&:hover': { color: ' #d8472a' }
-                                                        }}
-                                                    >
-                                                        <RemoveIcon />
-                                                    </IconButton>
-
-                                                    <Typography variant="h6" sx={{
-                                                        minWidth: '40px',
-                                                        textAlign: 'center',
-                                                        fontWeight: 'bold',
-                                                        fontSize: { xs: '1rem', sm: '1.45rem' }
-                                                    }}>
-                                                        {item.quantity}
-                                                    </Typography>
-
-                                                    <IconButton
-                                                        onClick={() => onUpdateQuantity(item.uniqueId || item.id, item.quantity + 1)}
-                                                        size="small"
-                                                        sx={{
-                                                            '&:hover': { color: '#d8472a' }
-                                                        }}
-                                                    >
-                                                        <AddIcon />
-                                                    </IconButton>
-                                                </Box>
-
-                                                {/* Bottom Row: Total (left) and Delete Button (right) */}
-                                                <Box sx={{
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'flex-end',
-                                                    borderTop: '1px solid rgba(216, 71, 42, 0.38)',
-                                                    pt: 1,
-                                                    mb: -3,
-                                                    mt: 1
-
-                                                }}>
-                                                    {/* Total Price - Left side, aligned under unit price */}
-                                                    <Box sx={{
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'flex-start'
-                                                    }}>
-                                                        <Typography variant="caption" color="text.secondary" sx={{
-                                                            direction: isHebrew ? 'rtl' : 'ltr',
-                                                            mb: { xs: -0.5, sm: -1 },
-                                                            fontSize: { xs: '0.75rem', sm: '1rem' }
-                                                        }}>
-                                                            {t.total}
-                                                        </Typography>
-                                                        <Typography variant="h6" color="#d8472a" fontWeight="bold" sx={{
-                                                            fontSize: { xs: '1.1rem', sm: '1.5rem' }
-                                                        }}>
-                                                            <PriceDisplay
-                                                                regularPrice={getCartLinePricing(item).regularPrice * item.quantity}
-                                                                finalPrice={getCartLinePricing(item).finalPrice * item.quantity}
-                                                                finalSx={{ color: 'inherit' }}
-                                                            />
-                                                        </Typography>
-                                                    </Box>
-
-                                                    {/* Delete Button - Right side, aligned under product name */}
-                                                    <IconButton
-                                                        onClick={() => onRemove(item.uniqueId || item.id)}
-                                                        size="small"
-                                                        sx={{
-                                                            color: '#d8472a',
-                                                            '&:hover': {
-                                                                backgroundColor: 'rgba(229, 90, 61, 1)',
-                                                                color: 'rgb(236, 230, 229)',
-                                                            }
-                                                        }}
-                                                    >
-                                                        <DeleteIcon />
-                                                    </IconButton>
-                                                </Box>
-                                            </Box>
-                                        </CardContent>
-                                    </Grid>
-                                </Grid>
-                            </Card>
+                            <CartPageLineCard
+                                item={item}
+                                isBundle={isBundle}
+                                isHebrew={isHebrew}
+                                t={t}
+                                onRemove={onRemove}
+                                onUpdateQuantity={onUpdateQuantity}
+                            />
                             <GiftCartProductCards item={item} />
                             </React.Fragment>
-                        ))}
+                            );
+                        })}
                     </Box>
                 </Grid>
 
@@ -755,17 +846,26 @@ export default function CartPage({ cart, onRemove, onUpdateQuantity }) {
                             </Box>
 
                             {/* Continue to Payment Button */}
+                            {cartHasUnavailableItems(cart) && (
+                                <Alert severity="warning" sx={{ mb: 1.5, direction: isHebrew ? 'rtl' : 'ltr' }}>
+                                    {t.cartHasUnavailableItems}
+                                </Alert>
+                            )}
                             <Button
                                 fullWidth
                                 variant="contained"
                                 size="large"
                                 onClick={handleContinueToPayment}
-                                disabled={cart.length === 0}
+                                disabled={cart.length === 0 || cartHasUnavailableItems(cart)}
                                 startIcon={<PaymentIcon />}
                                 sx={{
                                     backgroundColor: 'rgba(229, 90, 61, 1)',
                                     '&:hover': { backgroundColor: 'rgba(199, 61, 34, 1)' },
-                                    py: 1.5
+                                    py: 1.5,
+                                    '&:disabled': {
+                                        backgroundColor: '#ccc',
+                                        color: '#999'
+                                    }
                                 }}
                             >
                                 {t.continueToPayment}

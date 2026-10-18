@@ -20,6 +20,17 @@ export default function HeroSection({ products = [] }) {
         ? getProductPath(mikdashProduct, products)
         : '/';
 
+    const mikdashCtaLabel = (() => {
+        if (!mikdashProduct) {
+            return isHebrew ? 'ערכת המקדש' : 'The Second Mikdash';
+        }
+        const name = isHebrew
+            ? (mikdashProduct.name_he || mikdashProduct.name_en)
+            : (mikdashProduct.name_en || mikdashProduct.name_he);
+        const trimmed = name != null ? String(name).trim() : '';
+        return trimmed || (isHebrew ? 'ערכת המקדש' : 'The Second Mikdash');
+    })();
+
     return (
         <Card
             elevation={0}
@@ -157,6 +168,12 @@ export default function HeroSection({ products = [] }) {
                             boxShadow: '0 8px 32px rgba(229, 90, 61, 0.4)',
                             transition: 'all 0.3s ease',
                             minWidth: { xs: '200px', md: '250px' },
+                            maxWidth: { xs: 'min(92vw, 340px)', md: '420px' },
+                            '& .MuiButton-label, &': {
+                                whiteSpace: 'normal',
+                                lineHeight: 1.25,
+                                textAlign: 'center'
+                            },
                             '& .MuiButton-startIcon, & .MuiButton-endIcon': {
                                 '& > *:nth-of-type(1)': {
                                     fontSize: { xs: '1.25rem', md: '1.5rem' }
@@ -170,7 +187,7 @@ export default function HeroSection({ products = [] }) {
                             }
                         }}
                     >
-                        {isHebrew ? 'ערכת המקדש' : 'The Second Mikdash'}
+                        {mikdashCtaLabel}
                     </Button>
                 </Link>
             </Box>

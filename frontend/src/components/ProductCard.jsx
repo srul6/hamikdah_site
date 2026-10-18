@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Card, CardMedia, CardContent, Typography, Box, Button
+  Card, CardMedia, CardContent, Box, Button
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../translations/translations';
@@ -11,53 +10,12 @@ import { getImageUrl } from '../utils/imageUtils';
 import { getProductPath } from '../utils/productSlug';
 import { useGifts } from '../gifts/GiftContext';
 import { computeProductPricing } from '../utils/productPricing';
-import PriceDisplay from './PriceDisplay';
+import CardOverlayPills from './CardOverlayPills';
+import { CARD_HOVER_IMAGE_MARKERS } from '../config/productAssetConfig';
 
 const SNAKE_COLOR = 'rgb(250, 250, 250)';
 const CARD_RADIUS = 15;
 const STROKE_WIDTH = 2;
-
-/** Preferred hover image filename markers for specific products (first match wins). */
-const HOVER_IMAGE_PREFERENCES = [
-  {
-    match: (p) => {
-      const he = String(p?.name_he || '').trim();
-      const en = String(p?.name_en || '').trim().toLowerCase();
-      return he === 'ערכת המקדש' || en === 'the temple';
-    },
-    prefer: ['inter_album.png', '4_kelim.png', 'box.png']
-  },
-  {
-    match: (p) => {
-      const he = String(p?.name_he || '').trim();
-      const en = String(p?.name_en || '').trim().toLowerCase();
-      return he === 'בית המקדש השלישי' || en === 'the third temple';
-    },
-    prefer: ['3mikdash_5.jpeg', '3mikdash_2.jpeg', '3mikdash_3.jpeg']
-  },
-  {
-    match: (p) => {
-      const he = String(p?.name_he || '').trim();
-      const en = String(p?.name_en || '').trim().toLowerCase();
-      return he === 'פמוט לשבת' || en === 'shabbat candle';
-    },
-    // Lifestyle / built photos rather than the flat color swatch mainImage
-    prefer: [
-      'eaa63086-00ae-4537-b634-5f3cc12a7deb.jpg',
-      '6b8064ca-8e05-48b9-82f7-04640fc9c331.jpg',
-      '9d52459b-560d-44da-a6dd-d1e14fc1f9b7.jpg',
-      '.jpg'
-    ]
-  },
-  {
-    match: (p) => {
-      const he = String(p?.name_he || '').trim();
-      const en = String(p?.name_en || '').trim().toLowerCase();
-      return he === 'קופת צדקה' || en === 'tzedaka box';
-    },
-    prefer: ['zdaka-brown.png', 'zdaka_brown_2.jpeg', 'zdaka_brown']
-  }
-];
 
 function collectAlternateImages(product, primaryUrl) {
   const candidates = [];
@@ -80,16 +38,19 @@ function collectAlternateImages(product, primaryUrl) {
     .filter((url) => url && url !== primary && url !== getImageUrl(primary));
 }
 
+/**
+ * Prefer alternate images by asset URL markers (not product names).
+ * Renaming a product does not change hover selection.
+ */
 function pickHoverImage(product, primaryUrl) {
   const alts = collectAlternateImages(product, primaryUrl);
   if (alts.length === 0) return null;
 
-  const preference = HOVER_IMAGE_PREFERENCES.find((entry) => entry.match(product));
-  if (preference) {
-    for (const marker of preference.prefer) {
-      const found = alts.find((url) => url.toLowerCase().includes(marker.toLowerCase()));
-      if (found) return found;
-    }
+  for (const marker of CARD_HOVER_IMAGE_MARKERS) {
+    const found = alts.find((url) =>
+      url.toLowerCase().includes(String(marker).toLowerCase())
+    );
+    if (found) return found;
   }
 
   return alts[0];
@@ -343,101 +304,15 @@ export default function ProductCard({ product, onAddToCart, allProducts = null }
             right: 0,
             zIndex: 2,
             color: 'white',
-            pt: 8,
+            pt: 6
           }}
         >
-          <Box
-            sx={{
-              backgroundColor: 'rgba(245, 240, 227, 0.9)',
-              backdropFilter: 'blur(25px)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-              borderRadius: '10px',
-              margin: '0px',
-              width: '100%',
-              padding: { xs: '6px 14px', sm: '12px 24px', md: '16px 28px' },
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: { xs: 1, sm: 3, md: 4 },
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              '&:hover': {
-                backgroundColor: 'rgba(245, 240, 227, 0.95)',
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)',
-                transform: 'translateY(-2px)',
-                '& .product-name': {
-                  color: 'rgba(199, 61, 34, 1)',
-                  transition: 'color 0.3s ease'
-                },
-                '& .product-price': {
-                  color: 'rgba(199, 61, 34, 1)',
-                  transition: 'color 0.3s ease'
-                }
-              }
-            }}
-          >
-            <Box
-              onClick={handleLearnMoreClick}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                flexShrink: 0,
-                '&:hover': {
-                  transform: 'scale(1.1)'
-                }
-              }}
-            >
-              <ArrowBackIcon
-                sx={{
-                  fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' },
-                  color: 'rgba(199, 61, 34, 1)'
-                }}
-              />
-            </Box>
-
-            <Typography
-              className="product-price"
-              variant="h6"
-              sx={{
-                color: '#1d1d1f',
-                fontWeight: 600,
-                textAlign: 'center',
-                flexShrink: 0,
-                minWidth: 'fit-content',
-                fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' }
-              }}
-            >
-              <PriceDisplay
-                pricing={pricing}
-                format={(n) => `₪ ${n.toFixed(2)}`}
-                sx={{ justifyContent: 'center' }}
-              />
-            </Typography>
-
-            <Typography
-              className="product-name"
-              variant="h6"
-              sx={{
-                fontWeight: 500,
-                textAlign: 'right',
-                flex: 1,
-                lineHeight: 1.2,
-                maxWidth: { xs: '45%', sm: '50%', md: '55%' },
-                color: '#1d1d1f',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                fontSize: { xs: '0.9rem', sm: '1.4rem', md: '1.8rem' }
-              }}
-            >
-              {productName}
-            </Typography>
-          </Box>
+          <CardOverlayPills
+            name={productName}
+            pricing={pricing}
+            onPriceClick={handleLearnMoreClick}
+            isHebrew={isHebrew}
+          />
         </CardContent>
       </Card>
 

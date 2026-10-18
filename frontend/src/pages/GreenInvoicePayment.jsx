@@ -11,6 +11,7 @@ import { getPaymentForm } from '../api/greenInvoice';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useFormData } from '../contexts/FormDataContext';
 import { useCart } from '../contexts/CartContext';
+import { useBundles } from '../contexts/BundlesContext';
 import { translations } from '../translations/translations';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config';
@@ -25,6 +26,12 @@ import DOMPurify from 'dompurify';
 import { getCartItemDisplayName } from '../utils/cartDisplayName';
 import { getCartLinePricing } from '../utils/productPricing';
 import PriceDisplay from '../components/PriceDisplay';
+import { BundleCartSummaryText } from '../components/BundleCartLine';
+import {
+    isBundleCartItem,
+    cartItemToCheckoutPayload,
+    cartHasUnavailableItems
+} from '../utils/bundleCart';
 import {
     trackGa4AddPaymentInfo,
     savePendingGa4Purchase
@@ -48,6 +55,7 @@ export default function GreenInvoicePayment() {
     const location = useLocation();
     const navigate = useNavigate();
     const { cart: contextCart, isLoading: cartLoading, refreshCartPrices } = useCart();
+    const { refreshBundles } = useBundles();
     const { ensureGiftsBeforeCheckout, getFlattenedSelections, giftSelections, promotions } = useGifts();
     const locationState = location.state || {};
     const {
@@ -286,6 +294,11 @@ export default function GreenInvoicePayment() {
             return;
         }
 
+        if (cartHasUnavailableItems(checkoutCart)) {
+            setError(t.cartHasUnavailableItems);
+            return;
+        }
+
         if (hasErrors) {
             setFieldErrors(newFieldErrors);
             return;
@@ -295,22 +308,7 @@ export default function GreenInvoicePayment() {
         setError(null);
 
         try {
-            const items = checkoutCart.map(item => {
-                const sc = item.selectedColor;
-                const colorNameHe = sc ? (sc.name_he || sc.name || '') : '';
-                const colorNameEn = sc ? (sc.name_en || sc.name || '') : '';
-                return {
-                    id: item.id,
-                    uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
-                    name: item.name,
-                    name_he: item.name_he,
-                    name_en: item.name_en,
-                    price: item.price,
-                    quantity: item.quantity,
-                    color_name_he: colorNameHe,
-                    color_name_en: colorNameEn
-                };
-            });
+            const items = checkoutCart.map(cartItemToCheckoutPayload);
 
             const response = await getPaymentForm(items, displayTotal, customerInfo, marketingConsent, {
                 couponDiscount: discount || 0,
@@ -365,11 +363,20 @@ export default function GreenInvoicePayment() {
             }
         } catch (error) {
             console.error('Payment form error:', error);
-            if (error.code === 'prices_changed') {
+            const refreshCodes = new Set([
+                'prices_changed',
+                'bundle_unavailable',
+                'bundle_selection_invalid'
+            ]);
+            if (refreshCodes.has(error.code)) {
+                try {
+                    await refreshBundles();
+                } catch (_) { /* optional */ }
                 await refreshCartPrices();
                 navigate('/cart', { replace: true, state: { pricesChanged: true } });
                 return;
             }
+            // Show server Hebrew messages (stock, coupon-on-bundles, etc.)
             setError(error.message || t.paymentFailed);
         } finally {
             setIsLoading(false);
@@ -1301,10 +1308,11 @@ export default function GreenInvoicePayment() {
                                     mb: 2,
                                     p: 2,
                                     backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                                    borderRadius: 2
+                                    borderRadius: 2,
+                                    opacity: isBundleCartItem(item) && item.available === false ? 0.75 : 1
                                 }}
                             >
-                                <Typography
+                                <Box
                                     sx={{
                                         direction: isHebrew ? 'rtl' : 'ltr',
                                         textAlign: isHebrew ? 'right' : 'left',
@@ -1313,24 +1321,30 @@ export default function GreenInvoicePayment() {
                                         minWidth: 0
                                     }}
                                 >
-                                    {getCartItemDisplayName(item, isHebrew)} × {item.quantity}
-                                    {(() => {
-                                        const uid = String(item.uniqueId != null ? item.uniqueId : item.id);
-                                        const map = giftSelections?.[uid] || {};
-                                        const promo = promotions.find((p) => String(p.productId) === String(item.id));
-                                        const titles = Object.values(map)
-                                            .map((bookId) =>
-                                                (promo?.books || []).find((b) => String(b.id) === String(bookId))?.title
-                                            )
-                                            .filter(Boolean);
-                                        if (!titles.length) return null;
-                                        return (
-                                            <Box component="span" sx={{ display: 'block', mt: 0.5, fontSize: '0.85rem', color: '#d8472a' }}>
-                                                🎁 {titles.join(', ')}
-                                            </Box>
-                                        );
-                                    })()}
-                                </Typography>
+                                    {isBundleCartItem(item) ? (
+                                        <BundleCartSummaryText item={item} />
+                                    ) : (
+                                        <Typography sx={{ fontWeight: 500 }}>
+                                            {getCartItemDisplayName(item, isHebrew)} × {item.quantity}
+                                            {(() => {
+                                                const uid = String(item.uniqueId != null ? item.uniqueId : item.id);
+                                                const map = giftSelections?.[uid] || {};
+                                                const promo = promotions.find((p) => String(p.productId) === String(item.id));
+                                                const titles = Object.values(map)
+                                                    .map((bookId) =>
+                                                        (promo?.books || []).find((b) => String(b.id) === String(bookId))?.title
+                                                    )
+                                                    .filter(Boolean);
+                                                if (!titles.length) return null;
+                                                return (
+                                                    <Box component="span" sx={{ display: 'block', mt: 0.5, fontSize: '0.85rem', color: '#d8472a' }}>
+                                                        🎁 {titles.join(', ')}
+                                                    </Box>
+                                                );
+                                            })()}
+                                        </Typography>
+                                    )}
+                                </Box>
                                 <Typography
                                     sx={{
                                         fontWeight: 600,
@@ -1703,11 +1717,24 @@ export default function GreenInvoicePayment() {
                 }}>
 
 
+                    {cartHasUnavailableItems(checkoutCart) && (
+                        <Typography
+                            color="error"
+                            sx={{
+                                width: '100%',
+                                mb: 1,
+                                direction: isHebrew ? 'rtl' : 'ltr',
+                                textAlign: 'center'
+                            }}
+                        >
+                            {t.cartHasUnavailableItems}
+                        </Typography>
+                    )}
                     <Button
                         variant="contained"
                         size="large"
                         onClick={handleGetPaymentForm}
-                        disabled={isLoading || !termsAccepted}
+                        disabled={isLoading || !termsAccepted || cartHasUnavailableItems(checkoutCart)}
                         sx={{
                             background: 'linear-gradient(135deg, rgba(229, 90, 61, 1) 0%, rgba(199, 61, 34, 1) 100%)',
                             color: 'white',

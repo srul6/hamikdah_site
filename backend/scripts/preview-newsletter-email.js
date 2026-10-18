@@ -13,34 +13,35 @@ const {
     wrapEmailDocument
 } = require('../src/utils/newsletterVerificationEmail');
 
+/** Offline preview fixtures only — display labels, not identity keys. Prefer loadLiveProducts(). */
 const SAMPLE_PRODUCTS = [
     {
-        nameHe: 'ערכת המקדש',
-        nameEn: 'The Temple',
+        nameHe: 'Sample product A',
+        nameEn: 'Sample product A',
         price: 249,
         imageUrl: 'https://cdn.bmikdash.com/mikdash.jpg',
-        url: 'https://bmikdash.com/product/ערכת-המקדש'
+        url: 'https://bmikdash.com/product/sample-a'
     },
     {
-        nameHe: 'מיני מקדש',
-        nameEn: 'Mini Temple',
+        nameHe: 'Sample product B',
+        nameEn: 'Sample product B',
         price: 129,
         imageUrl: 'https://cdn.bmikdash.com/uploads/gilmanor/8b073295-a115-46bd-82fa-0a2383b8ee6d.png',
-        url: 'https://bmikdash.com/product/מיני-מקדש'
+        url: 'https://bmikdash.com/product/sample-b'
     },
     {
-        nameHe: 'בית המקדש השלישי',
-        nameEn: 'The Third Temple',
+        nameHe: 'Sample product C',
+        nameEn: 'Sample product C',
         price: 199,
         imageUrl: 'https://cdn.bmikdash.com/3mikdash_4.jpeg',
-        url: 'https://bmikdash.com/product/בית-המקדש-השלישי'
+        url: 'https://bmikdash.com/product/sample-c'
     },
     {
-        nameHe: 'משה בתיבה',
-        nameEn: 'Moshe in the basket',
+        nameHe: 'Sample product D',
+        nameEn: 'Sample product D',
         price: 89,
         imageUrl: 'https://cdn.bmikdash.com/moshe-bateva.png',
-        url: 'https://bmikdash.com/product/משה-בתיבה'
+        url: 'https://bmikdash.com/product/sample-d'
     }
 ];
 

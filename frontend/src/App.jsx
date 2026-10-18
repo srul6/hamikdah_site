@@ -6,6 +6,7 @@ import { CartProvider, useCart } from './contexts/CartContext';
 import { FormDataProvider } from './contexts/FormDataContext';
 import Home from './pages/Home';
 import ProductPageRouter from './pages/ProductPageRouter';
+import BundlePage from './pages/BundlePage';
 import CartPage from './pages/CartPage';
 import AdminPanel from './pages/AdminPanel';
 import AboutUs from './pages/AboutUs';
@@ -31,11 +32,18 @@ import CookieConsentUI from './consent/CookieConsentUI';
 import { NewsletterProvider } from './newsletter/NewsletterContext';
 import NewsletterModal from './newsletter/NewsletterModal';
 import { GiftProvider, useGifts } from './gifts/GiftContext';
+import { BundlesProvider } from './contexts/BundlesContext';
 import { trackAddToCart } from './analytics/metaTracking';
 import { trackGa4AddToCart } from './analytics/ga4Tracking';
 
 function AppContent() {
-    const { cart, addToCart: addToCartContext, removeFromCart: removeFromCartContext, updateQuantity: updateQuantityContext } = useCart();
+    const {
+        cart,
+        addToCart: addToCartContext,
+        addBundleToCart: addBundleToCartContext,
+        removeFromCart: removeFromCartContext,
+        updateQuantity: updateQuantityContext
+    } = useCart();
     const { notifyGiftUnlocked } = useGifts();
 
     const handleAddToCart = (product, selectedColor = null) => {
@@ -57,18 +65,37 @@ function AppContent() {
         }
     };
 
-    const handleRemoveFromCart = (uniqueId) => {
-        const item = cart.find(item => item.uniqueId === uniqueId);
-        if (item) {
-            removeFromCartContext(item.id, item.selectedColor);
+    const handleAddBundle = (bundle, selection = {}) => {
+        addBundleToCartContext(bundle, selection, 1);
+        try {
+            trackAddToCart({
+                id: `bundle-${bundle.id}`,
+                name_he: bundle.name_he,
+                name_en: bundle.name_en,
+                price: Number(bundle.finalPrice ?? bundle.price) || 0
+            }, 1);
+        } catch (_) {
+            /* tracking optional */
+        }
+        try {
+            trackGa4AddToCart({
+                id: `bundle-${bundle.id}`,
+                name_he: bundle.name_he,
+                name_en: bundle.name_en,
+                price: Number(bundle.finalPrice ?? bundle.price) || 0
+            }, 1);
+        } catch (_) {
+            /* tracking optional */
         }
     };
 
+    const handleRemoveFromCart = (uniqueId) => {
+        // Prefer uniqueId so distinct bundle color combos are removed independently
+        removeFromCartContext(uniqueId);
+    };
+
     const handleUpdateQuantity = (uniqueId, newQuantity) => {
-        const item = cart.find(item => item.uniqueId === uniqueId);
-        if (item) {
-            updateQuantityContext(item.id, newQuantity, item.selectedColor);
-        }
+        updateQuantityContext(uniqueId, newQuantity);
     };
 
     const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
@@ -83,8 +110,9 @@ function AppContent() {
             />
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <Routes>
-                    <Route path="/" element={<Home onAddToCart={handleAddToCart} />} />
+                    <Route path="/" element={<Home onAddToCart={handleAddToCart} onAddBundle={handleAddBundle} />} />
                     <Route path="/product/:productSlug" element={<ProductPageRouter onAddToCart={handleAddToCart} />} />
+                    <Route path="/bundle/:slug" element={<BundlePage onAddBundle={handleAddBundle} />} />
                     <Route path="/cart" element={<CartPage cart={cart} onRemove={handleRemoveFromCart} onUpdateQuantity={handleUpdateQuantity} />} />
                     <Route path="/about" element={<AboutUs />} />
                     <Route path="/admin" element={<AdminPanel />} />
@@ -111,21 +139,23 @@ export default function App() {
     return (
         <LanguageProvider>
             <ConsentProvider>
-                <CartProvider>
-                    <FormDataProvider>
-                        <NewsletterProvider>
-                            <Router>
-                                <GiftProvider>
-                                    <ClarityAnalytics />
-                                    <MetaPixelAnalytics />
-                                    <GA4Analytics />
-                                    <AppContent />
-                                    <CookieConsentUI />
-                                </GiftProvider>
-                            </Router>
-                        </NewsletterProvider>
-                    </FormDataProvider>
-                </CartProvider>
+                <BundlesProvider>
+                    <CartProvider>
+                        <FormDataProvider>
+                            <NewsletterProvider>
+                                <Router>
+                                    <GiftProvider>
+                                        <ClarityAnalytics />
+                                        <MetaPixelAnalytics />
+                                        <GA4Analytics />
+                                        <AppContent />
+                                        <CookieConsentUI />
+                                    </GiftProvider>
+                                </Router>
+                            </NewsletterProvider>
+                        </FormDataProvider>
+                    </CartProvider>
+                </BundlesProvider>
             </ConsentProvider>
         </LanguageProvider>
     );

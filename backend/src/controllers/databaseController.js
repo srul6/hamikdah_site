@@ -61,6 +61,134 @@ function ensureProductDiscountSchema() {
     return productDiscountSchemaReady;
 }
 
+let productPageSchemaReady = null;
+
+/**
+ * Idempotent special_page + slug columns.
+ *
+ * Migration risks (mitigated):
+ * - special_page: only filled when NULL; never overwrites admin choices.
+ * - slug: only filled when NULL with the slug that is currently derived from the
+ *   name (collision-aware). This freezes public URLs so later renames do not
+ *   change /product/... paths. Existing non-null slugs are never touched.
+ */
+function ensureProductPageSchema() {
+    if (!productPageSchemaReady) {
+        productPageSchemaReady = (async () => {
+            const {
+                matchLegacySpecialPageByName,
+                getProductSlug
+            } = require('../utils/productSlug');
+
+            await pool.query(`
+                ALTER TABLE products
+                    ADD COLUMN IF NOT EXISTS special_page TEXT NULL,
+                    ADD COLUMN IF NOT EXISTS slug TEXT NULL;
+            `);
+
+            try {
+                await pool.query(`
+                    CREATE UNIQUE INDEX IF NOT EXISTS products_slug_unique_idx
+                    ON products (slug)
+                    WHERE slug IS NOT NULL;
+                `);
+            } catch (err) {
+                console.warn('products_slug_unique_idx:', err.message);
+            }
+
+            const products = await pool.query(
+                `SELECT id, name_he, name_en, special_page, slug
+                 FROM products
+                 ORDER BY id ASC`
+            );
+            const rows = products.rows || [];
+
+            // --- special_page: fill NULL only ---
+            const specialTouched = [];
+            const specialCounts = { mikdash: 0, third_temple: 0 };
+            for (const row of rows) {
+                if (row.special_page) {
+                    if (specialCounts[row.special_page] != null) {
+                        specialCounts[row.special_page] += 1;
+                    }
+                    continue;
+                }
+                const page = matchLegacySpecialPageByName(row);
+                if (!page) continue;
+                await pool.query(
+                    `UPDATE products SET special_page = $2
+                     WHERE id = $1 AND special_page IS NULL`,
+                    [row.id, page]
+                );
+                row.special_page = page;
+                specialTouched.push({
+                    id: row.id,
+                    name_he: row.name_he,
+                    name_en: row.name_en,
+                    special_page: page
+                });
+                specialCounts[page] = (specialCounts[page] || 0) + 1;
+            }
+            if (specialTouched.length) {
+                console.log('✅ products.special_page backfill (NULL only):', specialTouched);
+            }
+            for (const [key, count] of Object.entries(specialCounts)) {
+                if (count > 1) {
+                    console.warn(
+                        `⚠️  Ambiguous special_page="${key}": ${count} products. Confirm in admin that only one product should use this template.`
+                    );
+                }
+            }
+
+            // --- slug: freeze current public URL for rows still NULL ---
+            const slugTouched = [];
+            const forMap = rows.map((r) => ({
+                id: r.id,
+                name_he: r.name_he,
+                name_en: r.name_en,
+                slug: r.slug
+            }));
+            for (const row of rows) {
+                if (row.slug != null && String(row.slug).trim()) continue;
+                const frozen = getProductSlug(
+                    { id: row.id, name_he: row.name_he, name_en: row.name_en, slug: null },
+                    forMap
+                );
+                if (!frozen) continue;
+                try {
+                    await pool.query(
+                        `UPDATE products SET slug = $2
+                         WHERE id = $1 AND (slug IS NULL OR slug = '')`,
+                        [row.id, frozen]
+                    );
+                    row.slug = frozen;
+                    // Keep forMap in sync so later rows see this override as taken
+                    const mapped = forMap.find((p) => Number(p.id) === Number(row.id));
+                    if (mapped) mapped.slug = frozen;
+                    slugTouched.push({ id: row.id, slug: frozen, name_he: row.name_he });
+                } catch (err) {
+                    console.warn(
+                        `⚠️  Could not freeze slug for product id=${row.id} → "${frozen}":`,
+                        err.message
+                    );
+                }
+            }
+            if (slugTouched.length) {
+                console.log('✅ products.slug freeze backfill (NULL only):', slugTouched);
+            }
+        })().catch((err) => {
+            productPageSchemaReady = null;
+            throw err;
+        });
+    }
+    return productPageSchemaReady;
+}
+
+async function ensureProductSchema() {
+    await ensureProductDiscountSchema();
+    await ensureProductPageSchema();
+}
+
 function normalizeCheckoutSessionId(value) {
     if (value == null || value === '') return null;
     return String(value);
@@ -168,7 +296,7 @@ class DatabaseController {
 
     async getAllProducts() {
         try {
-            await ensureProductDiscountSchema();
+            await ensureProductSchema();
             const result = await pool.query(
                 'SELECT * FROM products ORDER BY id ASC'
             );
@@ -196,7 +324,7 @@ class DatabaseController {
                 throw new Error(`Invalid product ID: ${id}`);
             }
 
-            await ensureProductDiscountSchema();
+            await ensureProductSchema();
             const result = await pool.query(
                 'SELECT * FROM products WHERE id = $1',
                 [numericId]
@@ -221,15 +349,16 @@ class DatabaseController {
             const desktopHeroImages = desktopHeroImagesArr.length ? JSON.stringify(desktopHeroImagesArr) : null;
             const extraImages = extraImagesArr.length ? JSON.stringify(extraImagesArr) : null;
 
-            await ensureProductDiscountSchema();
+            await ensureProductSchema();
             const result = await pool.query(
                 `INSERT INTO products (
                     name_he, name_en, description_he, description_en, 
                     price, quantity, homepageimage, extraimages,
                     buildingtime, pieces, height, length, width,
                     recommendedage, children_playing, desktop_hero_images, colors,
-                    discount_enabled, discount_type, discount_value
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                    discount_enabled, discount_type, discount_value,
+                    special_page, slug
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
                 RETURNING *`,
                 [
                     productData.name_he || null,
@@ -251,7 +380,9 @@ class DatabaseController {
                     JSON.stringify(normalizeColorsForDb(productData.colors || [])),
                     productData.discount_enabled === true,
                     productData.discount_type || null,
-                    productData.discount_value ?? null
+                    productData.discount_value ?? null,
+                    productData.special_page ?? productData.specialPage ?? null,
+                    productData.slug ?? null
                 ]
             );
             return result.rows[0];
@@ -293,12 +424,15 @@ class DatabaseController {
                 'discount_enabled',
                 'discount_type',
                 'discount_value',
+                'special_page',
+                'slug',
                 // camelCase variants used by API/frontend
                 'buildingTime',
                 'recommendedAge',
                 'childrenPlaying',
                 'desktopHeroImages',
-                'extraImages'
+                'extraImages',
+                'specialPage'
             ]);
 
             // Map camelCase from frontend to DB column names (lowercase)
@@ -308,6 +442,7 @@ class DatabaseController {
                 if (key === 'childrenPlaying') return 'children_playing';
                 if (key === 'desktopHeroImages') return 'desktop_hero_images';
                 if (key === 'extraImages') return 'extraimages';
+                if (key === 'specialPage') return 'special_page';
                 return key;
             };
             Object.keys(updateData).forEach(key => {
@@ -335,7 +470,7 @@ class DatabaseController {
                 throw new Error('No fields to update');
             }
 
-            await ensureProductDiscountSchema();
+            await ensureProductSchema();
             values.push(id);
             const query = `UPDATE products SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
 
@@ -828,12 +963,13 @@ class DatabaseController {
             items = [];
         }
 
+        const { summarizeItemsForPurchase } = require('../utils/bundleCheckout');
         return {
             paid: true,
             value: Number(order.amount),
             currency: order.currency || 'ILS',
             transactionId: String(order.checkout_session_id),
-            items
+            items: summarizeItemsForPurchase(items)
         };
     }
 
@@ -2299,6 +2435,51 @@ class DatabaseController {
         return true;
     }
 
+    // ===== BUNDLES =====
+
+    /**
+     * Idempotent bundles + bundle_items tables (Neon-compatible).
+     * product_id matches products.id (SERIAL / INTEGER) with ON DELETE RESTRICT.
+     */
+    async ensureBundlesSchema() {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS bundles (
+                id SERIAL PRIMARY KEY,
+                slug TEXT UNIQUE NOT NULL,
+                price NUMERIC(10, 2) NOT NULL,
+                image TEXT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS bundle_items (
+                bundle_id INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+                product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+                position INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (bundle_id, product_id)
+            );
+        `);
+        try {
+            await pool.query(`
+                CREATE INDEX IF NOT EXISTS bundles_active_sort_idx
+                ON bundles (is_active, sort_order, id);
+            `);
+        } catch (err) {
+            console.warn('bundles index:', err.message);
+        }
+        try {
+            await pool.query(`
+                CREATE INDEX IF NOT EXISTS bundle_items_product_idx
+                ON bundle_items (product_id);
+            `);
+        } catch (err) {
+            console.warn('bundle_items index:', err.message);
+        }
+    }
+
     // ===== FAQ =====
 
     async ensureFaqSchema() {
@@ -2557,7 +2738,220 @@ class DatabaseController {
         await pool.query('DELETE FROM faq_items WHERE id = $1', [id]);
         return true;
     }
+
+    async ensureHomepageTextSchema() {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS homepage_text (
+                id SERIAL PRIMARY KEY,
+                title_he TEXT NOT NULL DEFAULT '',
+                title_en TEXT NOT NULL DEFAULT '',
+                body_he TEXT NOT NULL DEFAULT '',
+                body_en TEXT NOT NULL DEFAULT '',
+                image_url TEXT NOT NULL DEFAULT '',
+                active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
+        try {
+            await pool.query(`
+                ALTER TABLE homepage_text
+                ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+            `);
+            await pool.query(`
+                ALTER TABLE homepage_text
+                ADD COLUMN IF NOT EXISTS image_description_he TEXT NOT NULL DEFAULT '';
+            `);
+            await pool.query(`
+                ALTER TABLE homepage_text
+                ADD COLUMN IF NOT EXISTS image_description_en TEXT NOT NULL DEFAULT '';
+            `);
+            await pool.query(`
+                ALTER TABLE homepage_text
+                ADD COLUMN IF NOT EXISTS image_copyright_he TEXT NOT NULL DEFAULT '';
+            `);
+            await pool.query(`
+                ALTER TABLE homepage_text
+                ADD COLUMN IF NOT EXISTS image_copyright_en TEXT NOT NULL DEFAULT '';
+            `);
+        } catch (err) {
+            console.warn('homepage_text image columns:', err.message);
+        }
+
+        if (!this._homepageTextSeedPromise) {
+            this._homepageTextSeedPromise = (async () => {
+                const count = await pool.query('SELECT COUNT(*)::int AS n FROM homepage_text');
+                if ((count.rows[0]?.n || 0) === 0) {
+                    await pool.query(
+                        `INSERT INTO homepage_text (
+                            title_he, title_en, body_he, body_en, image_url,
+                            image_description_he, image_description_en,
+                            image_copyright_he, image_copyright_en, active
+                         ) VALUES ($1, $2, $3, $4, '', '', '', '', '', TRUE)`,
+                        [
+                            'עדכון מהאתר',
+                            'A note from us',
+                            'כאן תוכלו לפרסם הודעה קצרה למבקרים בדף הבית — למשל עדכון על משלוחים, מבצע מיוחד או מידע חשוב אחר. ערכו את הטקסט דרך לוח הניהול בכל רגע. אם תמחקו את התוכן, הסעיף ייעלם מהאתר אוטומטית.',
+                            'Use this space for a short homepage note — shipping updates, a special offer, or anything visitors should see. Edit it anytime in the admin panel. Clearing the text hides the section automatically.'
+                        ]
+                    );
+                }
+            })().catch((err) => {
+                console.error('Homepage text seed failed:', err?.message || err);
+                this._homepageTextSeedPromise = null;
+                throw err;
+            });
+        }
+        await this._homepageTextSeedPromise;
+    }
+
+    mapHomepageTextRow(row) {
+        if (!row) return null;
+        const imageUrl = row.image_url || '';
+        const imageDescriptionHe = row.image_description_he || '';
+        const imageDescriptionEn = row.image_description_en || '';
+        const imageCopyrightHe = row.image_copyright_he || '';
+        const imageCopyrightEn = row.image_copyright_en || '';
+        return {
+            id: row.id,
+            titleHe: row.title_he || '',
+            titleEn: row.title_en || '',
+            bodyHe: row.body_he || '',
+            bodyEn: row.body_en || '',
+            imageUrl,
+            imageDescriptionHe,
+            imageDescriptionEn,
+            imageCopyrightHe,
+            imageCopyrightEn,
+            title_he: row.title_he || '',
+            title_en: row.title_en || '',
+            body_he: row.body_he || '',
+            body_en: row.body_en || '',
+            image_url: imageUrl,
+            image_description_he: imageDescriptionHe,
+            image_description_en: imageDescriptionEn,
+            image_copyright_he: imageCopyrightHe,
+            image_copyright_en: imageCopyrightEn,
+            active: !!row.active,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        };
+    }
+
+    /**
+     * Returns the single homepage text block.
+     * When publicOnly is true, returns null if inactive or both bodies are empty.
+     */
+    async getHomepageText({ publicOnly = false } = {}) {
+        await this.ensureHomepageTextSchema();
+        const r = await pool.query(
+            'SELECT * FROM homepage_text ORDER BY id ASC LIMIT 1'
+        );
+        const mapped = this.mapHomepageTextRow(r.rows[0]);
+        if (!mapped) return null;
+        if (publicOnly) {
+            const hasBody =
+                String(mapped.bodyHe || '').trim() !== '' ||
+                String(mapped.bodyEn || '').trim() !== '';
+            if (!mapped.active || !hasBody) return null;
+        }
+        return mapped;
+    }
+
+    async upsertHomepageText(data = {}) {
+        await this.ensureHomepageTextSchema();
+        const existing = await this.getHomepageText({ publicOnly: false });
+        const pick = (camel, snake, fallback) => {
+            if (data[camel] != null || data[snake] != null) {
+                return String(data[camel] ?? data[snake] ?? '').trim();
+            }
+            return fallback || '';
+        };
+        const titleHe = pick('titleHe', 'title_he', existing?.titleHe);
+        const titleEn = pick('titleEn', 'title_en', existing?.titleEn);
+        const bodyHe = pick('bodyHe', 'body_he', existing?.bodyHe);
+        const bodyEn = pick('bodyEn', 'body_en', existing?.bodyEn);
+        const imageUrl = pick('imageUrl', 'image_url', existing?.imageUrl);
+        const imageDescriptionHe = pick(
+            'imageDescriptionHe',
+            'image_description_he',
+            existing?.imageDescriptionHe
+        );
+        const imageDescriptionEn = pick(
+            'imageDescriptionEn',
+            'image_description_en',
+            existing?.imageDescriptionEn
+        );
+        const imageCopyrightHe = pick(
+            'imageCopyrightHe',
+            'image_copyright_he',
+            existing?.imageCopyrightHe
+        );
+        const imageCopyrightEn = pick(
+            'imageCopyrightEn',
+            'image_copyright_en',
+            existing?.imageCopyrightEn
+        );
+        const active =
+            data.active != null ? !!data.active : existing ? existing.active : true;
+
+        if (existing) {
+            const r = await pool.query(
+                `UPDATE homepage_text SET
+                    title_he = $2,
+                    title_en = $3,
+                    body_he = $4,
+                    body_en = $5,
+                    image_url = $6,
+                    image_description_he = $7,
+                    image_description_en = $8,
+                    image_copyright_he = $9,
+                    image_copyright_en = $10,
+                    active = $11,
+                    updated_at = NOW()
+                 WHERE id = $1
+                 RETURNING *`,
+                [
+                    existing.id,
+                    titleHe,
+                    titleEn,
+                    bodyHe,
+                    bodyEn,
+                    imageUrl,
+                    imageDescriptionHe,
+                    imageDescriptionEn,
+                    imageCopyrightHe,
+                    imageCopyrightEn,
+                    active
+                ]
+            );
+            return this.mapHomepageTextRow(r.rows[0]);
+        }
+
+        const r = await pool.query(
+            `INSERT INTO homepage_text (
+                title_he, title_en, body_he, body_en, image_url,
+                image_description_he, image_description_en,
+                image_copyright_he, image_copyright_en, active
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING *`,
+            [
+                titleHe,
+                titleEn,
+                bodyHe,
+                bodyEn,
+                imageUrl,
+                imageDescriptionHe,
+                imageDescriptionEn,
+                imageCopyrightHe,
+                imageCopyrightEn,
+                active
+            ]
+        );
+        return this.mapHomepageTextRow(r.rows[0]);
+    }
 }
 
 module.exports = new DatabaseController();
+module.exports.pool = pool;
 

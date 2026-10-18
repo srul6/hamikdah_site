@@ -79,6 +79,22 @@ export default function ProductPageRouter({ onAddToCart }) {
                     return;
                 }
 
+                // Canonicalize: if the product has a stored slug (or collision suffix)
+                // and the URL used a non-canonical form (e.g. name-derived while
+                // an override exists), redirect to getProductPath.
+                const canonicalPath = getProductPath(matched, list);
+                let decodedParam = String(productSlug).trim();
+                try {
+                    decodedParam = decodeURIComponent(decodedParam);
+                } catch {
+                    // keep raw
+                }
+                const canonicalSlug = canonicalPath.replace(/^\/product\//, '');
+                if (decodedParam !== canonicalSlug) {
+                    setRedirectTo(canonicalPath);
+                    return;
+                }
+
                 setProduct(matched);
             } catch (err) {
                 console.error('Error resolving product slug:', err);

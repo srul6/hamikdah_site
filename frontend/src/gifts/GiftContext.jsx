@@ -159,6 +159,9 @@ export function GiftProvider({ children }) {
     const ensureGiftsBeforeCheckout = useCallback(
         (onReady, options = {}) => {
             const hasGiftItems = (cart || []).some((item) => {
+                if (item?.type === 'bundle' || String(item?.id || '').startsWith('bundle-')) {
+                    return false;
+                }
                 const promo = promotions.find((p) => String(p.productId) === String(item.id));
                 if (!promo) return false;
                 return (promo.books || promo.bookIds || []).length > 0;

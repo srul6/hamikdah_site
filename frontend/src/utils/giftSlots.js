@@ -2,6 +2,10 @@
  * Client-side gift slot helpers (mirrors backend/src/utils/giftSlots.js).
  */
 
+function isBundleLine(item) {
+    return item?.type === 'bundle' || String(item?.id || '').startsWith('bundle-');
+}
+
 export function requiredSlotCount(quantity, giftsPerUnit) {
     const qty = Math.max(0, parseInt(quantity, 10) || 0);
     const per = Math.max(0, parseInt(giftsPerUnit, 10) || 0);
@@ -51,6 +55,7 @@ export function flattenGiftSelections(giftSelections, cartItems = []) {
     if (!giftSelections || typeof giftSelections !== 'object') return out;
     const productByUnique = new Map();
     for (const item of cartItems || []) {
+        if (isBundleLine(item)) continue;
         const uid = String(item.uniqueId != null ? item.uniqueId : item.id);
         productByUnique.set(uid, item.id);
     }
@@ -76,6 +81,7 @@ export function findMissingGiftSelections(cart, promotions, giftSelections) {
     }
     const missing = [];
     for (const item of cart || []) {
+        if (isBundleLine(item)) continue;
         const promo = promoByProduct.get(String(item.id));
         if (!promo) continue;
         const uniqueId = String(item.uniqueId != null ? item.uniqueId : item.id);
@@ -109,6 +115,7 @@ export function applyAutoAssignments(cart, promotions, giftSelections) {
         if (p?.productId != null) promoByProduct.set(String(p.productId), p);
     }
     for (const item of cart || []) {
+        if (isBundleLine(item)) continue;
         const promo = promoByProduct.get(String(item.id));
         if (!promo) continue;
         const uniqueId = String(item.uniqueId != null ? item.uniqueId : item.id);

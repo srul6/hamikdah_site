@@ -133,8 +133,12 @@ app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/gifts', require('./routes/gifts'));
 app.use('/api/banners', require('./routes/banners'));
 app.use('/api/faq', require('./routes/faq'));
+app.use('/api/homepage-text', require('./routes/homepageText'));
+app.use('/api/bundles', require('./routes/bundles'));
+app.use('/api/promo-slides', require('./routes/promoSlides'));
 
 const { databaseController } = require('./config/database');
+const { ensurePromoSlidesSchema } = require('./controllers/promoSlidesController');
 const {
     getProductSlug,
     isNumericProductParam,
@@ -206,6 +210,23 @@ app.get('/sitemap.xml', async (req, res) => {
             });
         }
 
+        try {
+            await databaseController.ensureBundlesSchema();
+            const bundlesResult = await databaseController.pool.query(
+                `SELECT slug FROM bundles WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC`
+            );
+            for (const row of bundlesResult.rows || []) {
+                const slug = row?.slug != null ? String(row.slug).trim() : '';
+                if (!slug) continue;
+                urls.push({
+                    loc: `${SITE_ORIGIN}/bundle/${encodeURIComponent(slug)}`,
+                    priority: '0.7'
+                });
+            }
+        } catch (bundleErr) {
+            console.warn('sitemap bundles:', bundleErr?.message || bundleErr);
+        }
+
         const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url>
@@ -255,6 +276,11 @@ app.get('/payment/cancel', sendIndex);
 app.get('*', sendIndex);
 
 const PORT = process.env.PORT || 5001;
+
+// Idempotent schema helpers (same pattern as other ensure* calls on demand / startup)
+ensurePromoSlidesSchema().catch((err) => {
+    console.warn('ensurePromoSlidesSchema:', err?.message || err);
+});
 
 // Production-ready server startup
 if (process.env.NODE_ENV === 'production') {

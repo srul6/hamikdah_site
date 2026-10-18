@@ -2,7 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
 const { databaseController } = require('../config/database');
-const { computeCouponDiscount } = require('../utils/couponApply');
+const {
+    computeCouponDiscount,
+    isNewsletterCoupon,
+    BUNDLE_COUPON_REJECT_HE
+} = require('../utils/couponApply');
 
 function requireAdmin(req, res, next) {
     if (!req.admin) {
@@ -39,6 +43,17 @@ router.post('/apply', async (req, res) => {
                 success: false,
                 message_en: 'Coupon not found or inactive',
                 message_he: 'אממ, נראה שאין קוד קופון כזה:('
+            });
+        }
+
+        // UX early reject when cart has bundles — payment-form is still authoritative
+        if (req.body.hasBundles === true && !isNewsletterCoupon(coupon)) {
+            return res.status(400).json({
+                success: false,
+                error: 'coupon_not_valid_for_bundles',
+                message: BUNDLE_COUPON_REJECT_HE,
+                message_he: BUNDLE_COUPON_REJECT_HE,
+                message_en: 'This coupon is not valid for bundles'
             });
         }
 

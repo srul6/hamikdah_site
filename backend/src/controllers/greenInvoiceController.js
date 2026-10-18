@@ -6,6 +6,15 @@ const axios = require('axios'); // Added for testing document types
 const { validateCheckoutRequest } = require('../utils/checkoutValidation');
 const { priceCheckoutItems } = require('../utils/productPricing');
 const clientMessages = require('../utils/clientFacingMessages');
+const {
+    priceMixedCheckoutItems,
+    checkAggregatedStock,
+    buildGreenInvoiceIncome,
+    incomeMerchandiseSubtotal,
+    isBundleStorageItem
+} = require('../utils/bundleCheckout');
+const { isNewsletterCoupon, BUNDLE_COUPON_REJECT_HE } = require('../utils/couponApply');
+const bundleController = require('./bundleController');
 
 /**
  * Merge base product names with selected color for invoices, emails, and order storage.
@@ -67,28 +76,69 @@ class GreenInvoiceController {
             let discountAmount = validated.couponDiscount || 0;
             const deliveryFeeAmount = validated.deliveryFee || 0;
 
-            // Product prices (incl. product discounts) always come from the catalog, never the client
+            // Catalog prices for products; bundle finalPrice from DB (never trust client)
             const catalog = await this.databaseController.getAllProducts();
-            const priced = priceCheckoutItems(validated.items, catalog);
+            const bundleIds = [
+                ...new Set(
+                    validated.items
+                        .filter((i) => i.type === 'bundle')
+                        .map((i) => Number(i.bundleId))
+                        .filter((id) => id > 0)
+                )
+            ];
+            const bundlesById = new Map();
+            for (const bid of bundleIds) {
+                const loaded = await bundleController.loadBundleById(bid);
+                if (loaded) bundlesById.set(Number(loaded.id), loaded);
+            }
+
+            const priced = priceMixedCheckoutItems(
+                validated.items,
+                catalog,
+                bundlesById,
+                priceCheckoutItems
+            );
             if (!priced.ok) {
                 console.warn('Payment form item pricing rejected:', priced.error, dev ? priced.details : '');
-                return res.status(409).json({
+                const isPrice = priced.error === 'price_changed';
+                const isBundleIssue =
+                    priced.error === 'bundle_unavailable' ||
+                    priced.error === 'bundle_selection_invalid';
+                const status = isPrice || isBundleIssue ? 409 : 400;
+                return res.status(status).json({
                     success: false,
-                    error: priced.error === 'price_changed' ? 'prices_changed' : priced.error,
-                    message: priced.error === 'price_changed' ? clientMessages.PRICES_CHANGED : clientMessages.BAD_REQUEST
+                    error: isPrice ? 'prices_changed' : priced.error,
+                    message: isPrice
+                        ? clientMessages.PRICES_CHANGED
+                        : (priced.message || clientMessages.BAD_REQUEST)
                 });
             }
             items = priced.items;
             const lineSubtotal = priced.subtotal;
+            const giftEligibleItems = priced.productItems || [];
 
-            // Gift-with-purchase: require complete selections for eligible lines
+            // Stock: only when the order contains at least one bundle (product-only unchanged)
+            if (priced.hasBundles) {
+                const freshCatalog = await this.databaseController.getAllProducts();
+                const stock = checkAggregatedStock(items, freshCatalog);
+                if (!stock.ok) {
+                    console.warn('Payment form stock check failed:', stock.shortages);
+                    return res.status(400).json({
+                        success: false,
+                        error: stock.error,
+                        message: stock.message
+                    });
+                }
+            }
+
+            // Gift-with-purchase: standalone product lines only (ignore expanded bundle components)
             const {
                 validateGiftSelectionsForCheckout,
                 buildSlots
             } = require('../utils/giftSlots');
             const activePromos = await this.databaseController.getActiveGiftPromotionsSummary();
             const giftCheck = validateGiftSelectionsForCheckout({
-                items: items.map((item) => ({
+                items: giftEligibleItems.map((item) => ({
                     id: item.id,
                     uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                     quantity: item.quantity
@@ -110,7 +160,7 @@ class GreenInvoiceController {
             const promoByProduct = new Map(activePromos.map((p) => [String(p.productId), p]));
             const normalizedGifts = [];
             const incoming = Array.isArray(giftSelections) ? giftSelections : [];
-            for (const item of items) {
+            for (const item of giftEligibleItems) {
                 const uniqueId = String(item.uniqueId != null ? item.uniqueId : item.id);
                 const promo = promoByProduct.get(String(item.id));
                 if (!promo) continue;
@@ -148,6 +198,14 @@ class GreenInvoiceController {
             if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
                 const { computeCouponDiscount } = require('../utils/couponApply');
                 const coupon = await this.databaseController.getCouponByCode(couponCode.trim());
+                if (priced.hasBundles && coupon && !isNewsletterCoupon(coupon)) {
+                    console.warn('Payment form rejected: non-newsletter coupon with bundles');
+                    return res.status(400).json({
+                        success: false,
+                        error: 'coupon_not_valid_for_bundles',
+                        message: BUNDLE_COUPON_REJECT_HE
+                    });
+                }
                 const applied = computeCouponDiscount(coupon, lineSubtotal);
                 if (!applied.ok) {
                     console.warn('Payment form coupon re-validation failed:', applied.error);
@@ -223,34 +281,21 @@ class GreenInvoiceController {
                     city: customerInfo.city || '',
                     country: "IL"
                 },
-                income: [
-                    ...items.map(item => {
-                        const names = productNameWithColor(
-                            item.name_he || item.name,
-                            item.name_en || item.name,
-                            item.color_name_he,
-                            item.color_name_en
-                        );
-                        return {
-                            description: names.name_he || names.name_en || 'פריט',
-                            quantity: item.quantity || 1,
-                            price: parseFloat(item.price),
-                            vatType: 1
-                        };
-                    }),
-                    ...(deliveryFeeAmount > 0 ? [{
-                        description: 'משלוח עד הבית',
-                        quantity: 1,
-                        price: deliveryFeeAmount,
-                        vatType: 1
-                    }] : []),
-                    ...(discountAmount > 0 ? [{
-                        description: 'הנחה (קופון)',
-                        quantity: 1,
-                        price: -discountAmount,
-                        vatType: 1
-                    }] : [])
-                ],
+                income: (() => {
+                    const income = buildGreenInvoiceIncome(items, {
+                        deliveryFee: deliveryFeeAmount,
+                        discount: discountAmount
+                    });
+                    const merch = incomeMerchandiseSubtotal(income);
+                    if (Math.abs(merch - lineSubtotal) > 0.02) {
+                        console.error('Green Invoice income merchandise ≠ subtotal', {
+                            merch,
+                            lineSubtotal
+                        });
+                        throw new Error('Income builder subtotal mismatch');
+                    }
+                    return income;
+                })(),
                 remarks: "תודה על הזמנתך",
                 // Do not put customer email in the URL (history, referrers, access logs).
                 successUrl: `${process.env.FRONTEND_URL}/payment/success?orderId=${checkoutSessionId}&amount=${encodeURIComponent(totalAmount)}&currency=${encodeURIComponent(currency)}`,
@@ -273,7 +318,17 @@ class GreenInvoiceController {
                         ...(item.regular_price != null ? { regular_price: item.regular_price } : {}),
                         color_name_he: item.color_name_he || '',
                         color_name_en: item.color_name_en || '',
-                        uniqueId: item.uniqueId != null ? item.uniqueId : item.id
+                        uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
+                        ...(item.bundleId != null
+                            ? {
+                                bundleId: item.bundleId,
+                                bundleRowKey: item.bundleRowKey,
+                                bundleName_he: item.bundleName_he,
+                                bundleName_en: item.bundleName_en,
+                                bundleUnitPrice: item.bundleUnitPrice,
+                                bundleUnitRegularPrice: item.bundleUnitRegularPrice
+                            }
+                            : {})
                     })),
                     giftSelections: normalizedGifts,
                     dedication: customerInfo.dedication || '',
@@ -458,6 +513,20 @@ class GreenInvoiceController {
                                 const productsData = await this.databaseController.getAllProducts();
                                 console.log('✅ Fetched products from database:', productsData.length);
 
+                                const withBundleMeta = (base, item) => ({
+                                    ...base,
+                                    ...(item.bundleId != null
+                                        ? {
+                                            bundleId: item.bundleId,
+                                            bundleRowKey: item.bundleRowKey,
+                                            bundleName_he: item.bundleName_he,
+                                            bundleName_en: item.bundleName_en,
+                                            bundleUnitPrice: item.bundleUnitPrice,
+                                            bundleUnitRegularPrice: item.bundleUnitRegularPrice
+                                        }
+                                        : {})
+                                });
+
                                 items = await Promise.all(itemData.map(async item => {
                                     const product = productsData.find(p => p.id.toString() === item.id.toString());
                                     if (product) {
@@ -469,15 +538,17 @@ class GreenInvoiceController {
                                             item.color_name_en
                                         );
                                         // `price` is the unit price actually charged (snapshot at checkout)
-                                        return {
+                                        return withBundleMeta({
                                             id: item.id,
                                             uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                                             name_he: names.name_he,
                                             name_en: names.name_en,
                                             quantity: item.quantity || 1,
                                             price: item.price || 0,
-                                            ...(item.regular_price != null ? { regular_price: item.regular_price } : {})
-                                        };
+                                            ...(item.regular_price != null ? { regular_price: item.regular_price } : {}),
+                                            color_name_he: item.color_name_he || '',
+                                            color_name_en: item.color_name_en || ''
+                                        }, item);
                                     } else {
                                         console.log('⚠️  Product not found for ID:', item.id);
                                         const names = productNameWithColor(
@@ -486,14 +557,16 @@ class GreenInvoiceController {
                                             item.color_name_he,
                                             item.color_name_en
                                         );
-                                        return {
+                                        return withBundleMeta({
                                             id: item.id,
                                             uniqueId: item.uniqueId != null ? item.uniqueId : item.id,
                                             name_he: names.name_he,
                                             name_en: names.name_en,
                                             quantity: item.quantity || 1,
-                                            price: item.price || 0
-                                        };
+                                            price: item.price || 0,
+                                            color_name_he: item.color_name_he || '',
+                                            color_name_en: item.color_name_en || ''
+                                        }, item);
                                     }
                                 }));
                             } catch (error) {
@@ -511,7 +584,17 @@ class GreenInvoiceController {
                                         name_he: names.name_he,
                                         name_en: names.name_en,
                                         quantity: item.quantity || 1,
-                                        price: item.price || 0
+                                        price: item.price || 0,
+                                        ...(item.bundleId != null
+                                            ? {
+                                                bundleId: item.bundleId,
+                                                bundleRowKey: item.bundleRowKey,
+                                                bundleName_he: item.bundleName_he,
+                                                bundleName_en: item.bundleName_en,
+                                                bundleUnitPrice: item.bundleUnitPrice,
+                                                bundleUnitRegularPrice: item.bundleUnitRegularPrice
+                                            }
+                                            : {})
                                     };
                                 });
                             }
@@ -630,10 +713,14 @@ class GreenInvoiceController {
                     : []
                 ).filter((g) => g && g.bookId != null && g.bookId !== '');
 
-                // Attach gifts onto items for admin email / sheets (even if DB save fails)
+                // Attach gifts onto items for admin email / sheets (even if DB save fails).
+                // Skip expanded bundle component lines — gifts apply only to standalone products.
                 if (giftSelections.length > 0) {
                     orderData.giftSelections = giftSelections;
                     orderData.items = (orderData.items || []).map((item) => {
+                        if (isBundleStorageItem(item)) {
+                            return item;
+                        }
                         const uid = String(
                             item.uniqueId != null ? item.uniqueId : item.id
                         );
